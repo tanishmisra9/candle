@@ -11,13 +11,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap text-[14px] font-medium transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:pointer-events-none disabled:opacity-50",
         variant === "primary" &&
-          "rounded-full bg-accent px-4 py-2.5 text-[#2B1902] shadow-panel hover:bg-accent-hover active:bg-accent-pressed",
+          "rounded-full bg-accent px-5 py-3 text-[#2B1902] shadow-panel hover:bg-accent-hover active:bg-accent-pressed",
         variant === "secondary" &&
-          "rounded-full border border-line bg-glass px-4 py-2.5 text-text backdrop-blur-2xl hover:bg-[rgba(255,255,255,0.82)] dark:hover:bg-[rgba(30,30,36,0.82)]",
+          "rounded-full border border-line bg-glass px-5 py-3 text-text backdrop-blur-2xl hover:bg-[rgba(255,255,255,0.82)] dark:hover:bg-[rgba(30,30,36,0.82)]",
         variant === "ghost" &&
-          "rounded-xl px-3 py-2 text-muted hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.06)]",
+          "rounded-xl px-3.5 py-2.5 text-muted hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.06)]",
         className,
       )}
       {...props}

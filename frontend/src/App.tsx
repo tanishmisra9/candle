@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 
@@ -9,6 +9,11 @@ import { LiteratureView } from "./views/LiteratureView";
 
 export default function App() {
   const location = useLocation();
+  const prefersReducedMotion = useReducedMotion();
+  const pageTransition = {
+    duration: 0.42,
+    ease: [0.22, 1, 0.36, 1] as const,
+  };
 
   useEffect(() => {
     const root = document.documentElement;
@@ -18,49 +23,34 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <GlassNav />
-      <main className="mx-auto max-w-[1200px] px-6 pb-16 md:px-8">
-        <AnimatePresence mode="wait">
-          <Routes location={location} key={location.pathname}>
-            <Route
-              path="/"
-              element={
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.28 }}
-                >
-                  <DashboardView />
-                </motion.div>
-              }
-            />
-            <Route
-              path="/literature"
-              element={
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.28 }}
-                >
-                  <LiteratureView />
-                </motion.div>
-              }
-            />
-            <Route
-              path="/ask"
-              element={
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.28 }}
-                >
-                  <AskView />
-                </motion.div>
-              }
-            />
-          </Routes>
+      <main className="mx-auto max-w-[1360px] px-7 pb-20 md:px-10">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 0, filter: "blur(16px)" }
+            }
+            animate={
+              prefersReducedMotion
+                ? { opacity: 1 }
+                : { opacity: 1, filter: "blur(0px)" }
+            }
+            exit={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 0, filter: "blur(10px)" }
+            }
+            transition={pageTransition}
+            style={{ willChange: "opacity, filter, transform" }}
+          >
+            <Routes location={location}>
+              <Route path="/" element={<DashboardView />} />
+              <Route path="/literature" element={<LiteratureView />} />
+              <Route path="/ask" element={<AskView />} />
+            </Routes>
+          </motion.div>
         </AnimatePresence>
       </main>
     </div>

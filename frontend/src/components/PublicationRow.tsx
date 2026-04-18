@@ -1,4 +1,3 @@
-import { ExternalLink } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import type { PublicationSummary } from "../types";
@@ -18,16 +17,16 @@ export function PublicationRow({ publication }: { publication: PublicationSummar
       target="_blank"
       rel="noreferrer"
       whileHover={prefersReducedMotion ? undefined : { y: -1, transition: { duration: 0.2 } }}
-      className="flex flex-col gap-3 border-b border-line px-1 py-5 transition hover:bg-[rgba(0,0,0,0.015)] dark:hover:bg-[rgba(255,255,255,0.02)] md:flex-row md:items-start md:justify-between"
+      className="flex flex-col gap-4 border-b border-line px-2 py-6 transition hover:bg-[rgba(0,0,0,0.015)] dark:hover:bg-[rgba(255,255,255,0.02)] md:flex-row md:items-start md:justify-between"
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-3">
           <div className="min-w-0">
-            <h3 className="text-[17px] font-medium leading-6 tracking-[-0.01em] text-text">
+            <h3 className="text-[19px] font-medium leading-7 tracking-[-0.015em] text-text">
               {publication.title}
             </h3>
-            <p className="mt-2 text-[14px] text-muted">{formatAuthors(publication)}</p>
-            <p className="mt-1 text-[14px] italic text-muted">
+            <p className="mt-2 text-[15px] text-muted">{formatAuthors(publication)}</p>
+            <p className="mt-1.5 text-[15px] italic text-muted">
               {publication.journal || "Journal not listed"}
             </p>
           </div>
@@ -36,11 +35,10 @@ export function PublicationRow({ publication }: { publication: PublicationSummar
 
       <div className="flex items-center gap-3">
         {publication.trial_id ? (
-          <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(232,163,61,0.3)] bg-[rgba(232,163,61,0.12)] px-3 py-1 text-[12px] text-accent">
+          <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(232,163,61,0.3)] bg-[rgba(232,163,61,0.12)] px-3.5 py-1.5 text-[13px] text-accent">
             {publication.trial_id} →
           </span>
         ) : null}
-        <ExternalLink size={16} strokeWidth={1.5} className="text-muted" />
       </div>
     </motion.a>
   );

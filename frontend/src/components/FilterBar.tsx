@@ -17,6 +17,7 @@ type FilterBarProps = {
   searchValue: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
+  onClearAll?: () => void;
 };
 
 export function FilterBar({
@@ -24,6 +25,7 @@ export function FilterBar({
   searchValue,
   onSearchChange,
   searchPlaceholder,
+  onClearAll,
 }: FilterBarProps) {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -56,12 +58,11 @@ export function FilterBar({
   return (
     <div
       ref={rootRef}
-      className="glass-nav sticky top-[88px] z-30 flex flex-col gap-3 rounded-[20px] px-4 py-4 md:flex-row md:items-center md:justify-between"
+      className="glass-nav sticky top-[94px] z-30 flex flex-col gap-4 rounded-[24px] px-5 py-5 md:flex-row md:items-center md:justify-between"
     >
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2.5">
         {groups.map((group) => {
           const isOpen = openGroup === group.label;
-          const isActive = group.value !== "";
           const activeLabel =
             group.options.find((option) => option.value === group.value)?.label || "All";
 
@@ -72,18 +73,15 @@ export function FilterBar({
                 variant="secondary"
                 onClick={() => setOpenGroup(isOpen ? null : group.label)}
                 className={cn(
-                  "min-w-[104px] justify-between px-3.5 py-2.5 text-[13px]",
+                  "min-w-[118px] justify-between px-4 py-3 text-[14px]",
                   isOpen && "border-[rgba(232,163,61,0.28)]",
                 )}
               >
-                <span className="inline-flex items-center gap-2">
-                  {isActive ? <span className="h-1.5 w-1.5 rounded-full bg-accent" /> : null}
-                  {group.label}
-                </span>
-                <span className="max-w-[96px] truncate text-muted">{activeLabel}</span>
+                <span>{group.label}</span>
+                <span className="max-w-[108px] truncate text-muted">{activeLabel}</span>
               </Button>
               {isOpen ? (
-                <div className="absolute left-0 top-[calc(100%+10px)] w-56 rounded-[18px] border border-line bg-panel p-2 shadow-panel backdrop-blur-2xl">
+                <div className="absolute left-0 top-[calc(100%+10px)] z-20 w-60 rounded-[20px] border border-line bg-panel p-2 shadow-panel backdrop-blur-2xl">
                   {group.options.map((option) => (
                     <button
                       key={option.value || "all"}
@@ -93,16 +91,13 @@ export function FilterBar({
                         setOpenGroup(null);
                       }}
                       className={cn(
-                        "flex w-full items-center justify-between rounded-[14px] px-3 py-2 text-left text-[13px] transition",
+                        "flex w-full items-center justify-between rounded-[14px] px-3.5 py-2.5 text-left text-[14px] transition",
                         option.value === group.value
                           ? "bg-[rgba(232,163,61,0.14)] text-text"
                           : "text-muted hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.06)]",
                       )}
                     >
                       <span>{option.label}</span>
-                      {option.value === group.value ? (
-                        <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                      ) : null}
                     </button>
                   ))}
                 </div>
@@ -110,11 +105,24 @@ export function FilterBar({
             </div>
           );
         })}
+        {onClearAll ? (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setOpenGroup(null);
+              onClearAll();
+            }}
+            className="rounded-full px-4 py-3 text-[14px] text-muted hover:text-text"
+          >
+            Clear all filters
+          </Button>
+        ) : null}
       </div>
 
-      <div className="relative w-full md:max-w-[320px]">
+      <div className="relative w-full md:max-w-[390px]">
         <Search
-          size={16}
+          size={17}
           strokeWidth={1.5}
           className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
         />
@@ -125,7 +133,7 @@ export function FilterBar({
           placeholder={searchPlaceholder}
           className="pl-11 pr-14"
         />
-        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2 py-0.5 text-[11px] text-muted">
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
           ⌘K
         </span>
       </div>

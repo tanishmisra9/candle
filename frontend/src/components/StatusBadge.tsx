@@ -20,7 +20,7 @@ export function formatStatus(status: string | null) {
 
 export function StatusBadge({ status }: { status: string | null }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-line bg-[rgba(255,255,255,0.72)] px-2.5 py-1 text-[11px] font-medium text-muted backdrop-blur-2xl dark:bg-[rgba(20,20,25,0.65)]">
+    <span className="inline-flex items-center gap-2 rounded-full border border-line bg-[rgba(255,255,255,0.72)] px-3 py-1.5 text-[12px] font-medium text-muted backdrop-blur-2xl dark:bg-[rgba(20,20,25,0.65)]">
       <span className={cn("h-1.5 w-1.5 rounded-full", toneForStatus(status))} />
       {formatStatus(status)}
     </span>

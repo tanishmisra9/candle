@@ -41,7 +41,7 @@ export function GlassNav() {
   }, [scrollY]);
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-40 px-6 pt-4 md:px-8">
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-40 px-7 pt-5 md:px-10">
       <motion.div
         aria-hidden="true"
         style={{
@@ -55,14 +55,14 @@ export function GlassNav() {
           y: compact ? 4 : 0,
         }}
         transition={{ type: "spring", stiffness: 400, damping: 32 }}
-        className="pointer-events-auto mx-auto flex max-w-[1200px] items-center justify-between gap-4"
+        className="pointer-events-auto mx-auto flex max-w-[1360px] items-center justify-between gap-5"
       >
         <motion.div
           animate={{
-            paddingTop: compact ? 10 : 12,
-            paddingBottom: compact ? 10 : 12,
-            paddingLeft: compact ? 14 : 16,
-            paddingRight: compact ? 14 : 16,
+            paddingTop: compact ? 11 : 14,
+            paddingBottom: compact ? 11 : 14,
+            paddingLeft: compact ? 16 : 18,
+            paddingRight: compact ? 16 : 18,
           }}
           transition={{ type: "spring", stiffness: 400, damping: 32 }}
           className="glass-nav flex items-center gap-3 rounded-[18px]"
@@ -70,17 +70,17 @@ export function GlassNav() {
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(232,163,61,0.14)]">
             <Flame size={16} strokeWidth={1.5} className="text-accent" />
           </div>
-          <span className="text-[15px] font-medium tracking-[-0.01em] text-text">
+          <span className="text-[16px] font-medium tracking-[-0.01em] text-text">
             Candle
           </span>
         </motion.div>
 
         <motion.nav
           animate={{
-            paddingTop: compact ? 4 : 5,
-            paddingBottom: compact ? 4 : 5,
-            paddingLeft: compact ? 4 : 5,
-            paddingRight: compact ? 4 : 5,
+            paddingTop: compact ? 5 : 6,
+            paddingBottom: compact ? 5 : 6,
+            paddingLeft: compact ? 5 : 6,
+            paddingRight: compact ? 5 : 6,
           }}
           transition={{ type: "spring", stiffness: 400, damping: 32 }}
           className="glass-nav flex items-center gap-1 rounded-full"
@@ -93,9 +93,9 @@ export function GlassNav() {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "relative rounded-full px-3 py-2 text-[13px] font-medium transition-colors duration-200",
+                  "relative rounded-full px-3.5 py-2.5 text-[14px] font-medium transition-colors duration-200",
                   isActive ? "text-text" : "text-muted hover:text-text",
-                  compact && "px-2.5",
+                  compact && "px-3",
                 )}
               >
                 {isActive ? (

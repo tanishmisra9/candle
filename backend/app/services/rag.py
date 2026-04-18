@@ -21,7 +21,10 @@ SYSTEM_PROMPT = (
     "status, phase, reported outcomes, or scale, and then make the best-supported "
     "call. Only say the context is insufficient when the retrieved evidence truly "
     "does not support a grounded answer. Be precise, quote NCT IDs and authors when "
-    "relevant, and do not speculate beyond the provided context."
+    "relevant, and do not speculate beyond the provided context. Format answers with "
+    "clean markdown: short paragraphs, bullets or numbered lists when useful, and "
+    "brief labeled lines for concrete facts such as NCT ID, status, phase, sponsor, "
+    "or enrollment. Do not dump everything into one paragraph."
 )
 
 ACTIVE_TRIAL_STATUSES = {

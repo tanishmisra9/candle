@@ -32,14 +32,14 @@ export function Timeline({ trials, onOpen }: TimelineProps) {
   const startYear = Math.min(...filteredYears, new Date().getFullYear());
   const endYear = Math.max(...filteredYears, startYear + 1);
   const span = Math.max(1, endYear - startYear);
-  const rowHeight = 36;
-  const leftPadding = 300;
-  const labelColumnWidth = 272;
-  const yearSpacing = 44;
-  const width = Math.max(980, leftPadding + span * yearSpacing + 96);
+  const rowHeight = 44;
+  const leftPadding = 352;
+  const labelColumnWidth = 316;
+  const yearSpacing = 52;
+  const width = Math.max(1120, leftPadding + span * yearSpacing + 120);
   const usableWidth = width - leftPadding - 28;
-  const topPadding = 46;
-  const chartHeight = Math.max(220, trials.length * rowHeight + topPadding + 34);
+  const topPadding = 56;
+  const chartHeight = Math.max(280, trials.length * rowHeight + topPadding + 42);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -55,8 +55,8 @@ export function Timeline({ trials, onOpen }: TimelineProps) {
 
   return (
     <div className="rounded-card border border-line bg-panel shadow-panel">
-      <div className="grid grid-cols-[272px_minmax(0,1fr)] overflow-hidden">
-        <div className="border-r border-line px-4 pb-6 pt-8">
+      <div className="grid overflow-hidden" style={{ gridTemplateColumns: `${labelColumnWidth}px minmax(0,1fr)` }}>
+        <div className="border-r border-line px-5 pb-7 pt-9">
           <div
             className="space-y-0"
             style={{ height: `${chartHeight}px`, paddingTop: `${topPadding - 8}px` }}
@@ -70,7 +70,7 @@ export function Timeline({ trials, onOpen }: TimelineProps) {
                   key={trial.id}
                   type="button"
                   onClick={() => onOpen(trial.id)}
-                  className="flex h-[36px] w-full items-center rounded-[10px] px-2 text-left text-[12px] text-text transition-colors duration-200 hover:bg-[rgba(255,255,255,0.04)] hover:text-[#F5E0B6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--panel)]"
+                  className="flex h-[44px] w-full items-center rounded-[12px] px-3 text-left text-[13px] text-text transition-colors duration-200 hover:bg-[rgba(255,255,255,0.04)] hover:text-[#F5E0B6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--panel)]"
                   title={trial.title}
                 >
                   <span className="block truncate">{label}</span>
@@ -80,7 +80,7 @@ export function Timeline({ trials, onOpen }: TimelineProps) {
           </div>
         </div>
 
-        <div ref={scrollRef} className="overflow-x-auto px-6 pb-6 pt-8">
+        <div ref={scrollRef} className="overflow-x-auto px-7 pb-7 pt-9">
           <motion.svg
             initial={prefersReducedMotion ? undefined : { opacity: 0 }}
             animate={prefersReducedMotion ? undefined : { opacity: 1 }}
@@ -103,8 +103,8 @@ export function Timeline({ trials, onOpen }: TimelineProps) {
                     textAnchor="middle"
                     className={
                       isCurrentYear
-                        ? "fill-[#F5E0B6] text-[11px]"
-                        : "fill-[var(--muted-text)] text-[11px]"
+                        ? "fill-[#F5E0B6] text-[12px]"
+                        : "fill-[var(--muted-text)] text-[12px]"
                     }
                   >
                     {year}
@@ -112,9 +112,9 @@ export function Timeline({ trials, onOpen }: TimelineProps) {
                   {isCurrentYear ? (
                     <rect
                       x={x - 18}
-                      y={4}
+                      y={2}
                       width={36}
-                      height={20}
+                      height={22}
                       rx={10}
                       fill="rgba(232, 163, 61, 0.14)"
                       stroke="rgba(232, 163, 61, 0.24)"
@@ -126,7 +126,7 @@ export function Timeline({ trials, onOpen }: TimelineProps) {
                     textAnchor="middle"
                     className={
                       isCurrentYear
-                        ? "fill-[#F5E0B6] text-[11px]"
+                        ? "fill-[#F5E0B6] text-[12px]"
                         : "hidden"
                     }
                   >
@@ -183,10 +183,10 @@ export function Timeline({ trials, onOpen }: TimelineProps) {
                 >
                   <rect
                     x={x}
-                    y={y - 4}
+                    y={y - 5}
                     width={barWidth}
-                    height={16}
-                    rx={8}
+                    height={18}
+                    rx={9}
                     fill={colorForStatus(trial.status)}
                     opacity={0.92}
                   >
