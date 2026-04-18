@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { Activity, CalendarRange, Mail, MapPin, X } from "lucide-react";
 import { createPortal } from "react-dom";
+import { Link } from "react-router-dom";
 
 import { getTrial } from "../lib/api";
 import { formatStatusLabel } from "../lib/formatters";
@@ -289,11 +290,10 @@ export function TrialSnapshot({ trialId, onClose }: TrialSnapshotProps) {
                     <div className="space-y-3">
                       {detailQuery.data.publications.length ? (
                         detailQuery.data.publications.map((publication) => (
-                          <a
+                          <Link
                             key={publication.pmid}
-                            href={publication.url}
-                            target="_blank"
-                            rel="noreferrer"
+                            to={`/literature?pmid=${publication.pmid}`}
+                            onClick={onClose}
                             className="block rounded-[18px] border border-line p-4 transition hover:border-[rgba(232,163,61,0.22)]"
                           >
                             <p className="text-[15px] font-medium leading-6 text-text">
@@ -303,7 +303,7 @@ export function TrialSnapshot({ trialId, onClose }: TrialSnapshotProps) {
                               {publication.authors[0]?.split(",")[0] ?? "Unknown author"} et al.
                               {publication.pub_date ? `, ${publication.pub_date.slice(0, 4)}` : ""}
                             </p>
-                          </a>
+                          </Link>
                         ))
                       ) : (
                         <p className="text-[14px] text-muted">
