@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { Activity, CalendarRange, Mail, MapPin, X } from "lucide-react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
 
 import { getTrial } from "../lib/api";
+import type { PublicationSummary } from "../types";
 import { formatStatusLabel } from "../lib/formatters";
 import { Button } from "./ui/Button";
 
@@ -35,9 +35,18 @@ function formatMoreLocationsLabel(count: number) {
 type TrialSnapshotProps = {
   trialId: string | null;
   onClose: () => void;
+  onOpenPublicationSnapshot: (publication: PublicationSummary) => void;
+  isPublicationSnapshotOpen: boolean;
+  publicationSnapshotLayer: "above-trial" | "below-trial";
 };
 
-export function TrialSnapshot({ trialId, onClose }: TrialSnapshotProps) {
+export function TrialSnapshot({
+  trialId,
+  onClose,
+  onOpenPublicationSnapshot,
+  isPublicationSnapshotOpen,
+  publicationSnapshotLayer,
+}: TrialSnapshotProps) {
   const [showAllLocations, setShowAllLocations] = useState(false);
 
   const detailQuery = useQuery({
@@ -59,6 +68,7 @@ export function TrialSnapshot({ trialId, onClose }: TrialSnapshotProps) {
 
   useEffect(() => {
     if (!trialId) return;
+    if (isPublicationSnapshotOpen && publicationSnapshotLayer === "above-trial") return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -68,7 +78,7 @@ export function TrialSnapshot({ trialId, onClose }: TrialSnapshotProps) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose, trialId]);
+  }, [isPublicationSnapshotOpen, onClose, publicationSnapshotLayer, trialId]);
 
   useEffect(() => {
     setShowAllLocations(false);
@@ -290,11 +300,11 @@ export function TrialSnapshot({ trialId, onClose }: TrialSnapshotProps) {
                     <div className="space-y-3">
                       {detailQuery.data.publications.length ? (
                         detailQuery.data.publications.map((publication) => (
-                          <Link
+                          <button
+                            type="button"
                             key={publication.pmid}
-                            to={`/literature?pmid=${publication.pmid}`}
-                            onClick={onClose}
-                            className="block rounded-[18px] border border-line p-4 transition hover:border-[rgba(232,163,61,0.22)]"
+                            onClick={() => onOpenPublicationSnapshot(publication)}
+                            className="block w-full rounded-[18px] border border-line p-4 text-left transition hover:border-[rgba(232,163,61,0.22)]"
                           >
                             <p className="text-[15px] font-medium leading-6 text-text">
                               {publication.title}
@@ -303,7 +313,7 @@ export function TrialSnapshot({ trialId, onClose }: TrialSnapshotProps) {
                               {publication.authors[0]?.split(",")[0] ?? "Unknown author"} et al.
                               {publication.pub_date ? `, ${publication.pub_date.slice(0, 4)}` : ""}
                             </p>
-                          </Link>
+                          </button>
                         ))
                       ) : (
                         <p className="text-[14px] text-muted">
