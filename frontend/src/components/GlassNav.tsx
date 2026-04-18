@@ -1,4 +1,4 @@
-import { motion, useReducedMotion, useScroll } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import { Flame } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -16,6 +16,14 @@ export function GlassNav() {
   const prefersReducedMotion = useReducedMotion();
   const [compact, setCompact] = useState(false);
   const location = useLocation();
+  const bandOpacity = useSpring(useTransform(scrollY, [0, 20, 108], [0, 0, 0.52]), {
+    stiffness: 180,
+    damping: 28,
+  });
+  const bandTranslateY = useSpring(useTransform(scrollY, [0, 108], [-10, 0]), {
+    stiffness: 180,
+    damping: 28,
+  });
 
   useEffect(() => {
     let lastValue = 0;
@@ -34,6 +42,14 @@ export function GlassNav() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-40 px-6 pt-4 md:px-8">
+      <motion.div
+        aria-hidden="true"
+        style={{
+          opacity: bandOpacity,
+          y: bandTranslateY,
+        }}
+        className="top-glass-band"
+      />
       <motion.header
         animate={{
           y: compact ? 4 : 0,

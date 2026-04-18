@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { Flame, SendHorizonal } from "lucide-react";
+import { SendHorizonal } from "lucide-react";
 import { useState } from "react";
 
 import { askQuestion } from "../lib/api";
@@ -11,8 +11,6 @@ import { Input } from "./ui/Input";
 const SUGGESTED_QUESTIONS = [
   "Which CHM gene therapy trials are recruiting right now?",
   "What visual outcomes were reported in AAV2-REP1 trials?",
-  "Which sponsor has run the most CHM trials?",
-  "Are there trials measuring functional vision beyond acuity?",
 ];
 
 export function AskPanel() {
@@ -63,23 +61,20 @@ export function AskPanel() {
       <div className="flex-1 space-y-8">
         {emptyState ? (
           <div className="pt-16 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-line bg-glass backdrop-blur-2xl">
-              <Flame size={20} strokeWidth={1.5} className="text-accent" />
-            </div>
-            <h1 className="mt-6 text-[28px] font-medium tracking-[-0.02em] text-text">
-              Ask Candle
+            <h1 className="text-[38px] font-medium tracking-[-0.03em] text-text md:text-[44px]">
+              Ask
             </h1>
             <p className="mt-3 text-[15px] text-muted">
-              What do you want to know about Choroideremia research?
+              Research-backed responses
             </p>
-            <div className="mx-auto mt-8 grid max-w-[620px] gap-3 md:grid-cols-2">
+            <div className="mx-auto mt-8 flex w-full max-w-[540px] flex-col gap-3">
               {SUGGESTED_QUESTIONS.map((question) => (
                 <Button
                   key={question}
                   type="button"
                   variant="secondary"
                   onClick={() => setDraft(question)}
-                  className="min-h-[76px] justify-start whitespace-normal rounded-[18px] px-4 py-3 text-left text-[13px] leading-5"
+                  className="min-h-[68px] w-full justify-start whitespace-normal rounded-[18px] px-5 py-4 text-left text-[13px] leading-5"
                 >
                   {question}
                 </Button>

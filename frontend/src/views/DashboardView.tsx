@@ -86,16 +86,13 @@ export function DashboardView() {
 
   return (
     <div className="space-y-10 pb-16 pt-28">
-      <header className="space-y-3">
+      <header className="space-y-2">
         <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
           CHM Clinical Trials
         </p>
         <h1 className="text-[32px] font-medium tracking-[-0.02em] text-text">
           {trials.length} trials tracked
         </h1>
-        <p className="text-[15px] text-muted">
-          Everything currently known, updated weekly.
-        </p>
       </header>
 
       <FilterBar
@@ -197,7 +194,7 @@ export function DashboardView() {
             transition={{ duration: 0.24 }}
             className="pt-4"
           >
-            <Timeline trials={trials} />
+            <Timeline trials={trials} onOpen={setSelectedTrialId} />
           </motion.div>
         )}
       </AnimatePresence>
