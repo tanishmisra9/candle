@@ -7,6 +7,7 @@ from app.db import AsyncSessionLocal
 from app.ingest.clinicaltrials import ingest_trials
 from app.ingest.embed import store_embeddings
 from app.ingest.link import link_publications_to_trials
+from app.ingest.overviews import generate_publication_overviews
 from app.ingest.pubmed import ingest_publications
 
 
@@ -27,6 +28,9 @@ async def main() -> None:
     async with AsyncSessionLocal() as session:
         linked_count = await link_publications_to_trials(session)
 
+    logger.info("Generating publication overviews...")
+    overview_count = await generate_publication_overviews()
+
     logger.info("Embedding trials and publications...")
     async with AsyncSessionLocal() as session:
         embedding_count = await store_embeddings(session)
@@ -34,6 +38,7 @@ async def main() -> None:
     logger.info("✓ %s trials ingested", trial_count)
     logger.info("✓ %s publications ingested", publication_count)
     logger.info("✓ %s publications linked to trials", linked_count)
+    logger.info("✓ %s publication overviews generated", overview_count)
     logger.info("✓ %s embeddings stored", embedding_count)
     logger.info("Done.")
 

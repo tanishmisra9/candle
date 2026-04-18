@@ -27,6 +27,10 @@ class PublicationSummary(BaseModel):
     url: str
 
 
+class PublicationOverviewResponse(BaseModel):
+    overview: str | None
+
+
 class TrialSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

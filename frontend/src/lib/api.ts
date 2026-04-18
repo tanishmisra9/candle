@@ -45,6 +45,27 @@ export async function listPublications(
   return request<PublicationSummary[]>(`/publications?${search.toString()}`);
 }
 
+export async function getPublicationOverview(pmid: string) {
+  const controller = new AbortController();
+  let timeout = 0;
+  const fetchPromise = request<{ overview: string | null }>(`/publications/${pmid}/overview`, {
+    method: "POST",
+    signal: controller.signal,
+  });
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = window.setTimeout(() => {
+      controller.abort();
+      reject(new Error("Publication overview request timed out."));
+    }, 12_000);
+  });
+
+  try {
+    return await Promise.race([fetchPromise, timeoutPromise]);
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 export async function askQuestion(question: string) {
   return request<AskResponse>("/ask", {
     method: "POST",

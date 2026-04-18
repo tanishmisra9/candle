@@ -1,8 +1,9 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 
 import { GlassNav } from "./components/GlassNav";
+import { TrialSnapshot } from "./components/TrialSnapshot";
 import { AskView } from "./views/AskView";
 import { DashboardView } from "./views/DashboardView";
 import { LiteratureView } from "./views/LiteratureView";
@@ -10,6 +11,7 @@ import { LiteratureView } from "./views/LiteratureView";
 export default function App() {
   const location = useLocation();
   const prefersReducedMotion = useReducedMotion();
+  const [selectedTrialId, setSelectedTrialId] = useState<string | null>(null);
   const pageTransition = {
     duration: 0.42,
     ease: [0.22, 1, 0.36, 1] as const,
@@ -46,13 +48,28 @@ export default function App() {
             style={{ willChange: "opacity, filter, transform" }}
           >
             <Routes location={location}>
-              <Route path="/" element={<DashboardView />} />
-              <Route path="/literature" element={<LiteratureView />} />
+              <Route
+                path="/"
+                element={<DashboardView onOpenTrialSnapshot={setSelectedTrialId} />}
+              />
+              <Route
+                path="/literature"
+                element={
+                  <LiteratureView
+                    onOpenTrialSnapshot={setSelectedTrialId}
+                    isTrialSnapshotOpen={Boolean(selectedTrialId)}
+                  />
+                }
+              />
               <Route path="/ask" element={<AskView />} />
             </Routes>
           </motion.div>
         </AnimatePresence>
       </main>
+      <TrialSnapshot
+        trialId={selectedTrialId}
+        onClose={() => setSelectedTrialId(null)}
+      />
     </div>
   );
 }

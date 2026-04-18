@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import Publication
-from app.schemas import PublicationSummary
+from app.schemas import PublicationOverviewResponse, PublicationSummary
+from app.services.publication_overviews import (
+    get_or_generate_publication_overview,
+)
 
 
 router = APIRouter(prefix="/publications", tags=["publications"])
@@ -30,3 +33,27 @@ async def list_publications(
 
     result = await session.execute(stmt.limit(limit))
     return [PublicationSummary.model_validate(row) for row in result.scalars().all()]
+
+
+@router.post("/{pmid}/overview", response_model=PublicationOverviewResponse)
+async def publication_overview(
+    pmid: str, session: AsyncSession = Depends(get_session)
+) -> PublicationOverviewResponse:
+    publication = await session.get(Publication, pmid)
+    if publication is None:
+        raise HTTPException(status_code=404, detail="Publication not found")
+
+    try:
+        overview, _generated = await get_or_generate_publication_overview(
+            session, publication
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except TimeoutError as exc:
+        raise HTTPException(status_code=504, detail="Publication overview timed out.") from exc
+    except Exception as exc:  # pragma: no cover - exercised via API smoke test
+        raise HTTPException(
+            status_code=500, detail="Unable to generate publication overview."
+        ) from exc
+
+    return PublicationOverviewResponse(overview=overview)
