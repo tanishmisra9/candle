@@ -58,8 +58,26 @@ export function FilterBar({
   return (
     <div
       ref={rootRef}
-      className="glass-nav sticky top-[94px] z-30 flex flex-col gap-4 rounded-[24px] px-5 py-5 md:flex-row md:items-center md:justify-between"
+      className="glass-nav sticky top-[94px] z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-auto md:flex-row md:items-center md:gap-3"
     >
+      <div className="relative w-full md:w-[390px]">
+        <Search
+          size={17}
+          strokeWidth={1.5}
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+        />
+        <Input
+          ref={inputRef}
+          value={searchValue}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder={searchPlaceholder}
+          className="pl-11 pr-14"
+        />
+        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
+          ⌘K
+        </span>
+      </div>
+
       <div className="flex flex-wrap items-center gap-2.5">
         {groups.map((group) => {
           const isOpen = openGroup === group.label;
@@ -118,24 +136,6 @@ export function FilterBar({
             Clear all filters
           </Button>
         ) : null}
-      </div>
-
-      <div className="relative w-full md:max-w-[390px]">
-        <Search
-          size={17}
-          strokeWidth={1.5}
-          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-        />
-        <Input
-          ref={inputRef}
-          value={searchValue}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder={searchPlaceholder}
-          className="pl-11 pr-14"
-        />
-        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
-          ⌘K
-        </span>
       </div>
     </div>
   );

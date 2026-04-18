@@ -137,55 +137,57 @@ export function LiteratureView({ onOpenTrialSnapshot }: LiteratureViewProps) {
                 }
           }
           transition={{ type: "spring", stiffness: 400, damping: 32 }}
-          className="glass-nav sticky top-[94px] z-30 flex flex-col gap-4 rounded-[24px] px-5 md:flex-row md:items-center md:justify-between"
+          className="glass-nav sticky top-[94px] z-30 flex w-full flex-col gap-4 rounded-[24px] px-5 md:w-fit md:self-start md:px-4"
         >
-          <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl">
-            <button
-              type="button"
-              onClick={() => setLinkedOnly((current) => !current)}
-              className={cn(
-                "rounded-full px-5 py-2.5 text-[14px] font-medium transition",
-                linkedOnly
-                  ? "bg-[rgba(232,163,61,0.14)] text-text"
-                  : "text-muted",
-              )}
-              aria-pressed={linkedOnly}
+          <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center md:gap-3">
+            <motion.div
+              animate={
+                prefersReducedMotion
+                  ? undefined
+                  : {
+                      scale: compactControls ? 0.985 : 1,
+                    }
+              }
+              transition={{ type: "spring", stiffness: 400, damping: 32 }}
+              className="relative w-full md:w-[420px]"
             >
-              Linked
-            </button>
-          </div>
+              <Search
+                size={17}
+                strokeWidth={1.5}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+              />
+              <input
+                ref={inputRef}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search title or abstract"
+                className={cn(
+                  "w-full rounded-full border border-line bg-glass pl-11 pr-14 text-[14px] text-text shadow-panel outline-none backdrop-blur-2xl placeholder:text-muted transition-all focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
+                  "text-[16px]",
+                  compactControls ? "py-3" : "py-3.5",
+                )}
+              />
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
+                ⌘K
+              </span>
+            </motion.div>
 
-          <motion.div
-            animate={
-              prefersReducedMotion
-                ? undefined
-                : {
-                    scale: compactControls ? 0.985 : 1,
-                  }
-            }
-            transition={{ type: "spring", stiffness: 400, damping: 32 }}
-            className="relative w-full md:max-w-[420px]"
-          >
-            <Search
-              size={17}
-              strokeWidth={1.5}
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
-            />
-            <input
-              ref={inputRef}
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search title or abstract"
-              className={cn(
-                "w-full rounded-full border border-line bg-glass pl-11 pr-14 text-[14px] text-text shadow-panel outline-none backdrop-blur-2xl placeholder:text-muted transition-all focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
-                "text-[16px]",
-                compactControls ? "py-3" : "py-3.5",
-              )}
-            />
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
-              ⌘K
-            </span>
-          </motion.div>
+            <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
+              <button
+                type="button"
+                onClick={() => setLinkedOnly((current) => !current)}
+                className={cn(
+                  "rounded-full px-5 py-2.5 text-[14px] font-medium transition",
+                  linkedOnly
+                    ? "bg-[rgba(232,163,61,0.14)] text-text"
+                    : "text-muted",
+                )}
+                aria-pressed={linkedOnly}
+              >
+                Linked
+              </button>
+            </div>
+          </div>
         </motion.div>
 
         <AnimatePresence mode="wait" initial={false}>

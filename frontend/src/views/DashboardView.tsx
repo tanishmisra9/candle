@@ -232,55 +232,57 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         transition={startupReveal?.transition}
         className="space-y-4"
       >
-        <FilterBar
-          groups={[
-            {
-              label: "Status",
-              value: status,
-              onSelect: setStatus,
-              options: statusOptions,
-            },
-            {
-              label: "Phase",
-              value: phase,
-              onSelect: setPhase,
-              options: phaseOptions,
-            },
-            {
-              label: "Type",
-              value: interventionType,
-              onSelect: setInterventionType,
-              options: interventionTypeOptions,
-            },
-            {
-              label: "Sponsor",
-              value: sponsor,
-              onSelect: setSponsor,
-              options: sponsorOptions,
-            },
-          ]}
-          searchValue={search}
-          onSearchChange={setSearch}
-          searchPlaceholder="Search trial titles"
-          onClearAll={hasActiveFilters ? clearFilters : undefined}
-        />
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <FilterBar
+            groups={[
+              {
+                label: "Status",
+                value: status,
+                onSelect: setStatus,
+                options: statusOptions,
+              },
+              {
+                label: "Phase",
+                value: phase,
+                onSelect: setPhase,
+                options: phaseOptions,
+              },
+              {
+                label: "Type",
+                value: interventionType,
+                onSelect: setInterventionType,
+                options: interventionTypeOptions,
+              },
+              {
+                label: "Sponsor",
+                value: sponsor,
+                onSelect: setSponsor,
+                options: sponsorOptions,
+              },
+            ]}
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search trial titles"
+            onClearAll={hasActiveFilters ? clearFilters : undefined}
+          />
 
-        <div className="flex items-center justify-end pt-4">
-          <div className="inline-flex rounded-full border border-line bg-glass p-1 backdrop-blur-2xl">
-            <button
-              type="button"
-              onClick={() =>
-                setViewMode((current) => (current === "timeline" ? "grid" : "timeline"))
-              }
-              className={`rounded-full px-5 py-2.5 text-[14px] font-medium transition ${
-                viewMode === "timeline"
-                  ? "bg-[rgba(232,163,61,0.14)] text-text"
-                  : "text-muted"
-              }`}
-              aria-pressed={viewMode === "timeline"}
-            >
-              Timeline
-            </button>
+          <div className="sticky top-[94px] z-30 self-start md:pt-4">
+            <div className="inline-flex rounded-full border border-line bg-glass p-1 backdrop-blur-2xl">
+              <button
+                type="button"
+                onClick={() =>
+                  setViewMode((current) => (current === "timeline" ? "grid" : "timeline"))
+                }
+                className={`rounded-full px-5 py-2.5 text-[14px] font-medium transition ${
+                  viewMode === "timeline"
+                    ? "bg-[rgba(232,163,61,0.14)] text-text"
+                    : "text-muted"
+                }`}
+                aria-pressed={viewMode === "timeline"}
+              >
+                Timeline
+              </button>
+            </div>
           </div>
         </div>
 
