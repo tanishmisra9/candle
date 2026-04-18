@@ -1,36 +1,42 @@
 # Candle
 
-Candle is a quiet local dashboard for Choroideremia clinical trial intelligence: it gathers CHM studies from ClinicalTrials.gov, publications from PubMed, links them where it can, and turns the whole set into a calm interface for browsing and asking grounded questions. It is meant to feel useful first, polished second, and gentle throughout.
+Candle is a quiet research dashboard for Choroideremia (CHM). It pulls clinical trials from ClinicalTrials.gov, publications from PubMed, links them where possible, generates persistent plain-language publication overviews, and lets you explore the whole corpus through a calmer interface for trials, literature, and grounded Q&A.
+
+## What Candle Does
+
+- Browse CHM trials in grid or timeline view, with detailed trial snapshots.
+- Explore linked literature in a dedicated reader with saved AI-generated overviews.
+- Ask grounded questions across the trial and publication corpus.
+- Keep publication overviews persistent in the database so they are fast after first generation.
 
 ## Prerequisites
 
 - Docker
 - Python 3.11+
 - Node 20+
+- `uv`
 - `pnpm`
 - An OpenAI API key
 
-## 60-Second Setup
+## Quick Start
+
+The fastest first-time setup is:
 
 ```bash
 cp .env.example .env
 # open .env and paste your OpenAI API key
 
-make up
-make ingest
-make backend
-make frontend
-
-# then open http://localhost:5173
-```
-
-For a first-time one-command setup, Candle also supports:
-
-```bash
 make bootstrap
 ```
 
-Full local run flow:
+Then open:
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8000`
+
+## Local Development
+
+If you want to run the pieces manually:
 
 ```bash
 # 1. Clone and enter
@@ -40,59 +46,70 @@ git clone <repo> candle && cd candle
 cp .env.example .env
 # open .env and paste your OpenAI API key
 
-# 3. Database
+# 3. Install app dependencies
+cd backend && uv sync && cd ..
+pnpm --dir frontend install
+
+# 4. Start Postgres
 make up
 
-# 4. Ingest real data (takes ~2–5 min)
-cd backend && uv sync && cd ..
+# 5. Ingest real data
 make ingest
 
-# 5. Backend (terminal 1)
+# 6. Backend (terminal 1)
 make backend
 
-# 6. Frontend (terminal 2)
-cd frontend && pnpm install && cd ..
+# 7. Frontend (terminal 2)
 make frontend
-
-# 7. Open http://localhost:5173
 ```
+
+## Useful Commands
+
+```bash
+make up         # start Postgres
+make down       # stop Postgres
+make ingest     # ingest trials + publications, link them, generate overviews, store embeddings
+make backend    # run FastAPI on :8000
+make frontend   # run Vite on :5173
+make dev        # run backend + frontend together
+make bootstrap  # one-command local setup
+```
+
+To force-refresh publication overviews for everything already saved:
+
+```bash
+cd backend && uv run python -m app.ingest.overviews --force
+```
+
+## Data Flow
+
+`make ingest` runs the full backend pipeline:
+
+1. ingest trials
+2. ingest publications
+3. link publications to trials
+4. generate and persist publication overviews
+5. store embeddings for Ask
+
+## Stack
+
+- Frontend: React, TypeScript, Vite, Tailwind, Framer Motion
+- Backend: FastAPI, SQLAlchemy, asyncpg
+- Database: Postgres
+- AI: OpenAI for Ask responses and publication overviews
 
 ## Repo Layout
 
 ```text
 candle/
-├── README.md
-├── Makefile
-├── .env.example
-├── .gitignore
+├── backend/      # FastAPI app, ingest pipeline, AI services, tests
+├── db/           # database initialization
+├── frontend/     # React app
 ├── docker-compose.yml
-├── db/
-│   └── init/
-│       └── 001_schema.sql
-├── backend/
-│   ├── pyproject.toml
-│   ├── .python-version
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py
-│   │   ├── config.py
-│   │   ├── db.py
-│   │   ├── models.py
-│   │   ├── schemas.py
-│   │   ├── routers/
-│   │   ├── services/
-│   │   └── ingest/
-│   └── tests/
-└── frontend/
-    ├── package.json
-    ├── tsconfig.json
-    ├── vite.config.ts
-    ├── tailwind.config.ts
-    ├── postcss.config.js
-    ├── index.html
-    └── src/
+├── Makefile
+└── README.md
 ```
 
 ## Why This Exists
 
-Candle exists because the person building it is also living with CHM. That changes the shape of the work. This is patient-engineering: one place to see the trial landscape clearly, follow the literature without noise, and keep a small light on for the long journey.
+Candle exists because I also live with Choroideremia. That changes the shape of the work. This is patient-engineering: one place to see the trial landscape clearly, follow the literature without noise, and keep a small light on for the long journey.
