@@ -1,12 +1,12 @@
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import { Flame } from "lucide-react";
 import { useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 
 import { cn } from "../lib/cn";
 
 const navItems = [
-  { to: "/", label: "Trials" },
+  { to: "/trials", label: "Trials" },
   { to: "/literature", label: "Literature" },
   { to: "/ask", label: "Ask" },
 ];
@@ -57,23 +57,25 @@ export function GlassNav() {
         transition={{ type: "spring", stiffness: 400, damping: 32 }}
         className="pointer-events-auto mx-auto flex max-w-[1360px] items-center justify-between gap-5"
       >
-        <motion.div
-          animate={{
-            paddingTop: compact ? 11 : 14,
-            paddingBottom: compact ? 11 : 14,
-            paddingLeft: compact ? 16 : 18,
-            paddingRight: compact ? 16 : 18,
-          }}
-          transition={{ type: "spring", stiffness: 400, damping: 32 }}
-          className="glass-nav flex items-center gap-3 rounded-[18px]"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(232,163,61,0.14)]">
-            <Flame size={16} strokeWidth={1.5} className="text-accent" />
-          </div>
-          <span className="text-[16px] font-medium tracking-[-0.01em] text-text">
-            Candle
-          </span>
-        </motion.div>
+        <Link to="/">
+          <motion.div
+            animate={{
+              paddingTop: compact ? 11 : 14,
+              paddingBottom: compact ? 11 : 14,
+              paddingLeft: compact ? 16 : 18,
+              paddingRight: compact ? 16 : 18,
+            }}
+            transition={{ type: "spring", stiffness: 400, damping: 32 }}
+            className="glass-nav flex items-center gap-3 rounded-[18px]"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(232,163,61,0.14)]">
+              <Flame size={16} strokeWidth={1.5} className="text-accent" />
+            </div>
+            <span className="text-[16px] font-medium tracking-[-0.01em] text-text">
+              Candle
+            </span>
+          </motion.div>
+        </Link>
 
         <motion.nav
           animate={{

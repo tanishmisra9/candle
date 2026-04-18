@@ -8,6 +8,7 @@ import { TrialSnapshot } from "./components/TrialSnapshot";
 import type { PublicationSummary } from "./types";
 import { AskView } from "./views/AskView";
 import { DashboardView } from "./views/DashboardView";
+import { HomeView } from "./views/HomeView";
 import { LiteratureView } from "./views/LiteratureView";
 
 export default function App() {
@@ -74,8 +75,9 @@ export default function App() {
             style={{ willChange: "opacity, filter, transform" }}
           >
             <Routes location={location}>
+              <Route path="/" element={<HomeView />} />
               <Route
-                path="/"
+                path="/trials"
                 element={<DashboardView onOpenTrialSnapshot={openTrialSnapshot} />}
               />
               <Route
