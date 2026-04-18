@@ -71,6 +71,9 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const phaseOptions = uniqueOptions(filterSource, "phase");
   const interventionTypeOptions = uniqueOptions(filterSource, "intervention_type");
   const sponsorOptions = uniqueOptions(filterSource, "sponsor");
+  const hasActiveFilters = Boolean(
+    status || phase || interventionType || sponsor || search.trim(),
+  );
   const clearFilters = () => {
     setStatus("");
     setPhase("");
@@ -141,7 +144,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search trial titles"
-        onClearAll={clearFilters}
+        onClearAll={hasActiveFilters ? clearFilters : undefined}
       />
 
       <div className="flex items-center justify-end pt-4">
