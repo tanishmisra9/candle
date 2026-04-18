@@ -56,7 +56,10 @@ export default function App() {
                 path="/literature"
                 element={<LiteratureView onOpenTrialSnapshot={setSelectedTrialId} />}
               />
-              <Route path="/ask" element={<AskView />} />
+              <Route
+                path="/ask"
+                element={<AskView onOpenTrialSnapshot={setSelectedTrialId} />}
+              />
             </Routes>
           </motion.div>
         </AnimatePresence>

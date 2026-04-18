@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+import re
 
 from sqlalchemy import case, select
 
@@ -12,19 +13,35 @@ from app.services.retrieval import RetrievedChunk, retrieve_similar_chunks
 
 
 SYSTEM_PROMPT = (
-    "You are Candle, a research assistant for Choroideremia (CHM), a rare inherited "
-    "retinal disease. Answer only from the provided context. Lead with the strongest "
-    "supported conclusion instead of a disclaimer. When the context is partial but a "
-    "reasonable conclusion is still supported, say what the evidence most strongly "
-    "suggests and explain why. For ranking questions such as 'most promising' or "
-    "'best', name the criterion you are using from the context, such as recruiting "
-    "status, phase, reported outcomes, or scale, and then make the best-supported "
-    "call. Only say the context is insufficient when the retrieved evidence truly "
-    "does not support a grounded answer. Be precise, quote NCT IDs and authors when "
-    "relevant, and do not speculate beyond the provided context. Format answers with "
-    "clean markdown: short paragraphs, bullets or numbered lists when useful, and "
-    "brief labeled lines for concrete facts such as NCT ID, status, phase, sponsor, "
-    "or enrollment. Do not dump everything into one paragraph."
+    "You are Candle, a calm and knowledgeable research guide for Choroideremia (CHM), "
+    "a rare inherited retinal disease. Your readers are patients, family members, and "
+    "advocates — not clinicians. Write the way a brilliant, empathetic friend with deep "
+    "medical knowledge would speak: clear, warm, and direct. Never dump data. Never repeat "
+    "structured fields (NCT ID, Status, Phase, Sponsor, Enrollment) as a list of labeled "
+    "lines for every trial — that reads like a database export, not an answer.\n\n"
+    "Rules:\n"
+    "- Lead with the most useful insight. Put the conclusion first.\n"
+    "- When listing trials or papers, name them naturally in prose or in a compact list "
+    "with one line each. One line per item means: name, one-clause description, and the "
+    "NCT ID in parentheses if relevant. Nothing more per item unless the question "
+    "specifically asks for detail on a single trial.\n"
+    "- Reserve structured facts (NCT ID, phase, sponsor, enrollment) for when the "
+    "question asks about a specific single trial, or when precision materially changes "
+    "the answer.\n"
+    "- For ranking questions ('most promising', 'best', 'most advanced'), name the "
+    "criterion, give the answer in one to two sentences, then briefly note the strongest "
+    "alternative.\n"
+    "- For questions about what is available to enroll in, describe what the trial is "
+    "testing in one plain sentence and note the NCT ID. Do not list all metadata fields.\n"
+    "- Never say 'the provided context'. Never use the phrase 'based on the context'. "
+    "Speak as if you simply know this.\n"
+    "- Use markdown sparingly. A short bulleted list is fine when there are multiple "
+    "items. Bold a name or NCT ID only when it adds clarity. Never use headers. "
+    "Never use nested bullets.\n"
+    "- If the context genuinely does not support an answer, say so in one sentence "
+    "and suggest what to search for instead.\n"
+    "- Responses should feel complete but concise. Aim for the length of a "
+    "thoughtful text message, not a report."
 )
 
 ACTIVE_TRIAL_STATUSES = {
@@ -33,6 +50,9 @@ ACTIVE_TRIAL_STATUSES = {
     "ENROLLING_BY_INVITATION",
     "ACTIVE_NOT_RECRUITING",
 }
+
+TRIAL_ID_PATTERN = re.compile(r"\bNCT\d{8}\b", re.IGNORECASE)
+PMID_PATTERN = re.compile(r"\bPMID\s*:?\s*(\d+)\b", re.IGNORECASE)
 
 
 def should_prioritize_trials(question: str) -> bool:
@@ -111,6 +131,33 @@ def trial_context_block(trial: Trial) -> str:
         f"Sponsor: {trial.sponsor or 'Unknown'}\n"
         f"Enrollment: {enrollment}"
     )
+
+
+def publication_context_block(publication: Publication) -> str:
+    lead_authors = [
+        author.split(",")[0].strip()
+        for author in publication.authors[:5]
+        if author.strip()
+    ]
+    author_line = ", ".join(lead_authors) if lead_authors else "Unknown"
+    publication_date = publication.pub_date.isoformat() if publication.pub_date else "Unknown"
+    return (
+        f"PMID: {publication.pmid}\n"
+        f"Title: {publication.title}\n"
+        f"Authors: {author_line}\n"
+        f"Journal: {publication.journal or 'Unknown'}\n"
+        f"Publication Date: {publication_date}\n"
+        f"Linked Trial: {publication.trial_id or 'None'}\n"
+        f"Abstract: {publication.abstract or 'No abstract available.'}"
+    )
+
+
+def extract_trial_ids(question: str) -> list[str]:
+    return list(OrderedDict.fromkeys(match.upper() for match in TRIAL_ID_PATTERN.findall(question)))
+
+
+def extract_pmids(question: str) -> list[str]:
+    return list(OrderedDict.fromkeys(PMID_PATTERN.findall(question)))
 
 
 def is_chm_related_text(value: str | None) -> bool:
@@ -251,18 +298,94 @@ async def answer_question(question: str, session) -> AskResponse:
     else:
         chunks = rank_chunks(question, await filter_non_chm_trial_chunks(session, chunks))[:6]
 
-    if not chunks:
-        return AskResponse(
-            answer=(
-                "I do not have enough indexed CHM trial or publication context yet. "
-                "Try re-running ingestion, or narrow the question to a specific trial, "
-                "intervention, sponsor, or author."
-            ),
-            sources=[],
-        )
-
     context_lines = []
     sources: OrderedDict[str, AskSource] = OrderedDict()
+    explicit_trial_ids = extract_trial_ids(question)
+    explicit_pmids = extract_pmids(question)
+
+    explicit_publications: OrderedDict[str, Publication] = OrderedDict()
+    if explicit_pmids:
+        matched_publications = await session.scalars(
+            select(Publication).where(Publication.pmid.in_(explicit_pmids))
+        )
+        publications_by_pmid = {
+            publication.pmid: publication for publication in matched_publications.all()
+        }
+        for pmid in explicit_pmids:
+            publication = publications_by_pmid.get(pmid)
+            if publication:
+                explicit_publications[pmid] = publication
+
+    combined_explicit_trial_ids = list(
+        OrderedDict.fromkeys(
+            [
+                *explicit_trial_ids,
+                *[
+                    publication.trial_id
+                    for publication in explicit_publications.values()
+                    if publication.trial_id
+                ],
+            ]
+        )
+    )
+    explicit_trials: dict[str, Trial] = {}
+    if combined_explicit_trial_ids:
+        matched_trials = await session.scalars(
+            select(Trial).where(Trial.id.in_(combined_explicit_trial_ids))
+        )
+        explicit_trials = {trial.id: trial for trial in matched_trials.all()}
+
+    for publication in explicit_publications.values():
+        context_lines.append(
+            f"[Explicit Publication — publication: {publication.title}]\n"
+            f"{publication_context_block(publication)}"
+        )
+        sources.setdefault(
+            f"publication:{publication.pmid}",
+            AskSource(
+                source_type="publication",
+                source_id=publication.pmid,
+                title=publication.title,
+                url=publication.url,
+            ),
+        )
+
+        if publication.trial_id:
+            trial = explicit_trials.get(publication.trial_id)
+            if trial:
+                context_lines.append(
+                    f"[Linked Trial for PMID {publication.pmid} — trial: {trial.title}]\n"
+                    f"{trial_context_block(trial)}"
+                )
+                sources.setdefault(
+                    f"trial:{trial.id}",
+                    AskSource(
+                        source_type="trial",
+                        source_id=trial.id,
+                        title=trial.title,
+                        url=trial.url,
+                    ),
+                )
+
+    for trial_id in explicit_trial_ids:
+        trial = explicit_trials.get(trial_id)
+        if not trial:
+            continue
+        if f"trial:{trial.id}" in sources:
+            continue
+        context_lines.append(
+            f"[Explicit Trial — trial: {trial.title}]\n{trial_context_block(trial)}"
+        )
+        sources.setdefault(
+            f"trial:{trial.id}",
+            AskSource(
+                source_type="trial",
+                source_id=trial.id,
+                title=trial.title,
+                url=trial.url,
+            ),
+        )
+
     if asks_about_current_trials(question):
         current_trials = await fetch_current_trials(session, limit=4)
         for index, trial in enumerate(current_trials, start=1):
@@ -279,6 +402,16 @@ async def answer_question(question: str, session) -> AskResponse:
                     url=trial.url,
                 ),
             )
+
+    if not chunks and not context_lines:
+        return AskResponse(
+            answer=(
+                "I do not have enough indexed CHM trial or publication context yet. "
+                "Try re-running ingestion, or narrow the question to a specific trial, "
+                "intervention, sponsor, author, PMID, or NCT ID."
+            ),
+            sources=[],
+        )
 
     for index, chunk in enumerate(chunks, start=1):
         context_lines.append(

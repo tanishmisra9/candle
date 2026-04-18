@@ -1,6 +1,6 @@
 import { useDeferredValue, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { FilterBar } from "../components/FilterBar";
 import { Timeline } from "../components/Timeline";
@@ -112,6 +112,7 @@ type DashboardViewProps = {
 };
 
 export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
+  const prefersReducedMotion = useReducedMotion();
   const [status, setStatus] = useState("");
   const [phase, setPhase] = useState("");
   const [interventionType, setInterventionType] = useState("");
@@ -191,6 +192,16 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const hasActiveFilters = Boolean(
     status || phase || interventionType || sponsor || search.trim(),
   );
+  const contentReady = filtersQuery.isFetched && trialsQuery.isFetched;
+  const startupReveal = prefersReducedMotion
+    ? undefined
+    : {
+        initial: { opacity: 0, filter: "blur(14px)" },
+        animate: contentReady
+          ? { opacity: 1, filter: "blur(0px)" }
+          : { opacity: 0, filter: "blur(14px)" },
+        transition: { duration: 0.36, ease: [0.22, 1, 0.36, 1] as const },
+      };
   const clearFilters = () => {
     setStatus("");
     setPhase("");
@@ -201,102 +212,114 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
 
   return (
     <div className="space-y-12 pb-20 pt-32">
-      <header className="space-y-2">
+      <motion.header
+        className="space-y-2"
+        initial={startupReveal?.initial}
+        animate={startupReveal?.animate}
+        transition={startupReveal?.transition}
+      >
         <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
           CHM Clinical Trials
         </p>
         <h1 className="text-[38px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           {trials.length} trials tracked
         </h1>
-      </header>
+      </motion.header>
 
-      <FilterBar
-        groups={[
-          {
-            label: "Status",
-            value: status,
-            onSelect: setStatus,
-            options: statusOptions,
-          },
-          {
-            label: "Phase",
-            value: phase,
-            onSelect: setPhase,
-            options: phaseOptions,
-          },
-          {
-            label: "Type",
-            value: interventionType,
-            onSelect: setInterventionType,
-            options: interventionTypeOptions,
-          },
-          {
-            label: "Sponsor",
-            value: sponsor,
-            onSelect: setSponsor,
-            options: sponsorOptions,
-          },
-        ]}
-        searchValue={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search trial titles"
-        onClearAll={hasActiveFilters ? clearFilters : undefined}
-      />
+      <motion.div
+        initial={startupReveal?.initial}
+        animate={startupReveal?.animate}
+        transition={startupReveal?.transition}
+        className="space-y-4"
+      >
+        <FilterBar
+          groups={[
+            {
+              label: "Status",
+              value: status,
+              onSelect: setStatus,
+              options: statusOptions,
+            },
+            {
+              label: "Phase",
+              value: phase,
+              onSelect: setPhase,
+              options: phaseOptions,
+            },
+            {
+              label: "Type",
+              value: interventionType,
+              onSelect: setInterventionType,
+              options: interventionTypeOptions,
+            },
+            {
+              label: "Sponsor",
+              value: sponsor,
+              onSelect: setSponsor,
+              options: sponsorOptions,
+            },
+          ]}
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search trial titles"
+          onClearAll={hasActiveFilters ? clearFilters : undefined}
+        />
 
-      <div className="flex items-center justify-end pt-4">
-        <div className="inline-flex rounded-full border border-line bg-glass p-1 backdrop-blur-2xl">
-          <button
-            type="button"
-            onClick={() =>
-              setViewMode((current) => (current === "timeline" ? "grid" : "timeline"))
-            }
-            className={`rounded-full px-5 py-2.5 text-[14px] font-medium transition ${
-              viewMode === "timeline"
-                ? "bg-[rgba(232,163,61,0.14)] text-text"
-                : "text-muted"
-            }`}
-            aria-pressed={viewMode === "timeline"}
-          >
-            Timeline
-          </button>
+        <div className="flex items-center justify-end pt-4">
+          <div className="inline-flex rounded-full border border-line bg-glass p-1 backdrop-blur-2xl">
+            <button
+              type="button"
+              onClick={() =>
+                setViewMode((current) => (current === "timeline" ? "grid" : "timeline"))
+              }
+              className={`rounded-full px-5 py-2.5 text-[14px] font-medium transition ${
+                viewMode === "timeline"
+                  ? "bg-[rgba(232,163,61,0.14)] text-text"
+                  : "text-muted"
+              }`}
+              aria-pressed={viewMode === "timeline"}
+            >
+              Timeline
+            </button>
+          </div>
         </div>
-      </div>
 
-      <AnimatePresence mode="wait" initial={false}>
-        {viewMode === "grid" ? (
-          <motion.div
-            key="grid"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.24 }}
-            className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
-          >
-            {trials.map((trial) => (
-              <TrialCard
-                key={trial.id}
-                trial={trial}
-                onOpen={() => onOpenTrialSnapshot(trial.id)}
+        <AnimatePresence mode="wait" initial={false}>
+          {viewMode === "grid" ? (
+            <motion.div
+              key="grid"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.24 }}
+              className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
+            >
+              {trials.map((trial) => (
+                <TrialCard
+                  key={trial.id}
+                  trial={trial}
+                  onOpen={() => onOpenTrialSnapshot(trial.id)}
+                />
+              ))}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="timeline"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.24 }}
+              className="pt-4"
+            >
+              <Timeline
+                trials={trials}
+                axisTrials={filterSource}
+                onOpen={onOpenTrialSnapshot}
               />
-            ))}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="timeline"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.24 }}
-            className="pt-4"
-          >
-            <Timeline
-              trials={trials}
-              axisTrials={filterSource}
-              onOpen={onOpenTrialSnapshot}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }

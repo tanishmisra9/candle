@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -30,7 +32,7 @@ body {
   background: var(--canvas);
   color: var(--text);
   font-family:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, system-ui,
+    Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui,
     sans-serif;
   font-feature-settings: "ss01", "cv11";
   text-rendering: optimizeLegibility;
