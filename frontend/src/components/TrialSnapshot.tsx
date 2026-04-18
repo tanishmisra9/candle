@@ -129,7 +129,7 @@ export function TrialSnapshot({
                   <div className="space-y-8">
                     <section className="space-y-3">
                       <h3 className={SNAPSHOT_SECTION_HEADING_CLASS}>Snapshot</h3>
-                      <p className="text-[15px] leading-7 text-text">
+                      <p className="text-[15px] leading-[1.6] text-text">
                         {detailQuery.data.intervention || "Intervention details not reported."}
                       </p>
                       <div className="grid gap-3 text-[14px] text-muted">

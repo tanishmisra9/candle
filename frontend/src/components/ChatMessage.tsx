@@ -25,8 +25,8 @@ export function ChatMessage({
         <div
           className={`rounded-[24px] shadow-panel ${
             isUser
-              ? "border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.05)] px-5 py-3.5 text-[15px] leading-7 text-text backdrop-blur-xl"
-              : "border border-line bg-glass px-6 py-5 text-[16px] leading-8 text-text backdrop-blur-2xl"
+              ? "border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.05)] px-5 py-3.5 text-[15px] leading-[1.6] text-text backdrop-blur-xl"
+              : "border border-line bg-glass px-6 py-5 text-[16px] leading-[1.6] text-text backdrop-blur-2xl"
           }`}
         >
           {isUser ? (
@@ -36,7 +36,7 @@ export function ChatMessage({
               remarkPlugins={[remarkGfm]}
               components={{
                 p: ({ children }) => (
-                  <p className="mb-3 leading-7 text-text last:mb-0">{children}</p>
+                  <p className="mb-3 leading-[1.6] text-text last:mb-0">{children}</p>
                 ),
                 ul: ({ children }) => (
                   <ul className="mb-3 space-y-1.5 pl-4 last:mb-0">{children}</ul>
@@ -47,7 +47,7 @@ export function ChatMessage({
                   </ol>
                 ),
                 li: ({ children }) => (
-                  <li className="leading-7 text-text marker:text-muted">{children}</li>
+                  <li className="leading-[1.6] text-text marker:text-muted">{children}</li>
                 ),
                 strong: ({ children }) => (
                   <strong className="font-semibold text-text">{children}</strong>

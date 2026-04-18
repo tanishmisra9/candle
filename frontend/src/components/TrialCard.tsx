@@ -18,9 +18,11 @@ export function TrialCard({ trial, onOpen }: TrialCardProps) {
       type="button"
       onClick={onOpen}
       whileHover={
-        prefersReducedMotion ? undefined : { y: -2, scale: 1.01, transition: { duration: 0.2 } }
+        prefersReducedMotion
+          ? undefined
+          : { y: -3, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } }
       }
-      className="group flex h-full flex-col rounded-card border border-line bg-panel p-7 text-left shadow-panel transition hover:border-[rgba(232,163,61,0.22)]"
+      className="group flex h-full flex-col rounded-card border border-line bg-panel p-7 text-left shadow-panel transition-all hover:border-[rgba(232,163,61,0.22)] hover:shadow-panel-hover"
     >
       <div className="flex items-center justify-between gap-3">
         <StatusBadge status={trial.status} />
@@ -30,7 +32,7 @@ export function TrialCard({ trial, onOpen }: TrialCardProps) {
       <h3 className="mt-6 line-clamp-2 text-[20px] font-medium leading-7 tracking-[-0.015em] text-text">
         {trial.title}
       </h3>
-      <p className="mt-3.5 line-clamp-2 text-[15px] leading-7 text-muted">
+      <p className="mt-3.5 line-clamp-2 text-[15px] leading-[1.6] text-muted">
         {trial.intervention || "Intervention details not reported."}
       </p>
 

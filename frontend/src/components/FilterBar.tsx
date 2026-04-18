@@ -82,7 +82,7 @@ export function FilterBar({
         {groups.map((group) => {
           const isOpen = openGroup === group.label;
           const activeLabel =
-            group.options.find((option) => option.value === group.value)?.label || "All";
+            group.options.find((option) => option.value === group.value)?.label ?? group.label;
 
           return (
             <div key={group.label} className="relative">
@@ -91,12 +91,13 @@ export function FilterBar({
                 variant="secondary"
                 onClick={() => setOpenGroup(isOpen ? null : group.label)}
                 className={cn(
-                  "min-w-[118px] justify-between px-4 py-3 text-[14px]",
-                  isOpen && "border-[rgba(232,163,61,0.28)]",
+                  "justify-center px-4 py-2.5 text-[14px]",
+                  group.value &&
+                    "border-[rgba(232,163,61,0.28)] bg-[rgba(232,163,61,0.08)] text-text",
+                  isOpen && !group.value && "border-[rgba(232,163,61,0.28)]",
                 )}
               >
-                <span>{group.label}</span>
-                <span className="max-w-[108px] truncate text-muted">{activeLabel}</span>
+                {group.value ? activeLabel : group.label}
               </Button>
               {isOpen ? (
                 <div className="absolute left-0 top-[calc(100%+10px)] z-20 w-60 rounded-[20px] border border-line bg-panel p-2 shadow-panel backdrop-blur-2xl">

@@ -202,7 +202,7 @@ export function PublicationSnapshot({
                         <p className="text-[14px] text-muted">Overview unavailable right now.</p>
                       ) : null}
                       {selectedOverview?.status === "success" && selectedOverview.overview ? (
-                        <p className="text-[16px] leading-7 text-text">
+                        <p className="text-[16px] leading-[1.6] text-text">
                           {selectedOverview.overview}
                         </p>
                       ) : null}
@@ -217,7 +217,7 @@ export function PublicationSnapshot({
                       Abstract
                     </h3>
                     {publication.abstract?.trim() ? (
-                      <p className="mt-3 text-[14px] leading-7 text-text/92">
+                      <p className="mt-3 text-[14px] leading-[1.6] text-text/92">
                         {publication.abstract.trim()}
                       </p>
                     ) : (

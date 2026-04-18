@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { FilterBar } from "../components/FilterBar";
 import { Timeline } from "../components/Timeline";
 import { TrialCard } from "../components/TrialCard";
+import { TrialCardSkeleton } from "../components/TrialCardSkeleton";
 import { listTrials } from "../lib/api";
 import {
   formatInterventionTypeLabel,
@@ -192,6 +193,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const hasActiveFilters = Boolean(
     status || phase || interventionType || sponsor || search.trim(),
   );
+  const showTrialSkeletons = trialsQuery.isLoading;
   const contentReady = filtersQuery.isFetched && trialsQuery.isFetched;
   const startupReveal = prefersReducedMotion
     ? undefined
@@ -287,7 +289,20 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         </div>
 
         <AnimatePresence mode="wait" initial={false}>
-          {viewMode === "grid" ? (
+          {showTrialSkeletons ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.24 }}
+              className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
+            >
+              {Array.from({ length: 6 }).map((_, index) => (
+                <TrialCardSkeleton key={`trial-skeleton-${index}`} />
+              ))}
+            </motion.div>
+          ) : viewMode === "grid" ? (
             <motion.div
               key="grid"
               initial={{ opacity: 0, y: 8 }}

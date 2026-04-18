@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion, useScroll } from "framer-mot
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 import { PublicationRow } from "../components/PublicationRow";
+import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { cn } from "../lib/cn";
 import { listPublications } from "../lib/api";
 import type { PublicationSummary } from "../types";
@@ -62,6 +63,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const publications = (publicationsQuery.data ?? []).filter((item) =>
     linkedOnly ? Boolean(item.trial_id) : true,
   );
+  const showPublicationSkeletons = publicationsQuery.isLoading;
   const totalPages = Math.max(1, Math.ceil(publications.length / pageSize));
   const contentReady = publicationsQuery.isFetched;
   const startupReveal = prefersReducedMotion
@@ -179,14 +181,18 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             className="rounded-card border border-line bg-panel px-8 shadow-panel"
           >
-            {paginatedPublications.map((publication) => (
-              <PublicationRow
-                key={publication.pmid}
-                publication={publication}
-                onOpen={() => onOpenPublicationSnapshot(publication)}
-              />
-            ))}
-            {!publications.length ? (
+            {showPublicationSkeletons
+              ? Array.from({ length: 8 }).map((_, index) => (
+                  <PublicationRowSkeleton key={`publication-skeleton-${index}`} />
+                ))
+              : paginatedPublications.map((publication) => (
+                  <PublicationRow
+                    key={publication.pmid}
+                    publication={publication}
+                    onOpen={() => onOpenPublicationSnapshot(publication)}
+                  />
+                ))}
+            {!showPublicationSkeletons && !publications.length ? (
               <div className="px-2 py-12 text-[15px] text-muted">
                 No publications matched this filter.
               </div>

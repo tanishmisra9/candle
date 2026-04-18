@@ -106,13 +106,16 @@ export function AskPanel({
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               placeholder="Ask about CHM trials, outcomes, sponsors, or papers"
-              className="!border-[1.5px] !border-[rgba(255,255,255,0.045)] !bg-[rgba(18,18,24,0.74)] px-4 py-4 text-[17px] !shadow-[0_8px_22px_rgba(0,0,0,0.12)] transition-colors hover:!border-[rgba(255,255,255,0.06)] focus-visible:!border-[rgba(255,255,255,0.08)] focus-visible:!ring-0 focus-visible:!ring-offset-0"
+              className="border-[rgba(255,255,255,0.045)] bg-[rgba(18,18,24,0.74)] px-4 py-4 text-[17px] shadow-[0_8px_22px_rgba(0,0,0,0.12)] hover:border-[rgba(255,255,255,0.07)] focus-visible:border-[rgba(255,255,255,0.08)]"
             />
-            {draft.trim() ? (
-              <Button type="submit" variant="primary" className="h-12 w-12 p-0">
-                <SendHorizonal size={17} strokeWidth={1.5} />
-              </Button>
-            ) : null}
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={!draft.trim() || mutation.isPending}
+              className="h-12 w-12 shrink-0 p-0 opacity-100 transition-opacity disabled:opacity-30"
+            >
+              <SendHorizonal size={17} strokeWidth={1.5} />
+            </Button>
           </div>
         </div>
       </form>
