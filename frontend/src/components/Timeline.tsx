@@ -17,14 +17,16 @@ function colorForStatus(status: string | null) {
 
 type TimelineProps = {
   trials: TrialSummary[];
+  axisTrials?: TrialSummary[];
   onOpen: (trialId: string) => void;
 };
 
-export function Timeline({ trials, onOpen }: TimelineProps) {
+export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
   const prefersReducedMotion = useReducedMotion();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const currentYear = new Date().getFullYear();
-  const years = trials.flatMap((trial) => [
+  const timelineAxisSource = axisTrials?.length ? axisTrials : trials;
+  const years = timelineAxisSource.flatMap((trial) => [
     yearFromDate(trial.start_date),
     yearFromDate(trial.completion_date),
   ]);

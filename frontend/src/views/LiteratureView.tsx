@@ -118,36 +118,20 @@ export function LiteratureView({ onOpenTrialSnapshot }: LiteratureViewProps) {
         transition={{ type: "spring", stiffness: 400, damping: 32 }}
         className="glass-nav sticky top-[94px] z-30 flex flex-col gap-4 rounded-[24px] px-5 md:flex-row md:items-center md:justify-between"
       >
-        <div className="relative grid w-[210px] grid-cols-2 self-start rounded-full border border-line bg-[rgba(255,255,255,0.04)] p-1.5 transition-colors duration-300">
-          {[
-            { label: "All", value: false },
-            { label: "Linked", value: true },
-          ].map((option) => (
-            <button
-              key={option.label}
-              type="button"
-              onClick={() => setLinkedOnly(option.value)}
-              className={cn(
-                "relative rounded-full px-5 py-2.5 text-[14px] font-medium transition-colors duration-300",
-                linkedOnly === option.value
-                  ? "text-text"
-                  : "text-muted hover:text-text",
-              )}
-            >
-              {linkedOnly === option.value ? (
-                <motion.span
-                  layoutId="literature-toggle-pill"
-                  transition={
-                    prefersReducedMotion
-                      ? { duration: 0.18 }
-                      : { type: "spring", stiffness: 260, damping: 28 }
-                  }
-                  className="absolute inset-0 rounded-full bg-[rgba(232,163,61,0.14)] shadow-[inset_0_0_0_1px_rgba(232,163,61,0.18)]"
-                />
-              ) : null}
-              <span className="relative z-10">{option.label}</span>
-            </button>
-          ))}
+        <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl">
+          <button
+            type="button"
+            onClick={() => setLinkedOnly((current) => !current)}
+            className={cn(
+              "rounded-full px-5 py-2.5 text-[14px] font-medium transition",
+              linkedOnly
+                ? "bg-[rgba(232,163,61,0.14)] text-text"
+                : "text-muted",
+            )}
+            aria-pressed={linkedOnly}
+          >
+            Linked
+          </button>
         </div>
 
         <motion.div

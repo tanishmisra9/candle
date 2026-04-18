@@ -14,6 +14,7 @@ import {
 import type { TrialSummary } from "../types";
 
 type ViewMode = "grid" | "timeline";
+type TrialFacetKey = "status" | "phase" | "intervention_type" | "sponsor";
 
 function uniqueOptions(trials: TrialSummary[], key: keyof TrialSummary) {
   return Array.from(
@@ -23,6 +24,87 @@ function uniqueOptions(trials: TrialSummary[], key: keyof TrialSummary) {
         .filter((value): value is string => typeof value === "string" && value.length > 0),
     ),
   ).sort((a, b) => a.localeCompare(b));
+}
+
+function matchesTrialSearch(trial: TrialSummary, search: string) {
+  const normalizedSearch = search.trim().toLowerCase();
+  if (!normalizedSearch) {
+    return true;
+  }
+
+  return trial.title.toLowerCase().includes(normalizedSearch);
+}
+
+function matchesFacetSelections(
+  trial: TrialSummary,
+  filters: {
+    status: string;
+    phase: string;
+    interventionType: string;
+    sponsor: string;
+    search: string;
+  },
+  excludedFacet?: TrialFacetKey,
+) {
+  if (!matchesTrialSearch(trial, filters.search)) {
+    return false;
+  }
+
+  if (
+    excludedFacet !== "status" &&
+    filters.status &&
+    (trial.status ?? "").toLowerCase() !== filters.status.toLowerCase()
+  ) {
+    return false;
+  }
+
+  if (
+    excludedFacet !== "phase" &&
+    filters.phase &&
+    (trial.phase ?? "").toLowerCase() !== filters.phase.toLowerCase()
+  ) {
+    return false;
+  }
+
+  if (
+    excludedFacet !== "intervention_type" &&
+    filters.interventionType &&
+    (trial.intervention_type ?? "").toLowerCase() !== filters.interventionType.toLowerCase()
+  ) {
+    return false;
+  }
+
+  if (
+    excludedFacet !== "sponsor" &&
+    filters.sponsor &&
+    !(trial.sponsor ?? "").toLowerCase().includes(filters.sponsor.toLowerCase())
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function buildFacetOptions(
+  trials: TrialSummary[],
+  key: TrialFacetKey,
+  selectedValue: string,
+  labelForValue: (value: string) => string,
+) {
+  const values = uniqueOptions(trials, key);
+  const normalizedSelectedValue = selectedValue.toLowerCase();
+  const selectedMissing =
+    selectedValue &&
+    !values.some((value) => value.toLowerCase() === normalizedSelectedValue);
+  const orderedValues = selectedMissing ? [selectedValue, ...values] : values;
+
+  return [
+    { label: "All", value: "" },
+    ...orderedValues.map((value) => ({
+      label: labelForValue(value),
+      value,
+    })),
+  ];
 }
 
 type DashboardViewProps = {
@@ -66,11 +148,46 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
 
   const filterSource = filtersQuery.data ?? [];
   const trials = trialsQuery.data ?? [];
+  const activeFilters = {
+    status,
+    phase,
+    interventionType,
+    sponsor,
+    search: deferredSearch,
+  };
 
-  const statusOptions = uniqueOptions(filterSource, "status");
-  const phaseOptions = uniqueOptions(filterSource, "phase");
-  const interventionTypeOptions = uniqueOptions(filterSource, "intervention_type");
-  const sponsorOptions = uniqueOptions(filterSource, "sponsor");
+  const statusOptions = buildFacetOptions(
+    filterSource.filter((trial) =>
+      matchesFacetSelections(trial, activeFilters, "status"),
+    ),
+    "status",
+    status,
+    formatStatusLabel,
+  );
+  const phaseOptions = buildFacetOptions(
+    filterSource.filter((trial) =>
+      matchesFacetSelections(trial, activeFilters, "phase"),
+    ),
+    "phase",
+    phase,
+    formatPhaseLabel,
+  );
+  const interventionTypeOptions = buildFacetOptions(
+    filterSource.filter((trial) =>
+      matchesFacetSelections(trial, activeFilters, "intervention_type"),
+    ),
+    "intervention_type",
+    interventionType,
+    formatInterventionTypeLabel,
+  );
+  const sponsorOptions = buildFacetOptions(
+    filterSource.filter((trial) =>
+      matchesFacetSelections(trial, activeFilters, "sponsor"),
+    ),
+    "sponsor",
+    sponsor,
+    (value) => value,
+  );
   const hasActiveFilters = Boolean(
     status || phase || interventionType || sponsor || search.trim(),
   );
@@ -99,46 +216,25 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
             label: "Status",
             value: status,
             onSelect: setStatus,
-            options: [
-              { label: "All", value: "" },
-              ...statusOptions.map((option) => ({
-                label: formatStatusLabel(option),
-                value: option,
-              })),
-            ],
+            options: statusOptions,
           },
           {
             label: "Phase",
             value: phase,
             onSelect: setPhase,
-            options: [
-              { label: "All", value: "" },
-              ...phaseOptions.map((option) => ({
-                label: formatPhaseLabel(option),
-                value: option,
-              })),
-            ],
+            options: phaseOptions,
           },
           {
             label: "Type",
             value: interventionType,
             onSelect: setInterventionType,
-            options: [
-              { label: "All", value: "" },
-              ...interventionTypeOptions.map((option) => ({
-                label: formatInterventionTypeLabel(option),
-                value: option,
-              })),
-            ],
+            options: interventionTypeOptions,
           },
           {
             label: "Sponsor",
             value: sponsor,
             onSelect: setSponsor,
-            options: [
-              { label: "All", value: "" },
-              ...sponsorOptions.map((option) => ({ label: option, value: option })),
-            ],
+            options: sponsorOptions,
           },
         ]}
         searchValue={search}
@@ -193,7 +289,11 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
             transition={{ duration: 0.24 }}
             className="pt-4"
           >
-            <Timeline trials={trials} onOpen={onOpenTrialSnapshot} />
+            <Timeline
+              trials={trials}
+              axisTrials={filterSource}
+              onOpen={onOpenTrialSnapshot}
+            />
           </motion.div>
         )}
       </AnimatePresence>
