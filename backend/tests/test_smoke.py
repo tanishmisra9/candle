@@ -1,3 +1,5 @@
+import logging
+
 from fastapi.testclient import TestClient
 
 from app.db import get_session
@@ -17,6 +19,20 @@ def test_healthz():
     response = client.get("/healthz")
     assert response.status_code == 200
     assert response.json() == {"ok": True}
+
+
+def test_startup_warns_when_openai_key_missing(monkeypatch, caplog):
+    monkeypatch.setattr("app.main.settings.openai_api_key", "")
+
+    with caplog.at_level(logging.WARNING, logger="candle.api"):
+        with TestClient(app) as client:
+            response = client.get("/healthz")
+
+    assert response.status_code == 200
+    assert (
+        "OPENAI_API_KEY is not set. The /ask endpoint and publication overviews "
+        "will not function until it is configured in .env."
+    ) in caplog.text
 
 
 def test_ask_smoke(monkeypatch):

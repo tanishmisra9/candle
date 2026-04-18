@@ -34,6 +34,15 @@ CREATE TABLE IF NOT EXISTS publications (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS publication_overviews (
+    pmid TEXT PRIMARY KEY REFERENCES publications (pmid) ON DELETE CASCADE,
+    overview TEXT NOT NULL,
+    abstract_hash TEXT,
+    prompt_version TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS outcomes (
     id BIGSERIAL PRIMARY KEY,
     trial_id TEXT NOT NULL REFERENCES trials(id) ON DELETE CASCADE,
@@ -60,6 +69,8 @@ CREATE INDEX IF NOT EXISTS idx_trials_phase ON trials(phase);
 CREATE INDEX IF NOT EXISTS idx_trials_intervention_type ON trials(intervention_type);
 CREATE INDEX IF NOT EXISTS idx_trials_sponsor ON trials(sponsor);
 CREATE INDEX IF NOT EXISTS idx_publications_trial_id ON publications(trial_id);
+CREATE INDEX IF NOT EXISTS idx_publication_overviews_prompt_lookup
+    ON publication_overviews(pmid, abstract_hash, prompt_version);
 CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_type, source_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_embedding_ivfflat
     ON embeddings

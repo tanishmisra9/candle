@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import text
 
 from app.config import get_settings
-from app.db import engine
 from app.models import Publication
 from app.services.embeddings import get_openai_client
 
@@ -27,57 +26,8 @@ Use very plain language, short sentences, and a warm tone. Avoid jargon whenever
 Do not begin with "This study" or "The study". Output only the overview — no preamble, no labels, no quotation marks."""
 
 
-_publication_overview_cache_ready = False
-_publication_overview_cache_lock = asyncio.Lock()
-
-
 def get_publication_overview_abstract_hash(abstract: str) -> str:
     return hashlib.sha256(abstract.encode("utf-8")).hexdigest()
-
-
-async def ensure_publication_overview_cache_table() -> None:
-    global _publication_overview_cache_ready
-
-    if _publication_overview_cache_ready:
-        return
-
-    async with _publication_overview_cache_lock:
-        if _publication_overview_cache_ready:
-            return
-
-        async with engine.begin() as conn:
-            await conn.execute(
-                text(
-                    """
-                    CREATE TABLE IF NOT EXISTS publication_overviews (
-                        pmid TEXT PRIMARY KEY REFERENCES publications (pmid) ON DELETE CASCADE,
-                        overview TEXT NOT NULL,
-                        abstract_hash TEXT,
-                        prompt_version TEXT,
-                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-                    )
-                    """
-                )
-            )
-            await conn.execute(
-                text(
-                    """
-                    ALTER TABLE publication_overviews
-                    ADD COLUMN IF NOT EXISTS abstract_hash TEXT
-                    """
-                )
-            )
-            await conn.execute(
-                text(
-                    """
-                    ALTER TABLE publication_overviews
-                    ADD COLUMN IF NOT EXISTS prompt_version TEXT
-                    """
-                )
-            )
-
-        _publication_overview_cache_ready = True
 
 
 async def get_cached_publication_overview(
@@ -156,8 +106,6 @@ async def generate_publication_overview_text(abstract: str) -> str | None:
 async def get_or_generate_publication_overview(
     session: AsyncSession, publication: Publication, *, force: bool = False
 ) -> tuple[str | None, bool]:
-    await ensure_publication_overview_cache_table()
-
     abstract = (publication.abstract or "").strip()
     if not abstract:
         return None, False

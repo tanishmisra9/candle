@@ -54,12 +54,7 @@ export default function App() {
               />
               <Route
                 path="/literature"
-                element={
-                  <LiteratureView
-                    onOpenTrialSnapshot={setSelectedTrialId}
-                    isTrialSnapshotOpen={Boolean(selectedTrialId)}
-                  />
-                }
+                element={<LiteratureView onOpenTrialSnapshot={setSelectedTrialId} />}
               />
               <Route path="/ask" element={<AskView />} />
             </Routes>

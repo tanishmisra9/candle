@@ -26,6 +26,15 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+async def validate_settings() -> None:
+    if not settings.openai_api_key:
+        logger.warning(
+            "OPENAI_API_KEY is not set. The /ask endpoint and publication overviews "
+            "will not function until it is configured in .env."
+        )
+
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.perf_counter()
