@@ -1,10 +1,6 @@
 import { formatStatusLabel } from "../lib/formatters";
 import { cn } from "../lib/cn";
 
-export function formatStatus(status: string | null) {
-  return formatStatusLabel(status);
-}
-
 function statusTier(status: string | null): "active" | "completed" | "terminated" | "unknown" {
   const normalized = (status ?? "")
     .toUpperCase()
@@ -49,7 +45,7 @@ export function StatusBadge({ status }: { status: string | null }) {
         tierStyles[statusTier(status)],
       )}
     >
-      {formatStatus(status)}
+      {formatStatusLabel(status)}
     </span>
   );
 }

@@ -2,11 +2,6 @@ import { motion, useReducedMotion } from "framer-motion";
 
 import type { PublicationSummary } from "../types";
 
-export type PublicationOverviewState = {
-  status: "idle" | "loading" | "success" | "error";
-  overview: string | null;
-};
-
 type PublicationRowProps = {
   publication: PublicationSummary;
   onOpen: () => void;
