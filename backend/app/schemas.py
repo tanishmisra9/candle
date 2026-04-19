@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -53,6 +53,21 @@ class TrialSummary(BaseModel):
 class TrialDetail(TrialSummary):
     publications: list[PublicationSummary] = Field(default_factory=list)
     outcomes: list[OutcomeEntry] = Field(default_factory=list)
+
+
+class SyncLogEntry(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    started_at: datetime
+    finished_at: datetime | None = None
+    trials_ingested: int | None = None
+    publications_ingested: int | None = None
+    publications_linked: int | None = None
+    embeddings_stored: int | None = None
+    summaries_generated: int | None = None
+    status: str | None = None
+    error_message: str | None = None
 
 
 class AskRequest(BaseModel):

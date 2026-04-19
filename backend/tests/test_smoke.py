@@ -1,8 +1,9 @@
 import logging
 
+import pytest
 from fastapi.testclient import TestClient
 
-from app.db import get_session
+from app.db import get_session, reconcile_database_schema
 from app.main import app
 
 
@@ -33,6 +34,64 @@ def test_startup_warns_when_openai_key_missing(monkeypatch, caplog):
         "OPENAI_API_KEY is not set. The /ask endpoint and publication overviews "
         "will not function until it is configured in .env."
     ) in caplog.text
+
+
+def test_startup_reconciles_database_schema(monkeypatch):
+    called = False
+
+    async def fake_reconcile_database_schema():
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr("app.main.reconcile_database_schema", fake_reconcile_database_schema)
+
+    with TestClient(app):
+        pass
+
+    assert called is True
+
+
+class FakeConnection:
+    def __init__(self):
+        self.statements = []
+
+    async def execute(self, statement):
+        self.statements.append(str(statement))
+
+
+class FakeBegin:
+    def __init__(self, connection):
+        self.connection = connection
+
+    async def __aenter__(self):
+        return self.connection
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+
+class FakeEngine:
+    def __init__(self):
+        self.connection = FakeConnection()
+
+    def begin(self):
+        return FakeBegin(self.connection)
+
+
+@pytest.mark.asyncio
+async def test_reconcile_database_schema_applies_trial_summary_and_sync_log_changes(
+    monkeypatch,
+):
+    fake_engine = FakeEngine()
+    monkeypatch.setattr("app.db.engine", fake_engine)
+
+    await reconcile_database_schema()
+
+    sql = "\n".join(fake_engine.connection.statements)
+    assert "ALTER TABLE trials" in sql
+    assert "ADD COLUMN IF NOT EXISTS ai_summary TEXT" in sql
+    assert "ADD COLUMN IF NOT EXISTS ai_summary_generated_at TIMESTAMPTZ" in sql
+    assert "CREATE TABLE IF NOT EXISTS sync_log" in sql
 
 
 def test_ask_smoke(monkeypatch):

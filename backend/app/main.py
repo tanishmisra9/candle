@@ -7,8 +7,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.db import reconcile_database_schema
 from app.routers.ask import router as ask_router
 from app.routers.publications import router as publications_router
+from app.routers.sync import router as sync_router
 from app.routers.trials import router as trials_router
 
 
@@ -28,6 +30,8 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def validate_settings() -> None:
+    await reconcile_database_schema()
+
     if not settings.openai_api_key:
         logger.warning(
             "OPENAI_API_KEY is not set. The /ask endpoint and publication overviews "
@@ -58,3 +62,4 @@ async def healthz():
 app.include_router(trials_router)
 app.include_router(publications_router)
 app.include_router(ask_router)
+app.include_router(sync_router, prefix="/sync")

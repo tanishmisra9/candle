@@ -27,6 +27,8 @@ class Trial(Base):
     intervention_type: Mapped[str | None] = mapped_column(Text)
     enrollment: Mapped[int | None] = mapped_column(Integer)
     primary_endpoint: Mapped[str | None] = mapped_column(Text)
+    ai_summary: Mapped[str | None] = mapped_column(Text)
+    ai_summary_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     locations: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     contact_email: Mapped[str | None] = mapped_column(Text)
     url: Mapped[str] = mapped_column(Text, nullable=False)
@@ -95,3 +97,20 @@ class Embedding(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class SyncLog(Base):
+    __tablename__ = "sync_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    trials_ingested: Mapped[int | None] = mapped_column(Integer)
+    publications_ingested: Mapped[int | None] = mapped_column(Integer)
+    publications_linked: Mapped[int | None] = mapped_column(Integer)
+    embeddings_stored: Mapped[int | None] = mapped_column(Integer)
+    summaries_generated: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str | None] = mapped_column(Text)
+    error_message: Mapped[str | None] = mapped_column(Text)

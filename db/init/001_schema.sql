@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS trials (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE trials
+    ADD COLUMN IF NOT EXISTS ai_summary TEXT,
+    ADD COLUMN IF NOT EXISTS ai_summary_generated_at TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS publications (
     pmid TEXT PRIMARY KEY,
     trial_id TEXT REFERENCES trials(id) ON DELETE SET NULL,
@@ -62,6 +66,19 @@ CREATE TABLE IF NOT EXISTS embeddings (
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
     embedding VECTOR(1536) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS sync_log (
+    id SERIAL PRIMARY KEY,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    finished_at TIMESTAMPTZ,
+    trials_ingested INTEGER,
+    publications_ingested INTEGER,
+    publications_linked INTEGER,
+    embeddings_stored INTEGER,
+    summaries_generated INTEGER,
+    status TEXT,
+    error_message TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_trials_status ON trials(status);
