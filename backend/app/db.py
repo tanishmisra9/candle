@@ -10,7 +10,7 @@ from app.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger("candle.api")
-engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+engine = create_async_engine(settings.async_database_url, pool_pre_ping=True)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 SCHEMA_RECONCILIATION_STATEMENTS = (
