@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarRange, X } from "lucide-react";
+import { CalendarRange, ExternalLink, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
 import { getPublicationOverview } from "../lib/api";
@@ -256,8 +256,9 @@ export function PublicationSnapshot({
                     href={publication.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex text-[14px] text-muted transition hover:text-text"
+                    className="inline-flex w-fit items-center gap-2 rounded-full border border-[rgba(232,163,61,0.28)] bg-[rgba(232,163,61,0.12)] px-4 py-2 text-[13px] font-medium text-accent transition hover:bg-[rgba(232,163,61,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
                   >
+                    <ExternalLink size={14} strokeWidth={1.7} className="opacity-80" />
                     Read on PubMed
                   </a>
                 </aside>

@@ -3,13 +3,8 @@ import { Flame } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 
+import { primaryDestinations } from "../lib/navigation";
 import { cn } from "../lib/cn";
-
-const navItems = [
-  { to: "/trials", label: "Trials" },
-  { to: "/literature", label: "Literature" },
-  { to: "/ask", label: "Ask" },
-];
 
 export function GlassNav() {
   const { scrollY } = useScroll();
@@ -57,7 +52,10 @@ export function GlassNav() {
         transition={{ type: "spring", stiffness: 400, damping: 32 }}
         className="pointer-events-auto mx-auto flex max-w-[1360px] items-center justify-between gap-5"
       >
-        <Link to="/">
+        <Link
+          to="/"
+          className="rounded-[18px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+        >
           <motion.div
             animate={{
               paddingTop: compact ? 11 : 14,
@@ -66,7 +64,7 @@ export function GlassNav() {
               paddingRight: compact ? 16 : 18,
             }}
             transition={{ type: "spring", stiffness: 400, damping: 32 }}
-            className="glass-nav flex items-center gap-3 rounded-[18px]"
+            className="glass-nav glass-nav-header flex items-center gap-3 rounded-[18px]"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(232,163,61,0.14)]">
               <Flame size={16} strokeWidth={1.5} className="text-accent" />
@@ -85,9 +83,9 @@ export function GlassNav() {
             paddingRight: compact ? 5 : 6,
           }}
           transition={{ type: "spring", stiffness: 400, damping: 32 }}
-          className="glass-nav flex items-center gap-1 rounded-full"
+          className="glass-nav glass-nav-header flex items-center gap-1 rounded-full"
         >
-          {navItems.map((item) => {
+          {primaryDestinations.map((item) => {
             const isActive = location.pathname === item.to;
 
             return (
@@ -95,9 +93,9 @@ export function GlassNav() {
                 key={item.to}
                 to={item.to}
                 className={cn(
-                  "relative rounded-full px-3.5 py-2.5 text-[14px] font-medium transition-colors duration-200",
-                  isActive ? "text-text" : "text-muted hover:text-text",
-                  compact && "px-3",
+                  "relative rounded-full px-4 py-3 text-[16px] font-medium text-text transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-canvas",
+                  isActive ? "opacity-100" : "opacity-90 hover:opacity-100",
+                  compact && "px-3.5 py-2.5",
                 )}
               >
                 {isActive ? (
