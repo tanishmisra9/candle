@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Activity, CalendarRange, ExternalLink, Mail, MapPin, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
 import { getTrial } from "../lib/api";
+import { cn } from "../lib/cn";
 import type { PublicationSummary } from "../types";
 import { formatStatusLabel } from "../lib/formatters";
+import { useIsMobile, useScrolledPastThreshold } from "../lib/mobile";
 import { Button } from "./ui/Button";
 
 const SNAPSHOT_SECTION_HEADING_CLASS =
@@ -47,7 +49,15 @@ export function TrialSnapshot({
   isPublicationSnapshotOpen,
   publicationSnapshotLayer,
 }: TrialSnapshotProps) {
+  const prefersReducedMotion = useReducedMotion();
+  const isMobile = useIsMobile();
   const [showAllLocations, setShowAllLocations] = useState(false);
+  const [contentNode, setContentNode] = useState<HTMLDivElement | null>(null);
+  const isHeaderCondensed = useScrolledPastThreshold({
+    enabled: Boolean(trialId) && isMobile,
+    threshold: 24,
+    target: contentNode,
+  });
 
   const detailQuery = useQuery({
     queryKey: ["trial", trialId],
@@ -84,6 +94,11 @@ export function TrialSnapshot({
     setShowAllLocations(false);
   }, [trialId]);
 
+  useEffect(() => {
+    if (!trialId || !contentNode) return;
+    contentNode.scrollTo({ top: 0 });
+  }, [contentNode, trialId]);
+
   if (typeof document === "undefined") {
     return null;
   }
@@ -92,7 +107,7 @@ export function TrialSnapshot({
     <AnimatePresence>
       {trialId ? (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-end overflow-y-auto bg-[rgba(11,11,15,0.28)] p-4 backdrop-blur-sm md:items-start md:justify-center md:px-6 md:pb-6 md:pt-16"
+          className="fixed inset-0 z-[60] flex items-end overflow-y-auto bg-[rgba(11,11,15,0.28)] p-3 backdrop-blur-sm md:items-start md:justify-center md:px-6 md:pb-6 md:pt-16"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -103,30 +118,65 @@ export function TrialSnapshot({
             animate={{ opacity: 1, y: 0, transition: { duration: 0.28 } }}
             exit={{ opacity: 0, y: 20 }}
             onClick={(event) => event.stopPropagation()}
-            className="flex h-[min(88vh,920px)] w-full flex-col overflow-hidden rounded-[30px] border border-line bg-panel shadow-panel md:h-[min(calc(100vh-7rem),920px)] md:max-w-[1040px]"
+            className="flex h-[min(87svh,920px)] w-full flex-col overflow-hidden rounded-[26px] border border-line bg-panel shadow-panel md:h-[min(calc(100vh-7rem),920px)] md:max-w-[1040px] md:rounded-[30px]"
           >
-            <div className="border-b border-line bg-panel/92 px-6 pb-5 pt-6 backdrop-blur-xl md:px-8">
+            <motion.div
+              animate={
+                isMobile
+                  ? {
+                      paddingTop: isHeaderCondensed ? 16 : 24,
+                      paddingBottom: isHeaderCondensed ? 12 : 18,
+                    }
+                  : undefined
+              }
+              transition={
+                prefersReducedMotion
+                  ? { duration: 0 }
+                  : { type: "spring", stiffness: 340, damping: 34, mass: 0.8 }
+              }
+              className="border-b border-line bg-panel/92 px-5 pt-6 pb-5 backdrop-blur-xl md:px-8"
+            >
               <div className="flex items-start justify-between gap-4">
-                <div className="max-w-[820px]">
-                  <p className="text-[12px] uppercase tracking-[0.18em] text-muted">
+                <div className="min-w-0 max-w-[820px] flex-1">
+                  <motion.p
+                    animate={isMobile ? { opacity: isHeaderCondensed ? 0.76 : 1 } : undefined}
+                    transition={
+                      prefersReducedMotion
+                        ? { duration: 0 }
+                        : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
+                    }
+                    className="text-[11px] uppercase tracking-[0.18em] text-muted md:text-[12px]"
+                  >
                     {detailQuery.data?.id}
-                  </p>
-                  <h2 className="mt-2 text-[28px] font-medium tracking-[-0.03em] text-text md:text-[32px]">
+                  </motion.p>
+                  <h2
+                    className={cn(
+                      "mt-2 font-medium tracking-[-0.03em] text-text transition-all duration-200 md:text-[32px]",
+                      isMobile
+                        ? isHeaderCondensed
+                          ? "line-clamp-2 text-[21px] leading-[1.16]"
+                          : "line-clamp-3 text-[26px] leading-[1.12]"
+                        : "text-[32px]",
+                    )}
+                  >
                     {detailQuery.data?.title}
                   </h2>
                 </div>
-                <Button variant="ghost" onClick={onClose}>
+                <Button variant="ghost" onClick={onClose} className="shrink-0 self-start">
                   <X size={18} strokeWidth={1.5} />
                 </Button>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6 md:px-8 md:pb-8">
+            <div
+              ref={setContentNode}
+              className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-5 md:px-8 md:pb-8 md:pt-6"
+            >
               {detailQuery.isLoading ? (
                 <p className="text-[14px] text-muted">Loading trial details…</p>
               ) : detailQuery.data ? (
-                <div className="grid gap-8 md:grid-cols-[1.25fr_0.75fr]">
-                  <div className="space-y-8">
+                <div className="grid gap-6 md:grid-cols-[1.25fr_0.75fr] md:gap-8">
+                  <div className="space-y-6 md:space-y-8">
                     <section className="space-y-3">
                       <h3 className={SNAPSHOT_SECTION_HEADING_CLASS}>Snapshot</h3>
                       <p className="text-[15px] leading-[1.6] text-text">

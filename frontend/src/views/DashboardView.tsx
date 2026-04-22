@@ -7,11 +7,13 @@ import { Timeline } from "../components/Timeline";
 import { TrialCard } from "../components/TrialCard";
 import { TrialCardSkeleton } from "../components/TrialCardSkeleton";
 import { listTrials } from "../lib/api";
+import { cn } from "../lib/cn";
 import {
   formatInterventionTypeLabel,
   formatPhaseLabel,
   formatStatusLabel,
 } from "../lib/formatters";
+import { NAV_OFFSET_CLASS, useIsMobile, useScrollVisibilityState } from "../lib/mobile";
 import type { TrialSummary } from "../types";
 
 type ViewMode = "grid" | "timeline";
@@ -114,6 +116,7 @@ type DashboardViewProps = {
 
 export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const prefersReducedMotion = useReducedMotion();
+  const isMobile = useIsMobile();
   const [status, setStatus] = useState("");
   const [phase, setPhase] = useState("");
   const [interventionType, setInterventionType] = useState("");
@@ -121,6 +124,11 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const deferredSearch = useDeferredValue(search);
+  const isControlsVisible = useScrollVisibilityState({
+    enabled: isMobile,
+    hideAfter: 140,
+    revealWithin: 72,
+  });
 
   const filtersQuery = useQuery({
     queryKey: ["trials", "filters"],
@@ -211,9 +219,76 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     setSponsor("");
     setSearch("");
   };
+  const stickyTrayAnimate = prefersReducedMotion
+    ? undefined
+    : {
+        y: isControlsVisible ? 0 : -18,
+        opacity: isControlsVisible ? 1 : 0,
+        scale: isControlsVisible ? 1 : 0.985,
+        filter: isControlsVisible ? "blur(0px)" : "blur(8px)",
+      };
+
+  const filterBar = (
+    <FilterBar
+      groups={[
+        {
+          label: "Status",
+          value: status,
+          onSelect: setStatus,
+          options: statusOptions,
+        },
+        {
+          label: "Phase",
+          value: phase,
+          onSelect: setPhase,
+          options: phaseOptions,
+        },
+        {
+          label: "Type",
+          value: interventionType,
+          onSelect: setInterventionType,
+          options: interventionTypeOptions,
+        },
+        {
+          label: "Sponsor",
+          value: sponsor,
+          onSelect: setSponsor,
+          options: sponsorOptions,
+        },
+      ]}
+      searchValue={search}
+      onSearchChange={setSearch}
+      searchPlaceholder="Search trial titles"
+      onClearAll={hasActiveFilters ? clearFilters : undefined}
+      sticky={!isMobile}
+      className={
+        isMobile
+          ? "border-0 bg-transparent px-0 py-0 shadow-none backdrop-blur-none"
+          : undefined
+      }
+    />
+  );
+
+  const timelineToggle = (
+    <div className="inline-flex rounded-full border border-line bg-glass p-1 backdrop-blur-2xl">
+      <button
+        type="button"
+        onClick={() =>
+          setViewMode((current) => (current === "timeline" ? "grid" : "timeline"))
+        }
+        className={cn(
+          "rounded-full px-5 py-2.5 text-[14px] font-medium transition",
+          viewMode === "timeline" ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
+        )}
+        aria-pressed={viewMode === "timeline"}
+      >
+        Timeline
+      </button>
+    </div>
+  );
 
   return (
-    <div className="space-y-12 pb-20 pt-32">
+    <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
       <motion.header
         className="space-y-2"
         initial={startupReveal?.initial}
@@ -223,7 +298,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
           CHM Clinical Trials
         </p>
-        <h1 className="text-[38px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
+        <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           {trials.length} trials tracked
         </h1>
       </motion.header>
@@ -234,59 +309,28 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         transition={startupReveal?.transition}
         className="space-y-4"
       >
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <FilterBar
-            groups={[
-              {
-                label: "Status",
-                value: status,
-                onSelect: setStatus,
-                options: statusOptions,
-              },
-              {
-                label: "Phase",
-                value: phase,
-                onSelect: setPhase,
-                options: phaseOptions,
-              },
-              {
-                label: "Type",
-                value: interventionType,
-                onSelect: setInterventionType,
-                options: interventionTypeOptions,
-              },
-              {
-                label: "Sponsor",
-                value: sponsor,
-                onSelect: setSponsor,
-                options: sponsorOptions,
-              },
-            ]}
-            searchValue={search}
-            onSearchChange={setSearch}
-            searchPlaceholder="Search trial titles"
-            onClearAll={hasActiveFilters ? clearFilters : undefined}
-          />
+        {isMobile ? (
+          <motion.div
+            animate={stickyTrayAnimate}
+            transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.85 }}
+            className={cn(
+              "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4",
+              NAV_OFFSET_CLASS,
+              !isControlsVisible && "pointer-events-none",
+            )}
+          >
+            {filterBar}
+            <div className="flex items-center justify-start">{timelineToggle}</div>
+          </motion.div>
+        ) : (
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            {filterBar}
 
-          <div className="sticky top-[94px] z-30 self-start md:pt-4">
-            <div className="inline-flex rounded-full border border-line bg-glass p-1 backdrop-blur-2xl">
-              <button
-                type="button"
-                onClick={() =>
-                  setViewMode((current) => (current === "timeline" ? "grid" : "timeline"))
-                }
-                className={`rounded-full px-5 py-2.5 text-[14px] font-medium transition ${
-                  viewMode === "timeline"
-                    ? "bg-[rgba(232,163,61,0.14)] text-text"
-                    : "text-muted"
-                }`}
-                aria-pressed={viewMode === "timeline"}
-              >
-                Timeline
-              </button>
+            <div className={cn("sticky z-30 self-start md:pt-4", NAV_OFFSET_CLASS)}>
+              {timelineToggle}
             </div>
           </div>
-        </div>
+        )}
 
         <AnimatePresence mode="wait" initial={false}>
           {showTrialSkeletons ? (

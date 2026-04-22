@@ -2,6 +2,7 @@ import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "../lib/cn";
+import { NAV_OFFSET_CLASS } from "../lib/mobile";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 
@@ -18,6 +19,9 @@ type FilterBarProps = {
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
   onClearAll?: () => void;
+  className?: string;
+  groupsClassName?: string;
+  sticky?: boolean;
 };
 
 export function FilterBar({
@@ -26,6 +30,9 @@ export function FilterBar({
   onSearchChange,
   searchPlaceholder,
   onClearAll,
+  className,
+  groupsClassName,
+  sticky = true,
 }: FilterBarProps) {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -58,7 +65,11 @@ export function FilterBar({
   return (
     <div
       ref={rootRef}
-      className="glass-nav sticky top-[94px] z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-auto md:flex-row md:items-center md:gap-3"
+      className={cn(
+        "glass-nav flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-auto md:flex-row md:items-center md:gap-3",
+        sticky && ["sticky", NAV_OFFSET_CLASS, "z-30"],
+        className,
+      )}
     >
       <div className="relative w-full md:w-[390px]">
         <Search
@@ -78,7 +89,7 @@ export function FilterBar({
         </span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className={cn("flex flex-wrap items-center gap-2.5", groupsClassName)}>
         {groups.map((group) => {
           const isOpen = openGroup === group.label;
           const activeLabel =

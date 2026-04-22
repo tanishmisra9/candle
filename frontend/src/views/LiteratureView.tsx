@@ -7,6 +7,7 @@ import { PublicationRow } from "../components/PublicationRow";
 import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { cn } from "../lib/cn";
 import { listPublications } from "../lib/api";
+import { NAV_OFFSET_CLASS, useIsMobile, useScrollVisibilityState } from "../lib/mobile";
 import type { PublicationSummary } from "../types";
 
 type LiteratureViewProps = {
@@ -17,27 +18,38 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const pageSize = 50;
   const { scrollY } = useScroll();
   const prefersReducedMotion = useReducedMotion();
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [linkedOnly, setLinkedOnly] = useState(false);
-  const [compactControls, setCompactControls] = useState(false);
+  const [compactDesktopControls, setCompactDesktopControls] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const deferredSearch = useDeferredValue(search);
+  const isControlsVisible = useScrollVisibilityState({
+    enabled: isMobile,
+    hideAfter: 140,
+    revealWithin: 72,
+  });
 
   useEffect(() => {
+    if (isMobile) {
+      setCompactDesktopControls(false);
+      return;
+    }
+
     let lastValue = 0;
     return scrollY.on("change", (value) => {
       const goingDown = value > lastValue;
       if (value < 90) {
-        setCompactControls(false);
+        setCompactDesktopControls(false);
       } else if (goingDown && value > 180) {
-        setCompactControls(true);
+        setCompactDesktopControls(true);
       } else if (!goingDown) {
-        setCompactControls(false);
+        setCompactDesktopControls(false);
       }
       lastValue = value;
     });
-  }, [scrollY]);
+  }, [isMobile, scrollY]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -90,8 +102,23 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     }
   }, [currentPage, totalPages]);
 
+  const controlsAnimate = prefersReducedMotion
+    ? undefined
+    : isMobile
+      ? {
+          y: isControlsVisible ? 0 : -18,
+          opacity: isControlsVisible ? 1 : 0,
+          scale: isControlsVisible ? 1 : 0.985,
+          filter: isControlsVisible ? "blur(0px)" : "blur(8px)",
+        }
+      : {
+          y: compactDesktopControls ? -4 : 0,
+          paddingTop: compactDesktopControls ? 10 : 16,
+          paddingBottom: compactDesktopControls ? 10 : 16,
+        };
+
   return (
-    <div className="space-y-12 pb-20 pt-32">
+    <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
       <motion.header
         className="space-y-2"
         initial={startupReveal?.initial}
@@ -99,7 +126,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         transition={startupReveal?.transition}
       >
         <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Publications</p>
-        <h1 className="text-[38px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
+        <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           {publications.length} publications tracked
         </h1>
       </motion.header>
@@ -108,28 +135,24 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         initial={startupReveal?.initial}
         animate={startupReveal?.animate}
         transition={startupReveal?.transition}
-        className="space-y-12"
+        className="space-y-8 md:space-y-12"
       >
         <motion.div
-          animate={
-            prefersReducedMotion
-              ? undefined
-              : {
-                  y: compactControls ? -4 : 0,
-                  paddingTop: compactControls ? 10 : 16,
-                  paddingBottom: compactControls ? 10 : 16,
-                }
-          }
+          animate={controlsAnimate}
           transition={{ type: "spring", stiffness: 400, damping: 32 }}
-          className="glass-nav sticky top-[94px] z-30 flex w-full flex-col gap-4 rounded-[24px] px-5 md:w-fit md:self-start md:px-4"
+          className={cn(
+            "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start md:px-4",
+            NAV_OFFSET_CLASS,
+            isMobile && !isControlsVisible && "pointer-events-none",
+          )}
         >
           <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center md:gap-3">
             <motion.div
               animate={
-                prefersReducedMotion
+                prefersReducedMotion || isMobile
                   ? undefined
                   : {
-                      scale: compactControls ? 0.985 : 1,
+                      scale: compactDesktopControls ? 0.985 : 1,
                     }
               }
               transition={{ type: "spring", stiffness: 400, damping: 32 }}
@@ -148,7 +171,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                 className={cn(
                   "w-full rounded-full border border-line bg-glass pl-11 pr-14 text-[14px] text-text shadow-panel outline-none backdrop-blur-2xl placeholder:text-muted transition-all focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
                   "text-[16px]",
-                  compactControls ? "py-3" : "py-3.5",
+                  compactDesktopControls ? "py-3" : "py-3.5",
                 )}
               />
               <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
@@ -179,7 +202,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
             animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
             exit={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="rounded-card border border-line bg-panel px-8 shadow-panel"
+            className="rounded-card border border-line bg-panel px-4 shadow-panel md:px-8"
           >
             {showPublicationSkeletons
               ? Array.from({ length: 8 }).map((_, index) => (

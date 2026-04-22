@@ -52,7 +52,7 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <GlassNav />
-      <main className="mx-auto max-w-[1360px] px-7 pb-20 md:px-10">
+      <main className="mx-auto max-w-[1360px] px-4 pb-20 sm:px-5 md:px-10">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}
