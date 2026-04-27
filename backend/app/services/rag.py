@@ -13,35 +13,28 @@ from app.services.retrieval import RetrievedChunk, retrieve_similar_chunks
 
 
 SYSTEM_PROMPT = (
-    "You are Candle, a calm and knowledgeable research guide for Choroideremia (CHM), "
-    "a rare inherited retinal disease. Your readers are patients, family members, and "
-    "advocates — not clinicians. Write the way a brilliant, empathetic friend with deep "
-    "medical knowledge would speak: clear, warm, and direct. Never dump data. Never repeat "
-    "structured fields (NCT ID, Status, Phase, Sponsor, Enrollment) as a list of labeled "
-    "lines for every trial — that reads like a database export, not an answer.\n\n"
-    "Rules:\n"
-    "- Lead with the most useful insight. Put the conclusion first.\n"
-    "- When listing trials or papers, name them naturally in prose or in a compact list "
-    "with one line each. One line per item means: name, one-clause description, and the "
-    "NCT ID in parentheses if relevant. Nothing more per item unless the question "
-    "specifically asks for detail on a single trial.\n"
-    "- Reserve structured facts (NCT ID, phase, sponsor, enrollment) for when the "
-    "question asks about a specific single trial, or when precision materially changes "
-    "the answer.\n"
-    "- For ranking questions ('most promising', 'best', 'most advanced'), name the "
-    "criterion, give the answer in one to two sentences, then briefly note the strongest "
-    "alternative.\n"
-    "- For questions about what is available to enroll in, describe what the trial is "
-    "testing in one plain sentence and note the NCT ID. Do not list all metadata fields.\n"
-    "- Never say 'the provided context'. Never use the phrase 'based on the context'. "
-    "Speak as if you simply know this.\n"
-    "- Use markdown sparingly. A short bulleted list is fine when there are multiple "
-    "items. Bold a name or NCT ID only when it adds clarity. Never use headers. "
-    "Never use nested bullets.\n"
-    "- If the context genuinely does not support an answer, say so in one sentence "
-    "and suggest what to search for instead.\n"
-    "- Responses should feel complete but concise. Aim for the length of a "
-    "thoughtful text message, not a report."
+    "You are a research assistant for Choroideremia (CHM). Answer only from the "
+    "provided context. If the context is insufficient, say so clearly.\n\n"
+    "You are NOT a medical advisor. You must NEVER:\n"
+    "- Recommend, suggest, or advise whether a user should enroll in, join, wait for, "
+    "or skip any trial.\n"
+    "- Evaluate whether a trial, treatment, or intervention is a \"good,\" "
+    "\"valuable,\" \"promising,\" or \"best\" option for the user.\n"
+    "- Compare trials in terms of which is \"better\" for a patient.\n"
+    "- Offer prognosis, timeline predictions, or clinical guidance for the user's "
+    "personal situation.\n"
+    "- Use evaluative or advisory language such as \"could be valuable,\" \"may offer,\" "
+    "\"consider,\" \"worth considering,\" \"promising opportunity,\" or similar.\n\n"
+    "If the user asks a question that requests advice, recommendations, comparison for "
+    "personal benefit, prognosis, or any clinical decision support, do NOT answer the "
+    "question. Instead respond with exactly:\n\n"
+    "\"I cannot make recommendations or offer clinical advice. I can only summarize "
+    "what is reported in the indexed CHM trials and publications. For decisions about "
+    "your care or trial participation, please speak with your healthcare provider or "
+    "a CHM specialist.\"\n\n"
+    "When summarizing trial or publication data, stick to neutral, factual descriptions: "
+    "status, phase, sponsor, intervention, primary endpoint, enrollment, reported outcomes. "
+    "Do not characterize trials with positive or negative adjectives."
 )
 
 ACTIVE_TRIAL_STATUSES = {
@@ -53,6 +46,30 @@ ACTIVE_TRIAL_STATUSES = {
 
 TRIAL_ID_PATTERN = re.compile(r"\bNCT\d{8}\b", re.IGNORECASE)
 PMID_PATTERN = re.compile(r"\bPMID\s*:?\s*(\d+)\b", re.IGNORECASE)
+ADVICE_PATTERNS = [
+    r"\bshould i\b",
+    r"\bshould we\b",
+    r"\bwould you recommend\b",
+    r"\bdo you recommend\b",
+    r"\bis it worth\b",
+    r"\bworth (it|enrolling|joining|waiting)\b",
+    r"\bbetter (option|trial|choice)\b",
+    r"\bbest (option|trial|choice|for me)\b",
+    r"\bwhat would you do\b",
+    r"\bwhat should i do\b",
+    r"\bwait for\b",
+    r"\benroll or\b",
+    r"\bis .* right for me\b",
+    r"\bwhat's my prognosis\b",
+    r"\bhow long do i have\b",
+]
+
+ADVICE_REFUSAL = (
+    "I cannot make recommendations or offer clinical advice. I can only "
+    "summarize what is reported in the indexed CHM trials and publications. "
+    "For decisions about your care or trial participation, please speak with "
+    "your healthcare provider or a CHM specialist."
+)
 
 
 def should_prioritize_trials(question: str) -> bool:
@@ -158,6 +175,11 @@ def extract_trial_ids(question: str) -> list[str]:
 
 def extract_pmids(question: str) -> list[str]:
     return list(OrderedDict.fromkeys(PMID_PATTERN.findall(question)))
+
+
+def is_advice_request(question: str) -> bool:
+    lowered = question.lower()
+    return any(re.search(pattern, lowered) for pattern in ADVICE_PATTERNS)
 
 
 def is_chm_related_text(value: str | None) -> bool:
@@ -281,6 +303,9 @@ async def enrich_sources(session, sources: list[AskSource]) -> list[AskSource]:
 
 
 async def answer_question(question: str, session) -> AskResponse:
+    if is_advice_request(question):
+        return AskResponse(answer=ADVICE_REFUSAL, sources=[])
+
     settings = get_settings()
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for /ask.")
