@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
@@ -114,6 +115,7 @@ export default function App() {
         layer={publicationSnapshotLayer}
         isTrialSnapshotOpen={Boolean(selectedTrialId)}
       />
+      <Analytics />
     </div>
   );
 }
