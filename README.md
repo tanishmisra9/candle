@@ -83,6 +83,28 @@ To force-refresh publication overviews for everything already saved:
 cd backend && uv run python -m app.ingest.overviews --force
 ```
 
+## Pre-outreach Cleanup
+
+Before CureCHM outreach, run the one-time cleanup for older non-CHM trials that were ingested before the raw relevance guard existed.
+
+From `backend/`:
+
+```bash
+uv run python scripts/cleanup_non_chm_trials.py --dry-run
+```
+
+Review the reported count. If it looks correct, run the cleanup for real:
+
+```bash
+uv run python scripts/cleanup_non_chm_trials.py
+```
+
+After the cleanup completes, re-run the embedding pipeline from the repo root so the current trial corpus is fully re-embedded:
+
+```bash
+make ingest
+```
+
 ## Data Flow
 
 `make ingest` runs the full backend pipeline:

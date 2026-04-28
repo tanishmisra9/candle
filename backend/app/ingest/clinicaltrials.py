@@ -13,6 +13,7 @@ from app.models import Trial
 
 
 settings = get_settings()
+CHM_TERM = "choroideremia"
 
 
 def as_dict(value: Any) -> dict[str, Any]:
@@ -41,6 +42,29 @@ def parse_normalized_date(value: str | None) -> date | None:
         if len(parts) == 1 and parts[0].isdigit():
             return date(int(parts[0]), 1, 1)
     return None
+
+
+def raw_study_is_chm_related(study: dict[str, Any]) -> bool:
+    protocol = as_dict(study.get("protocolSection"))
+    identification = as_dict(protocol.get("identificationModule"))
+    conditions_module = as_dict(protocol.get("conditionsModule"))
+    description_module = as_dict(protocol.get("descriptionModule"))
+
+    for field_name in ("conditions", "keywords"):
+        for value in conditions_module.get(field_name) or []:
+            if isinstance(value, str) and CHM_TERM in value.lower():
+                return True
+
+    for value in (
+        identification.get("briefTitle"),
+        identification.get("officialTitle"),
+        description_module.get("briefSummary"),
+        description_module.get("detailedDescription"),
+    ):
+        if isinstance(value, str) and CHM_TERM in value.lower():
+            return True
+
+    return False
 
 
 def study_to_row(study: dict[str, Any]) -> dict[str, Any] | None:
@@ -142,6 +166,8 @@ async def ingest_trials(session: AsyncSession) -> int:
             studies = payload.get("studies") or []
 
             for study in studies:
+                if not raw_study_is_chm_related(study):
+                    continue
                 row = study_to_row(study)
                 if row:
                     rows.append(row)
