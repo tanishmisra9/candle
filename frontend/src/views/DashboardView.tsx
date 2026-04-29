@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
@@ -29,8 +29,7 @@ function uniqueOptions(trials: TrialSummary[], key: keyof TrialSummary) {
   ).sort((a, b) => a.localeCompare(b));
 }
 
-function matchesTrialSearch(trial: TrialSummary, search: string) {
-  const normalizedSearch = search.trim().toLowerCase();
+function matchesTrialSearch(trial: TrialSummary, normalizedSearch: string) {
   if (!normalizedSearch) {
     return true;
   }
@@ -123,51 +122,30 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const [sponsor, setSponsor] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const deferredSearch = useDeferredValue(search);
   const isControlsVisible = useScrollVisibilityState({
     enabled: isMobile,
     hideAfter: 140,
     revealWithin: 72,
   });
+  const normalizedSearch = search.trim().toLowerCase();
 
-  const filtersQuery = useQuery({
-    queryKey: ["trials", "filters"],
+  const trialsQuery = useQuery({
+    queryKey: ["trials"],
     queryFn: () => listTrials({ limit: 500 }),
   });
 
-  const trialsQuery = useQuery({
-    queryKey: [
-      "trials",
-      status,
-      phase,
-      interventionType,
-      sponsor,
-      deferredSearch,
-      viewMode,
-    ],
-    queryFn: () =>
-      listTrials({
-        status: status || undefined,
-        phase: phase || undefined,
-        intervention_type: interventionType || undefined,
-        sponsor: sponsor || undefined,
-        q: deferredSearch || undefined,
-        limit: 500,
-      }),
-  });
-
-  const filterSource = filtersQuery.data ?? [];
-  const trials = trialsQuery.data ?? [];
+  const allTrials = trialsQuery.data ?? [];
   const activeFilters = {
     status,
     phase,
     interventionType,
     sponsor,
-    search: deferredSearch,
+    search: normalizedSearch,
   };
+  const trials = allTrials.filter((trial) => matchesFacetSelections(trial, activeFilters));
 
   const statusOptions = buildFacetOptions(
-    filterSource.filter((trial) =>
+    allTrials.filter((trial) =>
       matchesFacetSelections(trial, activeFilters, "status"),
     ),
     "status",
@@ -175,7 +153,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     formatStatusLabel,
   );
   const phaseOptions = buildFacetOptions(
-    filterSource.filter((trial) =>
+    allTrials.filter((trial) =>
       matchesFacetSelections(trial, activeFilters, "phase"),
     ),
     "phase",
@@ -183,7 +161,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     formatPhaseLabel,
   );
   const interventionTypeOptions = buildFacetOptions(
-    filterSource.filter((trial) =>
+    allTrials.filter((trial) =>
       matchesFacetSelections(trial, activeFilters, "intervention_type"),
     ),
     "intervention_type",
@@ -191,7 +169,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     formatInterventionTypeLabel,
   );
   const sponsorOptions = buildFacetOptions(
-    filterSource.filter((trial) =>
+    allTrials.filter((trial) =>
       matchesFacetSelections(trial, activeFilters, "sponsor"),
     ),
     "sponsor",
@@ -202,7 +180,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     status || phase || interventionType || sponsor || search.trim(),
   );
   const showTrialSkeletons = trialsQuery.isLoading;
-  const contentReady = filtersQuery.isFetched && trialsQuery.isFetched;
+  const contentReady = trialsQuery.isFetched;
   const startupReveal = prefersReducedMotion
     ? undefined
     : {
@@ -374,7 +352,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
             >
               <Timeline
                 trials={trials}
-                axisTrials={filterSource}
+                axisTrials={allTrials}
                 onOpen={onOpenTrialSnapshot}
               />
             </motion.div>
