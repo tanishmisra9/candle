@@ -149,7 +149,7 @@ async def test_store_chunk_records_batches_embedding_calls(monkeypatch):
     session = DummyStoreSession()
     embed_batch_sizes = []
 
-    async def fake_embed_texts(texts):
+    async def fake_embed_texts(texts, *, retries=0, retry_backoff_seconds=0.5):
         embed_batch_sizes.append(len(texts))
         return [[0.1, 0.2, 0.3] for _ in texts]
 

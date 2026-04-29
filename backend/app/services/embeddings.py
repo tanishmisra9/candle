@@ -23,7 +23,12 @@ def reset_openai_client_cache() -> None:
     _get_openai_client_for_key.cache_clear()
 
 
-async def embed_texts(texts: Sequence[str]) -> list[list[float]]:
+async def embed_texts(
+    texts: Sequence[str],
+    *,
+    retries: int = 0,
+    retry_backoff_seconds: float = 0.5,
+) -> list[list[float]]:
     settings = get_settings()
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for embeddings.")
@@ -36,12 +41,12 @@ async def embed_texts(texts: Sequence[str]) -> list[list[float]]:
             input=list(texts),
         ),
         timeout_seconds=settings.embedding_timeout_seconds,
-        retries=settings.background_openai_max_retries,
-        retry_backoff_seconds=settings.background_openai_retry_backoff_seconds,
+        retries=retries,
+        retry_backoff_seconds=retry_backoff_seconds,
     )
     return [item.embedding for item in response.data]
 
 
 async def embed_query(text: str) -> list[float]:
-    embeddings = await embed_texts([text])
+    embeddings = await embed_texts([text], retries=0, retry_backoff_seconds=0)
     return embeddings[0]

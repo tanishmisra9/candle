@@ -2,7 +2,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.embeddings import embed_texts, get_openai_client, reset_openai_client_cache
+from app.services.embeddings import (
+    embed_query,
+    embed_texts,
+    get_openai_client,
+    reset_openai_client_cache,
+)
 from app.services.openai_executor import OpenAITimeoutError
 
 
@@ -71,10 +76,67 @@ async def test_embed_texts_retries_transient_failures(monkeypatch):
         lambda api_key=None: FakeOpenAIClient(),
     )
 
-    vectors = await embed_texts(["trial chunk"])
+    settings = SimpleNamespace(
+        openai_api_key="test-key",
+        embedding_model="text-embedding-3-small",
+        embedding_timeout_seconds=20,
+        background_openai_max_retries=2,
+        background_openai_retry_backoff_seconds=0,
+    )
+    monkeypatch.setattr("app.services.embeddings.get_settings", lambda: settings)
+
+    vectors = await embed_texts(
+        ["trial chunk"],
+        retries=settings.background_openai_max_retries,
+        retry_backoff_seconds=settings.background_openai_retry_backoff_seconds,
+    )
 
     assert calls["count"] == 2
     assert vectors == [[0.1, 0.2, 0.3]]
+
+
+@pytest.mark.asyncio
+async def test_embed_query_does_not_retry_transient_failures(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.embeddings.get_settings",
+        lambda: SimpleNamespace(
+            openai_api_key="test-key",
+            embedding_model="text-embedding-3-small",
+            embedding_timeout_seconds=20,
+            background_openai_max_retries=2,
+            background_openai_retry_backoff_seconds=0,
+        ),
+    )
+
+    calls = {"count": 0}
+
+    class FakeEmbeddingsClient:
+        async def create(self, *, model, input):
+            calls["count"] += 1
+            raise RuntimeError("temporary failure")
+
+    class FakeOpenAIClient:
+        def __init__(self):
+            self.embeddings = FakeEmbeddingsClient()
+
+    async def fake_run_openai_operation(operation, **kwargs):
+        assert kwargs["retries"] == 0
+        assert kwargs["retry_backoff_seconds"] == 0
+        return await operation()
+
+    monkeypatch.setattr(
+        "app.services.embeddings.get_openai_client",
+        lambda api_key=None: FakeOpenAIClient(),
+    )
+    monkeypatch.setattr(
+        "app.services.embeddings.run_openai_operation",
+        fake_run_openai_operation,
+    )
+
+    with pytest.raises(RuntimeError, match="temporary failure"):
+        await embed_query("What trials are recruiting?")
+
+    assert calls["count"] == 1
 
 
 def test_get_openai_client_is_keyed_by_api_key(monkeypatch):

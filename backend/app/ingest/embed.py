@@ -166,6 +166,7 @@ async def store_chunk_records(session: AsyncSession, chunks: list[ChunkRecord]) 
     if not chunks:
         return 0
 
+    settings = get_settings()
     source_type = chunks[0].source_type
     source_ids = sorted({chunk.source_id for chunk in chunks})
     await session.execute(
@@ -178,7 +179,11 @@ async def store_chunk_records(session: AsyncSession, chunks: list[ChunkRecord]) 
     rows: list[Embedding] = []
     for batch_index in range(0, len(chunks), MAX_BATCH_SIZE):
         batch = chunks[batch_index : batch_index + MAX_BATCH_SIZE]
-        vectors = await embed_texts([chunk.content for chunk in batch])
+        vectors = await embed_texts(
+            [chunk.content for chunk in batch],
+            retries=settings.background_openai_max_retries,
+            retry_backoff_seconds=settings.background_openai_retry_backoff_seconds,
+        )
         for chunk, vector in zip(batch, vectors, strict=True):
             rows.append(
                 Embedding(
