@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
@@ -22,7 +22,6 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const [linkedOnly, setLinkedOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const deferredSearch = useDeferredValue(search);
   const isControlsVisible = useScrollVisibilityState({
     enabled: isMobile,
     hideAfter: 140,
@@ -42,17 +41,23 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   }, []);
 
   const publicationsQuery = useQuery({
-    queryKey: ["publications", deferredSearch],
-    queryFn: () =>
-      listPublications({
-        q: deferredSearch || undefined,
-        limit: 500,
-      }),
+    queryKey: ["publications"],
+    queryFn: () => listPublications({ limit: 500 }),
   });
 
-  const publications = (publicationsQuery.data ?? []).filter((item) =>
-    linkedOnly ? Boolean(item.trial_id) : true,
-  );
+  const normalizedSearch = search.trim().toLowerCase();
+  const publications = (publicationsQuery.data ?? []).filter((publication) => {
+    if (linkedOnly && !publication.trial_id) {
+      return false;
+    }
+    if (!normalizedSearch) {
+      return true;
+    }
+    if (publication.title.toLowerCase().includes(normalizedSearch)) {
+      return true;
+    }
+    return (publication.abstract ?? "").toLowerCase().includes(normalizedSearch);
+  });
   const showPublicationSkeletons = publicationsQuery.isLoading;
   const totalPages = Math.max(1, Math.ceil(publications.length / pageSize));
   const contentReady = publicationsQuery.isFetched;
@@ -72,7 +77,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [deferredSearch, linkedOnly]);
+  }, [linkedOnly, normalizedSearch]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
