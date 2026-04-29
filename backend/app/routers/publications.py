@@ -32,10 +32,11 @@ from app.services.publication_overviews import (
 router = APIRouter(prefix="/publications", tags=["publications"])
 
 
-def publication_filter_signature(*, trial_id: str | None, q: str | None) -> str:
+def publication_filter_signature(*, trial_id: str | None, q: str | None, limit: int) -> str:
     payload = {
         "trial_id": (trial_id or "").strip().lower(),
         "q": (q or "").strip().lower(),
+        "limit": limit,
     }
     serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]
@@ -87,7 +88,7 @@ async def fetch_publication_cursor_page(
     cursor: str | None,
 ) -> PublicationCursorPage:
     stmt = select(Publication)
-    current_signature = publication_filter_signature(trial_id=trial_id, q=q)
+    current_signature = publication_filter_signature(trial_id=trial_id, q=q, limit=limit)
     if trial_id:
         stmt = stmt.where(Publication.trial_id == trial_id)
     if q:

@@ -242,6 +242,7 @@ def test_trials_cursor_progression_and_filtering():
             intervention_type=None,
             sponsor=None,
             q=None,
+            limit=2,
         ),
     )
 
@@ -288,10 +289,36 @@ def test_trials_reject_cursor_with_mismatched_filters():
             intervention_type=None,
             sponsor="Biogen",
             q=None,
+            limit=100,
         ),
     )
 
     response = client.get("/trials", params={"cursor": cursor, "sponsor": "Candle"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cursor does not match the current filters."
+
+    app.dependency_overrides.clear()
+
+
+def test_trials_reject_cursor_with_mismatched_limit():
+    session = DummyTrialCursorSession([make_trial("NCT00000001")])
+    app.dependency_overrides[get_session] = override_session(session)
+    client = TestClient(app)
+    cursor = encode_trial_cursor(
+        date(2024, 3, 1),
+        "NCT00000001",
+        trial_filter_signature(
+            status=None,
+            phase=None,
+            intervention_type=None,
+            sponsor=None,
+            q=None,
+            limit=2,
+        ),
+    )
+
+    response = client.get("/trials", params={"cursor": cursor, "limit": 3})
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Cursor does not match the current filters."
@@ -329,7 +356,7 @@ def test_publications_cursor_progression_and_filtering():
     assert body["next_cursor"] == encode_publication_cursor(
         date(2024, 3, 1),
         "PMID2",
-        publication_filter_signature(trial_id=None, q=None),
+        publication_filter_signature(trial_id=None, q=None, limit=2),
     )
 
     next_page = client.get(
@@ -371,10 +398,28 @@ def test_publications_reject_cursor_with_mismatched_filters():
     cursor = encode_publication_cursor(
         date(2024, 3, 1),
         "PMID1",
-        publication_filter_signature(trial_id="NCT1", q="gene"),
+        publication_filter_signature(trial_id="NCT1", q="gene", limit=200),
     )
 
     response = client.get("/publications", params={"cursor": cursor, "trial_id": "NCT2", "q": "gene"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cursor does not match the current filters."
+
+    app.dependency_overrides.clear()
+
+
+def test_publications_reject_cursor_with_mismatched_limit():
+    session = DummyPublicationCursorSession([make_publication("PMID1")])
+    app.dependency_overrides[get_session] = override_session(session)
+    client = TestClient(app)
+    cursor = encode_publication_cursor(
+        date(2024, 3, 1),
+        "PMID1",
+        publication_filter_signature(trial_id=None, q=None, limit=2),
+    )
+
+    response = client.get("/publications", params={"cursor": cursor, "limit": 3})
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Cursor does not match the current filters."

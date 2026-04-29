@@ -26,6 +26,7 @@ def trial_filter_signature(
     intervention_type: str | None,
     sponsor: str | None,
     q: str | None,
+    limit: int,
 ) -> str:
     payload = {
         "status": (status or "").strip().lower(),
@@ -33,6 +34,7 @@ def trial_filter_signature(
         "intervention_type": (intervention_type or "").strip().lower(),
         "sponsor": (sponsor or "").strip().lower(),
         "q": (q or "").strip().lower(),
+        "limit": limit,
     }
     serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]
@@ -94,6 +96,7 @@ async def fetch_trial_cursor_page(
         intervention_type=intervention_type,
         sponsor=sponsor,
         q=q,
+        limit=limit,
     )
 
     if status:
