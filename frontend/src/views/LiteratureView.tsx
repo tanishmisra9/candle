@@ -111,10 +111,9 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
       </motion.header>
 
       <motion.div
-        initial={startupReveal?.initial}
-        animate={startupReveal?.animate}
-        transition={startupReveal?.transition}
-        className="space-y-8 md:space-y-12"
+        initial={prefersReducedMotion ? undefined : { opacity: 0 }}
+        animate={prefersReducedMotion ? undefined : { opacity: 1 }}
+        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       >
         <div
           className={cn(
@@ -161,7 +160,14 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
             </div>
           </div>
         </div>
+      </motion.div>
 
+      <motion.div
+        initial={startupReveal?.initial}
+        animate={startupReveal?.animate}
+        transition={startupReveal?.transition}
+        className="space-y-8 md:space-y-12"
+      >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={`${linkedOnly ? "linked" : "all"}-${currentPage}`}
