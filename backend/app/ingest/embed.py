@@ -6,7 +6,7 @@ from datetime import date
 from typing import Any
 
 import tiktoken
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Embedding, Publication, Trial
@@ -18,6 +18,7 @@ MAX_BATCH_SIZE = 100
 MAX_TOKENS = 500
 MIN_TOKENS = 300
 CHARS_PER_TOKEN = 4
+SOURCE_PAGE_SIZE = 100
 
 
 @dataclass
@@ -104,14 +105,25 @@ def build_trial_chunk(trial: Trial) -> str:
     )
 
 
-async def build_chunks(session: AsyncSession) -> list[ChunkRecord]:
-    settings_model_name = get_settings().embedding_model
-    encoding = get_encoding(settings_model_name)
-    chunks: list[ChunkRecord] = []
+def needs_embedding_refresh(updated_at, embedded_at) -> bool:
+    return embedded_at is None or updated_at is None or updated_at > embedded_at
 
-    trials = (await session.execute(select(Trial))).scalars().all()
+
+async def latest_embedding_timestamps(
+    session: AsyncSession, source_type: str
+) -> dict[str, Any]:
+    result = await session.execute(
+        select(Embedding.source_id, func.max(Embedding.created_at))
+        .where(Embedding.source_type == source_type)
+        .group_by(Embedding.source_id)
+    )
+    return {source_id: created_at for source_id, created_at in result.all()}
+
+
+def build_trial_records(trials: list[Trial]) -> list[ChunkRecord]:
+    records: list[ChunkRecord] = []
     for trial in trials:
-        chunks.append(
+        records.append(
             ChunkRecord(
                 source_type="trial",
                 source_id=trial.id,
@@ -125,13 +137,16 @@ async def build_chunks(session: AsyncSession) -> list[ChunkRecord]:
                 },
             )
         )
+    return records
 
-    publications = (await session.execute(select(Publication))).scalars().all()
+
+def build_publication_records(
+    publications: list[Publication], encoding
+) -> list[ChunkRecord]:
+    records: list[ChunkRecord] = []
     for publication in publications:
-        for content in chunk_publication_text(
-            publication.title, publication.abstract, encoding
-        ):
-            chunks.append(
+        for content in chunk_publication_text(publication.title, publication.abstract, encoding):
+            records.append(
                 ChunkRecord(
                     source_type="publication",
                     source_id=publication.pmid,
@@ -144,34 +159,21 @@ async def build_chunks(session: AsyncSession) -> list[ChunkRecord]:
                     },
                 )
             )
+    return records
 
-    return chunks
 
-
-async def store_embeddings(session: AsyncSession) -> int:
-    chunks = await build_chunks(session)
+async def store_chunk_records(session: AsyncSession, chunks: list[ChunkRecord]) -> int:
     if not chunks:
         return 0
 
-    trial_ids = sorted({chunk.source_id for chunk in chunks if chunk.source_type == "trial"})
-    publication_ids = sorted(
-        {chunk.source_id for chunk in chunks if chunk.source_type == "publication"}
+    source_type = chunks[0].source_type
+    source_ids = sorted({chunk.source_id for chunk in chunks})
+    await session.execute(
+        delete(Embedding).where(
+            Embedding.source_type == source_type,
+            Embedding.source_id.in_(source_ids),
+        )
     )
-
-    if trial_ids:
-        await session.execute(
-            delete(Embedding).where(
-                Embedding.source_type == "trial", Embedding.source_id.in_(trial_ids)
-            )
-        )
-    if publication_ids:
-        await session.execute(
-            delete(Embedding).where(
-                Embedding.source_type == "publication",
-                Embedding.source_id.in_(publication_ids),
-            )
-        )
-    await session.commit()
 
     rows: list[Embedding] = []
     for batch_index in range(0, len(chunks), MAX_BATCH_SIZE):
@@ -187,7 +189,87 @@ async def store_embeddings(session: AsyncSession) -> int:
                     embedding=vector,
                 )
             )
-
     session.add_all(rows)
     await session.commit()
     return len(rows)
+
+
+async def changed_trial_page(
+    session: AsyncSession,
+    latest_timestamps: dict[str, Any],
+    *,
+    last_id: str | None,
+) -> tuple[list[Trial], str | None]:
+    stmt = select(Trial).order_by(Trial.id.asc()).limit(SOURCE_PAGE_SIZE)
+    if last_id is not None:
+        stmt = stmt.where(Trial.id > last_id)
+
+    page = (await session.execute(stmt)).scalars().all()
+    changed = [
+        trial
+        for trial in page
+        if needs_embedding_refresh(trial.updated_at, latest_timestamps.get(trial.id))
+    ]
+    next_last_id = page[-1].id if page else None
+    return changed, next_last_id
+
+
+async def changed_publication_page(
+    session: AsyncSession,
+    latest_timestamps: dict[str, Any],
+    *,
+    last_pmid: str | None,
+) -> tuple[list[Publication], str | None]:
+    stmt = select(Publication).order_by(Publication.pmid.asc()).limit(SOURCE_PAGE_SIZE)
+    if last_pmid is not None:
+        stmt = stmt.where(Publication.pmid > last_pmid)
+
+    page = (await session.execute(stmt)).scalars().all()
+    changed = [
+        publication
+        for publication in page
+        if needs_embedding_refresh(
+            publication.updated_at,
+            latest_timestamps.get(publication.pmid),
+        )
+    ]
+    next_last_pmid = page[-1].pmid if page else None
+    return changed, next_last_pmid
+
+
+async def store_embeddings(session: AsyncSession) -> int:
+    settings_model_name = get_settings().embedding_model
+    encoding = get_encoding(settings_model_name)
+    stored_count = 0
+
+    trial_timestamps = await latest_embedding_timestamps(session, "trial")
+    last_trial_id: str | None = None
+    while True:
+        changed_trials, last_trial_id = await changed_trial_page(
+            session,
+            trial_timestamps,
+            last_id=last_trial_id,
+        )
+        if last_trial_id is None:
+            break
+        stored_count += await store_chunk_records(
+            session,
+            build_trial_records(changed_trials),
+        )
+
+    publication_timestamps = await latest_embedding_timestamps(session, "publication")
+    last_publication_pmid: str | None = None
+    while True:
+        changed_publications, last_publication_pmid = await changed_publication_page(
+            session,
+            publication_timestamps,
+            last_pmid=last_publication_pmid,
+        )
+        if last_publication_pmid is None:
+            break
+        stored_count += await store_chunk_records(
+            session,
+            build_publication_records(changed_publications, encoding),
+        )
+
+    return stored_count
