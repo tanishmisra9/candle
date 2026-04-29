@@ -32,6 +32,11 @@ export type PublicationSummary = {
   url: string;
 };
 
+export type CursorPage<T> = {
+  items: T[];
+  next_cursor: string | null;
+};
+
 export type OutcomeEntry = {
   outcome_type: string;
   measure: string;

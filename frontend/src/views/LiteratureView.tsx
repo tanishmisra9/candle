@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 import { PublicationRow } from "../components/PublicationRow";
 import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { cn } from "../lib/cn";
-import { listPublications } from "../lib/api";
+import { listPublicationsPage } from "../lib/api";
 import { NAV_OFFSET_CLASS, useIsMobile, useScrollVisibilityState } from "../lib/mobile";
 import type { PublicationSummary } from "../types";
 
@@ -40,13 +40,31 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const publicationsQuery = useQuery({
-    queryKey: ["publications"],
-    queryFn: () => listPublications({ limit: 500 }),
+  const publicationsQuery = useInfiniteQuery({
+    queryKey: ["publications", "cursor"],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) =>
+      listPublicationsPage({
+        envelope: "true",
+        limit: 200,
+        cursor: pageParam ?? undefined,
+      }),
+    getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
   });
 
+  useEffect(() => {
+    if (publicationsQuery.hasNextPage && !publicationsQuery.isFetchingNextPage) {
+      void publicationsQuery.fetchNextPage();
+    }
+  }, [
+    publicationsQuery.fetchNextPage,
+    publicationsQuery.hasNextPage,
+    publicationsQuery.isFetchingNextPage,
+  ]);
+
   const normalizedSearch = search.trim().toLowerCase();
-  const publications = (publicationsQuery.data ?? []).filter((publication) => {
+  const allPublications = publicationsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const publications = allPublications.filter((publication) => {
     if (linkedOnly && !publication.trial_id) {
       return false;
     }
@@ -58,9 +76,15 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     }
     return (publication.abstract ?? "").toLowerCase().includes(normalizedSearch);
   });
-  const showPublicationSkeletons = publicationsQuery.isLoading;
+  const showPublicationSkeletons =
+    publicationsQuery.isPending ||
+    publicationsQuery.isFetchingNextPage ||
+    Boolean(publicationsQuery.hasNextPage);
   const totalPages = Math.max(1, Math.ceil(publications.length / pageSize));
-  const contentReady = publicationsQuery.isFetched;
+  const contentReady =
+    publicationsQuery.isFetched &&
+    !publicationsQuery.isFetchingNextPage &&
+    !publicationsQuery.hasNextPage;
   const startupReveal = prefersReducedMotion
     ? undefined
     : {

@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { FilterBar } from "../components/FilterBar";
 import { Timeline } from "../components/Timeline";
 import { TrialCard } from "../components/TrialCard";
 import { TrialCardSkeleton } from "../components/TrialCardSkeleton";
-import { listTrials } from "../lib/api";
+import { listTrialsPage } from "../lib/api";
 import { cn } from "../lib/cn";
 import {
   formatInterventionTypeLabel,
@@ -129,12 +129,25 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   });
   const normalizedSearch = search.trim().toLowerCase();
 
-  const trialsQuery = useQuery({
-    queryKey: ["trials"],
-    queryFn: () => listTrials({ limit: 500 }),
+  const trialsQuery = useInfiniteQuery({
+    queryKey: ["trials", "cursor"],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) =>
+      listTrialsPage({
+        envelope: "true",
+        limit: 200,
+        cursor: pageParam ?? undefined,
+      }),
+    getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
   });
 
-  const allTrials = trialsQuery.data ?? [];
+  useEffect(() => {
+    if (trialsQuery.hasNextPage && !trialsQuery.isFetchingNextPage) {
+      void trialsQuery.fetchNextPage();
+    }
+  }, [trialsQuery.fetchNextPage, trialsQuery.hasNextPage, trialsQuery.isFetchingNextPage]);
+
+  const allTrials = trialsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const activeFilters = {
     status,
     phase,
@@ -179,8 +192,10 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const hasActiveFilters = Boolean(
     status || phase || interventionType || sponsor || search.trim(),
   );
-  const showTrialSkeletons = trialsQuery.isLoading;
-  const contentReady = trialsQuery.isFetched;
+  const showTrialSkeletons =
+    trialsQuery.isPending || trialsQuery.isFetchingNextPage || Boolean(trialsQuery.hasNextPage);
+  const contentReady =
+    trialsQuery.isFetched && !trialsQuery.isFetchingNextPage && !trialsQuery.hasNextPage;
   const startupReveal = prefersReducedMotion
     ? undefined
     : {

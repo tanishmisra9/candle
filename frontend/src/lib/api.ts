@@ -1,4 +1,10 @@
-import type { AskResponse, PublicationSummary, TrialDetail, TrialSummary } from "../types";
+import type {
+  AskResponse,
+  CursorPage,
+  PublicationSummary,
+  TrialDetail,
+  TrialSummary,
+} from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -29,6 +35,18 @@ export async function listTrials(params: Record<string, string | number | undefi
   return request<TrialSummary[]>(`/trials?${search.toString()}`);
 }
 
+export async function listTrialsPage(
+  params: Record<string, string | number | undefined>,
+) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") {
+      search.set(key, String(value));
+    }
+  });
+  return request<CursorPage<TrialSummary>>(`/trials?${search.toString()}`);
+}
+
 export async function getTrial(id: string) {
   return request<TrialDetail>(`/trials/${id}`);
 }
@@ -43,6 +61,18 @@ export async function listPublications(
     }
   });
   return request<PublicationSummary[]>(`/publications?${search.toString()}`);
+}
+
+export async function listPublicationsPage(
+  params: Record<string, string | number | undefined>,
+) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") {
+      search.set(key, String(value));
+    }
+  });
+  return request<CursorPage<PublicationSummary>>(`/publications?${search.toString()}`);
 }
 
 export async function getPublicationOverview(pmid: string) {
