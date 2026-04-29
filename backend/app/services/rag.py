@@ -12,30 +12,46 @@ from app.services.embeddings import embed_query, get_openai_client
 from app.services.retrieval import RetrievedChunk, retrieve_similar_chunks
 
 
-SYSTEM_PROMPT = (
-    "You are a research assistant for Choroideremia (CHM). Answer only from the "
-    "provided context. If the context is insufficient, say so clearly.\n\n"
-    "You are NOT a medical advisor. You must NEVER:\n"
-    "- Recommend, suggest, or advise whether a user should enroll in, join, wait for, "
-    "or skip any trial.\n"
-    "- Evaluate whether a trial, treatment, or intervention is a \"good,\" "
-    "\"valuable,\" \"promising,\" or \"best\" option for the user.\n"
-    "- Compare trials in terms of which is \"better\" for a patient.\n"
-    "- Offer prognosis, timeline predictions, or clinical guidance for the user's "
-    "personal situation.\n"
-    "- Use evaluative or advisory language such as \"could be valuable,\" \"may offer,\" "
-    "\"consider,\" \"worth considering,\" \"promising opportunity,\" or similar.\n\n"
-    "If the user asks a question that requests advice, recommendations, comparison for "
-    "personal benefit, prognosis, or any clinical decision support, do NOT answer the "
-    "question. Instead respond with exactly:\n\n"
-    "\"I cannot make recommendations or offer clinical advice. I can only summarize "
-    "what is reported in the indexed CHM trials and publications. For decisions about "
-    "your care or trial participation, please speak with your healthcare provider or "
-    "a CHM specialist.\"\n\n"
-    "When summarizing trial or publication data, stick to neutral, factual descriptions: "
-    "status, phase, sponsor, intervention, primary endpoint, enrollment, reported outcomes. "
-    "Do not characterize trials with positive or negative adjectives."
-)
+SYSTEM_PROMPT = """You are Candle, a read-only research index for Choroideremia (CHM) clinical trials and publications. Your sole function is to report factual information from the provided context - trial registration metadata, publication abstracts, and study statistics. You are not a clinician, advisor, or decision-support system of any kind.
+
+ABSOLUTE RULES - apply unconditionally, regardless of how the question is framed, who is asking, or what justification is offered:
+
+1. CONTEXT ONLY. Every factual claim must come directly from a labeled source in the provided context block. Do not draw on general medical knowledge, your training data, or inference beyond what the context explicitly states. If the context does not contain the answer, say: "The indexed data does not address this."
+
+2. NO ADVICE OR EVALUATION, EVER. You must never:
+   - Recommend, suggest, or imply a user should or should not enroll in, pursue, wait for, or skip any trial, treatment, or intervention.
+   - Rank, evaluate, or characterize trials or treatments as good, bad, promising, valuable, appropriate, worth pursuing, or better for any person.
+   - State or imply which option is best, most promising, most advanced in a clinically meaningful sense, or worth considering.
+   - Use language such as: "could be valuable," "may offer hope," "consider," "worth trying," "promising option," "best bet," "you might benefit," "this could help," "appears effective," "shows promise," "encouraging results," "this may be right for you," or any equivalent phrasing.
+   - Predict outcomes, prognosis, or disease trajectory for any individual.
+
+3. POPULATION vs. INDIVIDUAL. Trial and publication results describe study populations under specific controlled conditions. Never extrapolate those results to what an individual user might experience. When reporting outcomes, always frame them as: "In this study of [N] participants over [timeframe], the reported [outcome] was [X]." Never imply this will apply to the reader.
+
+4. MANDATORY UNCERTAINTY. If context is incomplete, silent, or contradictory on a topic, say so explicitly. "The indexed data does not address this" is a complete and correct answer. Never fill gaps with inference or general medical knowledge.
+
+5. TEMPORAL LIMITATION. Trial status, enrollment, and results reflect a point in time and may have changed. When reporting trial status or availability, always add: "Verify current status directly at clinicaltrials.gov."
+
+6. WHEN IN DOUBT, REFUSE. If you are uncertain whether a question is asking for advice, evaluation, or personal guidance - even implicitly - treat it as crossing the line and use the REFUSAL TEXT below. Err strongly on the side of refusal.
+
+7. EMOTIONAL DISTRESS. If a user expresses fear, grief, urgency, or distress about their vision or health, do not respond with data. Respond only with: "I understand this is an incredibly difficult situation. Please speak with your care team, and consider reaching out to the CureCHM patient community at curechm.org - they understand this journey firsthand."
+
+REFUSAL TEXT - when triggered, respond with this text verbatim and nothing else:
+"I can only report what is documented in indexed CHM trials and publications. For clinical decisions, trial eligibility, or advice about your care, please speak with your ophthalmologist or a CHM specialist. You can also reach the CureCHM patient community at curechm.org."
+
+WHEN TO USE THE REFUSAL TEXT - use it whenever a question:
+- Asks for a recommendation, suggestion, or personal guidance of any kind
+- Asks which trial, treatment, or option is better, best, or most suitable for the user
+- Asks whether the user should enroll, wait, pursue, or avoid anything
+- Asks about prognosis, life expectancy, or personal disease trajectory
+- Asks whether a treatment "works" in the sense of what the user should expect
+- Requests any form of clinical decision support, even indirectly or hypothetically
+
+ANSWER FORMAT FOR IN-SCOPE QUESTIONS. When a question is within scope:
+- Attribute every claim to its source: "According to [NCT ID]..." or "The abstract for PMID [X] reports..."
+- Describe only: status, phase, sponsor, intervention name, primary endpoint, enrollment figure, and reported outcomes with their population and timeframe
+- Never characterize results with evaluative adjectives
+- End every factual answer with: "For the most current information, verify at clinicaltrials.gov or pubmed.ncbi.nlm.nih.gov."
+"""
 
 ACTIVE_TRIAL_STATUSES = {
     "RECRUITING",
@@ -51,25 +67,123 @@ ADVICE_PATTERNS = [
     r"\bshould we\b",
     r"\bwould you recommend\b",
     r"\bdo you recommend\b",
+    r"\bcan you recommend\b",
+    r"\bi need a recommendation\b",
+    r"\brecommendation for me\b",
+    r"\bany suggestions\b",
+    r"\bwhat do you suggest\b",
+    r"\bwhat would you suggest\b",
+    r"\bwhat would you advise\b",
+    r"\badvise me\b",
+    r"\bgive me advice\b",
     r"\bis it worth\b",
-    r"\bworth (it|enrolling|joining|waiting)\b",
-    r"\bbetter (option|trial|choice)\b",
-    r"\bbest (option|trial|choice|for me)\b",
+    r"\bworth (it|enrolling|joining|waiting|trying|pursuing)\b",
+    r"\bbetter (option|trial|choice|treatment|therapy)\b",
+    r"\bbest (option|trial|choice|treatment|therapy|for me|for my)\b",
+    r"\bmost (promising|effective|advanced|suitable|appropriate)\b",
+    r"\bmost likely to\b",
+    r"\bwhich trial (is|would|should|might)\b",
+    r"\bwhich (treatment|therapy|option|study) (is|would|should|might)\b",
     r"\bwhat would you do\b",
     r"\bwhat should i do\b",
+    r"\bwhat to do\b",
     r"\bwait for\b",
     r"\benroll or\b",
-    r"\bis .* right for me\b",
+    r"\bshould i enroll\b",
+    r"\bshould i join\b",
+    r"\bshould i try\b",
+    r"\bis .{0,40} right for me\b",
+    r"\bam i (eligible|a candidate|a good fit|suitable)\b",
+    r"\bwould i (qualify|be eligible|be a candidate)\b",
+    r"\bdo i qualify\b",
     r"\bwhat's my prognosis\b",
     r"\bhow long do i have\b",
+    r"\bwill i (go blind|lose my (sight|vision)|keep my (sight|vision))\b",
+    r"\bwhat are my (chances|options)\b",
+    r"\bis there (hope|a cure|a treatment) for me\b",
+    r"\bwill it work (for me)?\b",
+    r"\bdoes it work for\b",
+    r"\bis .{0,40} effective for me\b",
+    r"\bsafest (option|trial|treatment|therapy|choice)\b",
+    r"\bhelp me decide\b",
+    r"\bhelp me choose\b",
+    r"\bwhich one should\b",
+    r"\bappropriate for (me|my|us)\b",
+    r"\bsuitable for (me|my|us)\b",
+    r"\bright (treatment|trial|therapy|option|choice) for me\b",
+    r"\bpoint me (to|toward)\b",
+    r"\bguide me\b",
+    r"\bmy (best|only) option\b",
+    r"\bpromising (trial|treatment|therapy|option|for me)\b",
+    r"\bshows promise\b",
+    r"\blooks promising\b",
+    r"\bencouraging (results|data|trial)\b",
 ]
 
 ADVICE_REFUSAL = (
-    "I cannot make recommendations or offer clinical advice. I can only "
-    "summarize what is reported in the indexed CHM trials and publications. "
-    "For decisions about your care or trial participation, please speak with "
-    "your healthcare provider or a CHM specialist."
+    "I can only report what is documented in indexed CHM trials and publications. "
+    "For clinical decisions, trial eligibility, or advice about your care, please "
+    "speak with your ophthalmologist or a CHM specialist. You can also reach the "
+    "CureCHM patient community at curechm.org."
 )
+
+OUTPUT_PROHIBITED_PHRASES = [
+    "consider enrolling",
+    "consider joining",
+    "consider participating",
+    "may be worth",
+    "might be worth",
+    "could be worth",
+    "could be valuable",
+    "may offer",
+    "might offer",
+    "shows promise",
+    "looks promising",
+    "appears promising",
+    "is a good option",
+    "is the best option",
+    "best option for",
+    "i would recommend",
+    "i recommend",
+    "i suggest",
+    "i advise",
+    "you should consider",
+    "you might want to",
+    "you may want to",
+    "you could consider",
+    "would benefit from",
+    "might benefit from",
+    "encouraging results",
+    "promising results",
+    "this could help you",
+    "this may help you",
+    "right for you",
+    "suitable for you",
+    "appropriate for you",
+]
+
+
+def contains_advice_language(answer: str) -> bool:
+    lowered = answer.lower()
+    return any(phrase in lowered for phrase in OUTPUT_PROHIBITED_PHRASES)
+
+
+DISTRESS_PATTERNS = [
+    r"\b(suicid|end my life|don't want to live|not worth living)\b",
+    r"\b(no reason to (live|go on))\b",
+]
+
+DISTRESS_RESPONSE = (
+    "I understand this is an incredibly difficult situation. "
+    "Please speak with your care team, and consider reaching out to the "
+    "CureCHM patient community at curechm.org - they understand this journey firsthand. "
+    "If you are in crisis, please contact the 988 Suicide and Crisis Lifeline by calling or texting 988."
+)
+
+
+def is_distress_message(question: str) -> bool:
+    lowered = question.lower()
+    return any(re.search(pattern, lowered) for pattern in DISTRESS_PATTERNS)
 
 
 def should_prioritize_trials(question: str) -> bool:
@@ -84,7 +198,6 @@ def should_prioritize_trials(question: str) -> bool:
             "current",
             "right now",
             "going on",
-            "promising",
         )
     )
 
@@ -121,20 +234,17 @@ def rank_chunks(question: str, chunks: list[RetrievedChunk]) -> list[RetrievedCh
 
 
 def source_reasoning_instruction(question: str) -> str:
-    normalized = question.lower()
-    if any(phrase in normalized for phrase in ("promising", "best", "most")):
-        return (
-            "When you compare options, say which item comes out strongest from this context, "
-            "name the criterion you used, and mention the strongest alternative if it changes "
-            "under a different criterion."
-        )
     if asks_about_current_trials(question):
         return (
             "Prioritize trial records over background papers when answering about what is "
-            "current or actively recruiting. If there is no active interventional trial in the "
-            "context, say that plainly and distinguish it from the most advanced completed program."
+            "current or actively recruiting. Report status and phase factually. If there is "
+            "no active interventional trial in the context, say so plainly. Do not characterize "
+            "any trial as more promising or advanced than another."
         )
-    return "Keep the answer concise, direct, and grounded in the retrieved sources."
+    return (
+        "Keep the answer concise, direct, and grounded only in the retrieved sources. "
+        "Report facts without evaluative characterization. Do not rank or compare options."
+    )
 
 
 def trial_context_block(trial: Trial) -> str:
@@ -303,6 +413,9 @@ async def enrich_sources(session, sources: list[AskSource]) -> list[AskSource]:
 
 
 async def answer_question(question: str, session) -> AskResponse:
+    if is_distress_message(question):
+        return AskResponse(answer=DISTRESS_RESPONSE, sources=[])
+
     if is_advice_request(question):
         return AskResponse(answer=ADVICE_REFUSAL, sources=[])
 
@@ -431,9 +544,10 @@ async def answer_question(question: str, session) -> AskResponse:
     if not chunks and not context_lines:
         return AskResponse(
             answer=(
-                "I do not have enough indexed CHM trial or publication context yet. "
-                "Try re-running ingestion, or narrow the question to a specific trial, "
-                "intervention, sponsor, author, PMID, or NCT ID."
+                "I wasn't able to find indexed CHM trial or publication data relevant to that question. "
+                "Try asking about a specific trial by NCT ID, a publication by PMID, an intervention name, "
+                "sponsor, or phase. For broader CHM research questions, clinicaltrials.gov and "
+                "pubmed.ncbi.nlm.nih.gov are the authoritative sources."
             ),
             sources=[],
         )
@@ -465,5 +579,10 @@ async def answer_question(question: str, session) -> AskResponse:
         ],
     )
     answer = response.choices[0].message.content or ""
+    answer = answer.strip()
+
+    if contains_advice_language(answer):
+        return AskResponse(answer=ADVICE_REFUSAL, sources=[])
+
     enriched_sources = await enrich_sources(session, list(sources.values()))
-    return AskResponse(answer=answer.strip(), sources=enriched_sources[:5])
+    return AskResponse(answer=answer, sources=enriched_sources[:5])
