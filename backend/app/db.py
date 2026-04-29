@@ -69,11 +69,22 @@ async def reconcile_database_schema() -> None:
                         " ".join(statement.split()),
                     )
     except (OperationalError, OSError):
+        if settings.deployment_env == "production":
+            raise
         logger.warning(
             "Skipping database schema reconciliation because the database is unavailable."
         )
     else:
         logger.info("Database schema reconciliation completed.")
+
+
+async def check_database_connectivity() -> bool:
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except (OperationalError, OSError):
+        return False
+    return True
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:

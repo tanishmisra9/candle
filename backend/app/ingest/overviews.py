@@ -4,7 +4,7 @@ import argparse
 import asyncio
 import logging
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db import AsyncSessionLocal
 from app.models import Publication
@@ -13,37 +13,47 @@ from app.services.publication_overviews import get_or_generate_publication_overv
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("candle.overviews")
+OVERVIEW_PAGE_SIZE = 100
 
 
 async def generate_publication_overviews(*, force: bool = False) -> int:
     async with AsyncSessionLocal() as session:
-        publications = (
-            await session.execute(
-                select(Publication).order_by(Publication.pub_date.desc().nullslast())
-            )
-        ).scalars().all()
+        total_publications = await session.scalar(select(func.count()).select_from(Publication))
+        total_publications = total_publications or 0
+        generated_count = 0
+        processed_count = 0
+        last_pmid: str | None = None
 
-    generated_count = 0
+        while True:
+            stmt = select(Publication).order_by(Publication.pmid.asc()).limit(OVERVIEW_PAGE_SIZE)
+            if last_pmid is not None:
+                stmt = stmt.where(Publication.pmid > last_pmid)
 
-    for index, publication in enumerate(publications, start=1):
-        async with AsyncSessionLocal() as session:
-            current_publication = await session.get(Publication, publication.pmid)
-            if current_publication is None:
-                continue
+            publications = (await session.execute(stmt)).scalars().all()
+            if not publications:
+                break
 
-            _overview, generated = await get_or_generate_publication_overview(
-                session, current_publication, force=force
-            )
-            if generated:
-                generated_count += 1
+            for publication in publications:
+                current_publication = await session.get(Publication, publication.pmid)
+                if current_publication is None:
+                    continue
 
-        if index % 25 == 0 or index == len(publications):
-            logger.info(
-                "Processed %s/%s publications (%s generated)",
-                index,
-                len(publications),
-                generated_count,
-            )
+                _overview, generated = await get_or_generate_publication_overview(
+                    session, current_publication, force=force
+                )
+                if generated:
+                    generated_count += 1
+                processed_count += 1
+
+                if processed_count % 25 == 0 or processed_count == total_publications:
+                    logger.info(
+                        "Processed %s/%s publications (%s generated)",
+                        processed_count,
+                        total_publications,
+                        generated_count,
+                    )
+
+            last_pmid = publications[-1].pmid
 
     return generated_count
 

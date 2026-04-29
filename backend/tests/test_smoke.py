@@ -23,6 +23,32 @@ def test_healthz():
     assert response.json() == {"ok": True}
 
 
+def test_readyz_returns_200_when_database_is_ready(monkeypatch):
+    async def fake_check_database_connectivity():
+        return True
+
+    monkeypatch.setattr("app.main.check_database_connectivity", fake_check_database_connectivity)
+    client = TestClient(app)
+
+    response = client.get("/readyz")
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+
+
+def test_readyz_returns_503_when_database_is_not_ready(monkeypatch):
+    async def fake_check_database_connectivity():
+        return False
+
+    monkeypatch.setattr("app.main.check_database_connectivity", fake_check_database_connectivity)
+    client = TestClient(app)
+
+    response = client.get("/readyz")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Database is not ready."
+
+
 def test_startup_warns_when_openai_key_missing(monkeypatch, caplog):
     monkeypatch.setattr("app.main.settings.openai_api_key", "")
 
@@ -50,6 +76,34 @@ def test_startup_reconciles_database_schema(monkeypatch):
         pass
 
     assert called is True
+
+
+def test_startup_fails_fast_in_production_with_default_database_url(monkeypatch):
+    monkeypatch.setattr("app.main.settings.deployment_env", "production")
+    monkeypatch.setattr(
+        "app.main.settings.database_url",
+        "postgresql+asyncpg://candle:candle@localhost:5432/candle",
+    )
+
+    with pytest.raises(RuntimeError, match="DATABASE_URL must be explicitly configured"):
+        with TestClient(app):
+            pass
+
+
+def test_startup_fails_fast_in_production_when_database_reconcile_fails(monkeypatch):
+    async def fake_reconcile_database_schema():
+        raise OSError("db unavailable")
+
+    monkeypatch.setattr("app.main.settings.deployment_env", "production")
+    monkeypatch.setattr(
+        "app.main.settings.database_url",
+        "postgresql+asyncpg://prod:secret@db.example.com:5432/candle",
+    )
+    monkeypatch.setattr("app.main.reconcile_database_schema", fake_reconcile_database_schema)
+
+    with pytest.raises(OSError, match="db unavailable"):
+        with TestClient(app):
+            pass
 
 
 class FakeConnection:

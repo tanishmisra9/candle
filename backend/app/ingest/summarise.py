@@ -18,6 +18,7 @@ TRIAL_SUMMARY_SYSTEM_PROMPT = (
     "clinician. Focus on: what the trial is testing, what phase it is in, what the "
     "primary endpoint is, and the current status. Be factual and calm in tone."
 )
+SUMMARY_COMMIT_BATCH_SIZE = 20
 
 
 def trial_summary_user_message(trial: Trial) -> str:
@@ -73,8 +74,10 @@ async def generate_trial_summaries(session: AsyncSession) -> int:
         summary = await generate_trial_summary_text(trial)
         trial.ai_summary = summary
         trial.ai_summary_generated_at = datetime.now(timezone.utc)
-        await session.commit()
         generated_count += 1
+
+        if index % SUMMARY_COMMIT_BATCH_SIZE == 0 or index == len(trials):
+            await session.commit()
 
         if index < len(trials):
             await asyncio.sleep(0.5)

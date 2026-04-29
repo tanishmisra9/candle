@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_DATABASE_URL = "postgresql+asyncpg://candle:candle@localhost:5432/candle"
 
 
 class Settings(BaseSettings):
@@ -17,7 +18,7 @@ class Settings(BaseSettings):
     )
 
     deployment_env: str = "development"
-    database_url: str = "postgresql+asyncpg://candle:candle@localhost:5432/candle"
+    database_url: str = DEFAULT_DATABASE_URL
 
     @property
     def async_database_url(self) -> str:

@@ -3,11 +3,11 @@ from __future__ import annotations
 import logging
 import time
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import get_settings
-from app.db import reconcile_database_schema
+from app.config import DEFAULT_DATABASE_URL, get_settings
+from app.db import check_database_connectivity, reconcile_database_schema
 from app.routers.ask import router as ask_router
 from app.routers.publications import router as publications_router
 from app.routers.sync import router as sync_router
@@ -22,7 +22,7 @@ app = FastAPI(title="Candle API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_origin],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -30,6 +30,11 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def validate_settings() -> None:
+    if settings.deployment_env == "production" and (
+        not settings.database_url or settings.database_url == DEFAULT_DATABASE_URL
+    ):
+        raise RuntimeError("DATABASE_URL must be explicitly configured in production.")
+
     await reconcile_database_schema()
 
     if not settings.openai_api_key:
@@ -56,6 +61,13 @@ async def log_requests(request: Request, call_next):
 
 @app.get("/healthz")
 async def healthz():
+    return {"ok": True}
+
+
+@app.get("/readyz")
+async def readyz():
+    if not await check_database_connectivity():
+        raise HTTPException(status_code=503, detail="Database is not ready.")
     return {"ok": True}
 
 

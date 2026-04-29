@@ -100,7 +100,7 @@ async def test_generate_trial_summaries_updates_trials_and_sleeps(monkeypatch):
     assert count == 2
     assert summary_calls == ["NCT00000001", "NCT00000002"]
     assert sleep_calls == [0.5]
-    assert session.commit_calls == 2
+    assert session.commit_calls == 1
     assert [trial.ai_summary for trial in trials] == [
         "Summary for NCT00000001",
         "Summary for NCT00000002",
