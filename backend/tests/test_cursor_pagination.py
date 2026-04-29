@@ -7,8 +7,11 @@ from fastapi.testclient import TestClient
 
 from app.db import get_session
 from app.main import app
-from app.routers.publications import encode_publication_cursor
-from app.routers.trials import encode_trial_cursor
+from app.routers.publications import (
+    encode_publication_cursor,
+    publication_filter_signature,
+)
+from app.routers.trials import encode_trial_cursor, trial_filter_signature
 
 
 class DummyScalarResult:
@@ -230,7 +233,17 @@ def test_trials_cursor_progression_and_filtering():
     assert response.status_code == 200
     body = response.json()
     assert [item["id"] for item in body["items"]] == ["NCT00000001", "NCT00000002"]
-    assert body["next_cursor"] == encode_trial_cursor(date(2024, 3, 1), "NCT00000002")
+    assert body["next_cursor"] == encode_trial_cursor(
+        date(2024, 3, 1),
+        "NCT00000002",
+        trial_filter_signature(
+            status=None,
+            phase=None,
+            intervention_type=None,
+            sponsor=None,
+            q=None,
+        ),
+    )
 
     next_page = client.get(
         "/trials",
@@ -262,6 +275,30 @@ def test_trials_reject_invalid_cursor():
     app.dependency_overrides.clear()
 
 
+def test_trials_reject_cursor_with_mismatched_filters():
+    session = DummyTrialCursorSession([make_trial("NCT00000001", sponsor="Biogen")])
+    app.dependency_overrides[get_session] = override_session(session)
+    client = TestClient(app)
+    cursor = encode_trial_cursor(
+        date(2024, 3, 1),
+        "NCT00000001",
+        trial_filter_signature(
+            status=None,
+            phase=None,
+            intervention_type=None,
+            sponsor="Biogen",
+            q=None,
+        ),
+    )
+
+    response = client.get("/trials", params={"cursor": cursor, "sponsor": "Candle"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cursor does not match the current filters."
+
+    app.dependency_overrides.clear()
+
+
 def test_publications_cursor_progression_and_filtering():
     publications = [
         make_publication("PMID3", title="Zeta", pub_date=date(2024, 1, 1)),
@@ -289,7 +326,11 @@ def test_publications_cursor_progression_and_filtering():
     assert response.status_code == 200
     body = response.json()
     assert [item["pmid"] for item in body["items"]] == ["PMID1", "PMID2"]
-    assert body["next_cursor"] == encode_publication_cursor(date(2024, 3, 1), "PMID2")
+    assert body["next_cursor"] == encode_publication_cursor(
+        date(2024, 3, 1),
+        "PMID2",
+        publication_filter_signature(trial_id=None, q=None),
+    )
 
     next_page = client.get(
         "/publications",
@@ -317,5 +358,25 @@ def test_publications_reject_invalid_cursor():
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid cursor."
+
+    app.dependency_overrides.clear()
+
+
+def test_publications_reject_cursor_with_mismatched_filters():
+    session = DummyPublicationCursorSession(
+        [make_publication("PMID1", trial_id="NCT1", title="Gene study")]
+    )
+    app.dependency_overrides[get_session] = override_session(session)
+    client = TestClient(app)
+    cursor = encode_publication_cursor(
+        date(2024, 3, 1),
+        "PMID1",
+        publication_filter_signature(trial_id="NCT1", q="gene"),
+    )
+
+    response = client.get("/publications", params={"cursor": cursor, "trial_id": "NCT2", "q": "gene"})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cursor does not match the current filters."
 
     app.dependency_overrides.clear()

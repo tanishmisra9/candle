@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import base64
+import binascii
+import hashlib
 import json
 from datetime import date
 
@@ -17,27 +19,58 @@ from app.services.trials import derive_outcomes
 router = APIRouter(prefix="/trials", tags=["trials"])
 
 
-def encode_trial_cursor(sort_date: date | None, trial_id: str) -> str:
+def trial_filter_signature(
+    *,
+    status: str | None,
+    phase: str | None,
+    intervention_type: str | None,
+    sponsor: str | None,
+    q: str | None,
+) -> str:
     payload = {
+        "status": (status or "").strip().lower(),
+        "phase": (phase or "").strip().lower(),
+        "intervention_type": (intervention_type or "").strip().lower(),
+        "sponsor": (sponsor or "").strip().lower(),
+        "q": (q or "").strip().lower(),
+    }
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]
+
+
+def encode_trial_cursor(sort_date: date | None, trial_id: str, filter_signature: str) -> str:
+    payload = {
+        "version": 1,
         "sort_date": sort_date.isoformat() if sort_date else None,
         "id": trial_id,
+        "filter_signature": filter_signature,
     }
     return base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("ascii")
 
 
-def decode_trial_cursor(cursor: str) -> tuple[date | None, str]:
+def decode_trial_cursor(cursor: str) -> tuple[date | None, str, str]:
     try:
         payload = json.loads(base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8"))
         raw_date = payload.get("sort_date")
         trial_id = payload["id"]
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        version = payload["version"]
+        filter_signature = payload["filter_signature"]
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        binascii.Error,
+    ) as exc:
         raise HTTPException(status_code=400, detail="Invalid cursor.") from exc
+    if version != 1:
+        raise HTTPException(status_code=400, detail="Invalid cursor.")
 
     if raw_date is None:
-        return None, trial_id
+        return None, trial_id, filter_signature
 
     try:
-        return date.fromisoformat(raw_date), trial_id
+        return date.fromisoformat(raw_date), trial_id, filter_signature
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid cursor.") from exc
 
@@ -55,6 +88,13 @@ async def fetch_trial_cursor_page(
 ) -> TrialCursorPage:
     sort_date = func.coalesce(Trial.start_date, Trial.completion_date).label("sort_date")
     stmt = select(Trial, sort_date)
+    current_signature = trial_filter_signature(
+        status=status,
+        phase=phase,
+        intervention_type=intervention_type,
+        sponsor=sponsor,
+        q=q,
+    )
 
     if status:
         stmt = stmt.where(func.lower(Trial.status) == status.lower())
@@ -68,7 +108,12 @@ async def fetch_trial_cursor_page(
         stmt = stmt.where(Trial.title.ilike(f"%{q}%"))
 
     if cursor:
-        cursor_date, cursor_id = decode_trial_cursor(cursor)
+        cursor_date, cursor_id, cursor_signature = decode_trial_cursor(cursor)
+        if cursor_signature != current_signature:
+            raise HTTPException(
+                status_code=400,
+                detail="Cursor does not match the current filters.",
+            )
         if cursor_date is None:
             stmt = stmt.where(
                 and_(
@@ -95,7 +140,7 @@ async def fetch_trial_cursor_page(
     next_cursor = None
     if has_more and rows:
         last_trial, last_sort_date = rows[-1]
-        next_cursor = encode_trial_cursor(last_sort_date, last_trial.id)
+        next_cursor = encode_trial_cursor(last_sort_date, last_trial.id, current_signature)
 
     return TrialCursorPage(items=items, next_cursor=next_cursor)
 

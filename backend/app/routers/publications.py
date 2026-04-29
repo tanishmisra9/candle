@@ -1,4 +1,6 @@
 import base64
+import binascii
+import hashlib
 import json
 from datetime import date
 
@@ -30,27 +32,48 @@ from app.services.publication_overviews import (
 router = APIRouter(prefix="/publications", tags=["publications"])
 
 
-def encode_publication_cursor(pub_date: date | None, pmid: str) -> str:
+def publication_filter_signature(*, trial_id: str | None, q: str | None) -> str:
     payload = {
+        "trial_id": (trial_id or "").strip().lower(),
+        "q": (q or "").strip().lower(),
+    }
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]
+
+
+def encode_publication_cursor(pub_date: date | None, pmid: str, filter_signature: str) -> str:
+    payload = {
+        "version": 1,
         "pub_date": pub_date.isoformat() if pub_date else None,
         "pmid": pmid,
+        "filter_signature": filter_signature,
     }
     return base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("ascii")
 
 
-def decode_publication_cursor(cursor: str) -> tuple[date | None, str]:
+def decode_publication_cursor(cursor: str) -> tuple[date | None, str, str]:
     try:
         payload = json.loads(base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8"))
         raw_date = payload.get("pub_date")
         pmid = payload["pmid"]
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        version = payload["version"]
+        filter_signature = payload["filter_signature"]
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        binascii.Error,
+    ) as exc:
         raise HTTPException(status_code=400, detail="Invalid cursor.") from exc
+    if version != 1:
+        raise HTTPException(status_code=400, detail="Invalid cursor.")
 
     if raw_date is None:
-        return None, pmid
+        return None, pmid, filter_signature
 
     try:
-        return date.fromisoformat(raw_date), pmid
+        return date.fromisoformat(raw_date), pmid, filter_signature
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid cursor.") from exc
 
@@ -64,6 +87,7 @@ async def fetch_publication_cursor_page(
     cursor: str | None,
 ) -> PublicationCursorPage:
     stmt = select(Publication)
+    current_signature = publication_filter_signature(trial_id=trial_id, q=q)
     if trial_id:
         stmt = stmt.where(Publication.trial_id == trial_id)
     if q:
@@ -73,7 +97,12 @@ async def fetch_publication_cursor_page(
         )
 
     if cursor:
-        cursor_date, cursor_pmid = decode_publication_cursor(cursor)
+        cursor_date, cursor_pmid, cursor_signature = decode_publication_cursor(cursor)
+        if cursor_signature != current_signature:
+            raise HTTPException(
+                status_code=400,
+                detail="Cursor does not match the current filters.",
+            )
         if cursor_date is None:
             stmt = stmt.where(
                 Publication.pub_date.is_(None),
@@ -99,7 +128,11 @@ async def fetch_publication_cursor_page(
     next_cursor = None
     if has_more and publications:
         last_publication = publications[-1]
-        next_cursor = encode_publication_cursor(last_publication.pub_date, last_publication.pmid)
+        next_cursor = encode_publication_cursor(
+            last_publication.pub_date,
+            last_publication.pmid,
+            current_signature,
+        )
 
     return PublicationCursorPage(
         items=[PublicationSummary.model_validate(publication) for publication in publications],
