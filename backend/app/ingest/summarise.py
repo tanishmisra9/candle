@@ -21,6 +21,20 @@ TRIAL_SUMMARY_SYSTEM_PROMPT = (
 SUMMARY_COMMIT_BATCH_SIZE = 20
 
 
+def stale_trial_stmt(limit: int):
+    return (
+        select(Trial)
+        .where(
+            or_(
+                Trial.ai_summary.is_(None),
+                Trial.ai_summary_generated_at < func.now() - text("interval '7 days'"),
+            )
+        )
+        .order_by(Trial.ai_summary_generated_at.asc().nullsfirst(), Trial.id.asc())
+        .limit(limit)
+    )
+
+
 def trial_summary_user_message(trial: Trial) -> str:
     enrollment = f"{trial.enrollment} patients" if trial.enrollment is not None else "Unknown"
     return (
@@ -56,30 +70,21 @@ async def generate_trial_summary_text(trial: Trial) -> str | None:
 
 
 async def generate_trial_summaries(session: AsyncSession) -> int:
-    stmt = (
-        select(Trial)
-        .where(
-            or_(
-                Trial.ai_summary.is_(None),
-                Trial.ai_summary_generated_at < func.now() - text("interval '7 days'"),
-            )
-        )
-        .order_by(Trial.ai_summary_generated_at.asc().nullsfirst(), Trial.id.asc())
-    )
-    trials = (await session.execute(stmt)).scalars().all()
-
     generated_count = 0
+    while True:
+        trials = (await session.execute(stale_trial_stmt(SUMMARY_COMMIT_BATCH_SIZE))).scalars().all()
+        if not trials:
+            break
 
-    for index, trial in enumerate(trials, start=1):
-        summary = await generate_trial_summary_text(trial)
-        trial.ai_summary = summary
-        trial.ai_summary_generated_at = datetime.now(timezone.utc)
-        generated_count += 1
+        for index, trial in enumerate(trials, start=1):
+            summary = await generate_trial_summary_text(trial)
+            trial.ai_summary = summary
+            trial.ai_summary_generated_at = datetime.now(timezone.utc)
+            generated_count += 1
 
-        if index % SUMMARY_COMMIT_BATCH_SIZE == 0 or index == len(trials):
-            await session.commit()
+            if index < len(trials):
+                await asyncio.sleep(0.5)
 
-        if index < len(trials):
-            await asyncio.sleep(0.5)
+        await session.commit()
 
     return generated_count

@@ -12,11 +12,10 @@ settings = get_settings()
 logger = logging.getLogger("candle.api")
 engine = create_async_engine(settings.async_database_url, pool_pre_ping=True)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+PG_TRGM_EXTENSION_STATEMENT = "CREATE EXTENSION IF NOT EXISTS pg_trgm"
 
 SCHEMA_RECONCILIATION_STATEMENTS = (
-    """
-    CREATE EXTENSION IF NOT EXISTS pg_trgm
-    """,
+    PG_TRGM_EXTENSION_STATEMENT,
     """
     ALTER TABLE trials
         ADD COLUMN IF NOT EXISTS ai_summary TEXT,
@@ -61,11 +60,19 @@ async def reconcile_database_schema() -> None:
             for statement in SCHEMA_RECONCILIATION_STATEMENTS:
                 try:
                     await conn.execute(text(statement))
-                except ProgrammingError:
+                except ProgrammingError as exc:
+                    is_pg_trgm_statement = statement.strip() == PG_TRGM_EXTENSION_STATEMENT
                     if settings.deployment_env == "production":
+                        if is_pg_trgm_statement:
+                            raise RuntimeError(
+                                "Postgres extension pg_trgm is required in production. "
+                                "Grant the database role permission to create extensions or "
+                                "preinstall pg_trgm before starting Candle."
+                            ) from exc
                         raise
                     logger.warning(
-                        "Skipping schema statement during development because it is unavailable: %s",
+                        "Skipping schema statement during development because it is unavailable%s: %s",
+                        " (pg_trgm extension)" if is_pg_trgm_statement else "",
                         " ".join(statement.split()),
                     )
     except (OperationalError, OSError):

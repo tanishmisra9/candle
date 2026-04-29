@@ -169,7 +169,10 @@ async def test_reconcile_database_schema_warns_in_development_when_pg_trgm_is_un
     with caplog.at_level(logging.WARNING, logger="candle.api"):
         await reconcile_database_schema()
 
-    assert "Skipping schema statement during development" in caplog.text
+    assert (
+        "Skipping schema statement during development because it is unavailable (pg_trgm extension)"
+        in caplog.text
+    )
 
 
 @pytest.mark.asyncio
@@ -180,7 +183,7 @@ async def test_reconcile_database_schema_raises_in_production_when_pg_trgm_is_un
     monkeypatch.setattr("app.db.engine", fake_engine)
     monkeypatch.setattr("app.db.settings.deployment_env", "production")
 
-    with pytest.raises(ProgrammingError):
+    with pytest.raises(RuntimeError, match="pg_trgm is required in production"):
         await reconcile_database_schema()
 
 

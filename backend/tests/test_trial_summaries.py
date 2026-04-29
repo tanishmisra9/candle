@@ -34,7 +34,17 @@ class DummySummarySession:
 
     async def execute(self, stmt):
         self.statements.append(stmt)
-        return DummyExecuteResult(self.trials)
+        params = stmt.compile().params
+        limit = next(
+            (value for value in reversed(list(params.values())) if isinstance(value, int)),
+            len(self.trials),
+        )
+        stale_trials = [
+            trial
+            for trial in self.trials
+            if trial.ai_summary is None or trial.ai_summary_generated_at is None
+        ]
+        return DummyExecuteResult(stale_trials[:limit])
 
     async def commit(self):
         self.commit_calls += 1
@@ -155,3 +165,29 @@ async def test_generate_trial_summary_text_raises_timeout(monkeypatch):
 
     with pytest.raises(OpenAITimeoutError, match="OpenAI request timed out."):
         await generate_trial_summary_text(trial)
+
+
+@pytest.mark.asyncio
+async def test_generate_trial_summaries_fetches_stale_trials_in_batches(monkeypatch):
+    trials = [make_trial(f"NCT{i:08d}") for i in range(1, 22)]
+    session = DummySummarySession(trials)
+    sleep_calls = []
+
+    async def fake_generate_trial_summary_text(trial):
+        return f"Summary for {trial.id}"
+
+    async def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+
+    monkeypatch.setattr(
+        "app.ingest.summarise.generate_trial_summary_text",
+        fake_generate_trial_summary_text,
+    )
+    monkeypatch.setattr("app.ingest.summarise.asyncio.sleep", fake_sleep)
+
+    count = await generate_trial_summaries(session)
+
+    assert count == 21
+    assert session.commit_calls == 2
+    assert len(session.statements) == 3
+    assert len(sleep_calls) == 19

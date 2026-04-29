@@ -92,6 +92,8 @@ If you expose Candle publicly, add edge protection in front of the backend for t
 
 The app now applies in-process rate limits and concurrency caps, but a Vercel bot/WAF rule or upstream proxy throttle is still a strong extra layer for public internet traffic.
 
+For production Postgres, Candle also expects the `pg_trgm` extension to be available so substring search indexes can be created. Either grant the application role permission to create extensions, or preinstall `pg_trgm` before starting the backend.
+
 ## Pre-outreach Cleanup
 
 Before CureCHM outreach, run the one-time cleanup for older non-CHM trials that were ingested before the raw relevance guard existed.
