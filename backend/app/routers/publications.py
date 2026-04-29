@@ -15,7 +15,6 @@ from app.schemas import (
 )
 from app.services.llm_guardrails import (
     PUBLICATION_OVERVIEW_ROUTE,
-    enforce_llm_body_size,
     enforce_llm_rate_limit,
     llm_concurrency_slot,
 )
@@ -147,7 +146,6 @@ async def publication_overview(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> PublicationOverviewResponse:
-    await enforce_llm_body_size(request)
     await enforce_llm_rate_limit(request, PUBLICATION_OVERVIEW_ROUTE)
 
     publication = await session.get(Publication, pmid)

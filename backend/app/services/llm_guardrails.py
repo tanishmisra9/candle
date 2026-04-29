@@ -109,15 +109,6 @@ def client_ip_from_request(request: Request) -> str:
     return "unknown"
 
 
-async def enforce_llm_body_size(request: Request) -> None:
-    body = await request.body()
-    if len(body) > request_body_limit_bytes():
-        raise HTTPException(
-            status_code=413,
-            detail="Request body is too large for this endpoint.",
-        )
-
-
 async def enforce_llm_rate_limit(request: Request, route_name: str) -> None:
     limit = route_limit(route_name)
     key = f"{route_name}:{client_ip_from_request(request)}"

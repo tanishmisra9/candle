@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import DEFAULT_DATABASE_URL, get_settings
 from app.db import check_database_connectivity, reconcile_database_schema
+from app.middleware import LLMRequestBodyLimitMiddleware
 from app.routers.ask import router as ask_router
 from app.routers.publications import router as publications_router
 from app.routers.sync import router as sync_router
@@ -19,6 +20,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("candle.api")
 
 app = FastAPI(title="Candle API", version="0.1.0")
+app.add_middleware(LLMRequestBodyLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_origin],

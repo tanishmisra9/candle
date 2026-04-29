@@ -6,7 +6,6 @@ from app.schemas import AskRequest, AskResponse
 from app.services.llm_guardrails import (
     ASK_ROUTE,
     ask_question_max_chars,
-    enforce_llm_body_size,
     enforce_llm_rate_limit,
     llm_concurrency_slot,
 )
@@ -26,7 +25,6 @@ async def ask(
     payload: AskRequest,
     session: AsyncSession = Depends(get_session),
 ) -> AskResponse:
-    await enforce_llm_body_size(request)
     await enforce_llm_rate_limit(request, ASK_ROUTE)
 
     question = payload.question.strip()
