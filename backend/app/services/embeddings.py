@@ -9,26 +9,35 @@ from app.config import get_settings
 from app.services.openai_executor import run_openai_operation
 
 
-settings = get_settings()
-
-
 @lru_cache
-def get_openai_client() -> AsyncOpenAI:
-    return AsyncOpenAI(api_key=settings.openai_api_key)
+def _get_openai_client_for_key(api_key: str) -> AsyncOpenAI:
+    return AsyncOpenAI(api_key=api_key)
+
+
+def get_openai_client(api_key: str | None = None) -> AsyncOpenAI:
+    resolved_key = api_key if api_key is not None else get_settings().openai_api_key
+    return _get_openai_client_for_key(resolved_key)
+
+
+def reset_openai_client_cache() -> None:
+    _get_openai_client_for_key.cache_clear()
 
 
 async def embed_texts(texts: Sequence[str]) -> list[list[float]]:
+    settings = get_settings()
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for embeddings.")
     if not texts:
         return []
 
     response = await run_openai_operation(
-        lambda: get_openai_client().embeddings.create(
+        lambda: get_openai_client(settings.openai_api_key).embeddings.create(
             model=settings.embedding_model,
             input=list(texts),
         ),
         timeout_seconds=settings.embedding_timeout_seconds,
+        retries=settings.background_openai_max_retries,
+        retry_backoff_seconds=settings.background_openai_retry_backoff_seconds,
     )
     return [item.embedding for item in response.data]
 
