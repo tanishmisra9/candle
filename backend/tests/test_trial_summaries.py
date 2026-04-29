@@ -110,7 +110,7 @@ async def test_generate_trial_summaries_updates_trials_and_sleeps(monkeypatch):
     assert count == 2
     assert summary_calls == ["NCT00000001", "NCT00000002"]
     assert sleep_calls == [0.5]
-    assert session.commit_calls == 1
+    assert session.commit_calls == 2
     assert [trial.ai_summary for trial in trials] == [
         "Summary for NCT00000001",
         "Summary for NCT00000002",
@@ -188,6 +188,44 @@ async def test_generate_trial_summaries_fetches_stale_trials_in_batches(monkeypa
     count = await generate_trial_summaries(session)
 
     assert count == 21
-    assert session.commit_calls == 2
+    assert session.commit_calls == 21
     assert len(session.statements) == 3
     assert len(sleep_calls) == 19
+
+
+@pytest.mark.asyncio
+async def test_generate_trial_summaries_keeps_partial_progress_on_mid_batch_failure(
+    monkeypatch,
+):
+    trials = [
+        make_trial("NCT00000001"),
+        make_trial("NCT00000002"),
+        make_trial("NCT00000003"),
+    ]
+    session = DummySummarySession(trials)
+
+    async def fake_generate_trial_summary_text(trial):
+        if trial.id == "NCT00000002":
+            raise RuntimeError("temporary failure")
+        return f"Summary for {trial.id}"
+
+    monkeypatch.setattr(
+        "app.ingest.summarise.generate_trial_summary_text",
+        fake_generate_trial_summary_text,
+    )
+
+    async def fake_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr("app.ingest.summarise.asyncio.sleep", fake_sleep)
+
+    with pytest.raises(RuntimeError, match="temporary failure"):
+        await generate_trial_summaries(session)
+
+    assert session.commit_calls == 1
+    assert trials[0].ai_summary == "Summary for NCT00000001"
+    assert isinstance(trials[0].ai_summary_generated_at, datetime)
+    assert trials[1].ai_summary is None
+    assert trials[1].ai_summary_generated_at is None
+    assert trials[2].ai_summary is None
+    assert trials[2].ai_summary_generated_at is None

@@ -126,6 +126,8 @@ make ingest
 4. generate and persist publication overviews
 5. store embeddings for Ask
 
+Trial AI summaries are refreshed in checkpointed batches: Candle fetches stale trials in pages, but commits each completed summary individually so a later upstream failure does not discard earlier progress in the same run.
+
 ## Stack
 
 - Frontend: React, TypeScript, Vite, Tailwind, Framer Motion

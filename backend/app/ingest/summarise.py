@@ -76,15 +76,16 @@ async def generate_trial_summaries(session: AsyncSession) -> int:
         if not trials:
             break
 
+        # Keep the stale-trial batch fetch to avoid loading the full table at once,
+        # but commit each completed summary so partial progress survives upstream failures.
         for index, trial in enumerate(trials, start=1):
             summary = await generate_trial_summary_text(trial)
             trial.ai_summary = summary
             trial.ai_summary_generated_at = datetime.now(timezone.utc)
             generated_count += 1
+            await session.commit()
 
             if index < len(trials):
                 await asyncio.sleep(0.5)
-
-        await session.commit()
 
     return generated_count
