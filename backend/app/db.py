@@ -2,7 +2,7 @@ import logging
 from collections.abc import AsyncIterator
 
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import get_settings
@@ -14,6 +14,9 @@ engine = create_async_engine(settings.async_database_url, pool_pre_ping=True)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 SCHEMA_RECONCILIATION_STATEMENTS = (
+    """
+    CREATE EXTENSION IF NOT EXISTS pg_trgm
+    """,
     """
     ALTER TABLE trials
         ADD COLUMN IF NOT EXISTS ai_summary TEXT,
@@ -33,6 +36,22 @@ SCHEMA_RECONCILIATION_STATEMENTS = (
         error_message TEXT
     )
     """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_trials_title_trgm
+    ON trials USING gin (title gin_trgm_ops)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_trials_sponsor_trgm
+    ON trials USING gin (sponsor gin_trgm_ops)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_publications_title_trgm
+    ON publications USING gin (title gin_trgm_ops)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_publications_abstract_trgm
+    ON publications USING gin (abstract gin_trgm_ops)
+    """,
 )
 
 
@@ -40,7 +59,15 @@ async def reconcile_database_schema() -> None:
     try:
         async with engine.begin() as conn:
             for statement in SCHEMA_RECONCILIATION_STATEMENTS:
-                await conn.execute(text(statement))
+                try:
+                    await conn.execute(text(statement))
+                except ProgrammingError:
+                    if settings.deployment_env == "production":
+                        raise
+                    logger.warning(
+                        "Skipping schema statement during development because it is unavailable: %s",
+                        " ".join(statement.split()),
+                    )
     except (OperationalError, OSError):
         logger.warning(
             "Skipping database schema reconciliation because the database is unavailable."

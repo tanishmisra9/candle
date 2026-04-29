@@ -16,6 +16,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    deployment_env: str = "development"
     database_url: str = "postgresql+asyncpg://candle:candle@localhost:5432/candle"
 
     @property

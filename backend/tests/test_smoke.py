@@ -2,6 +2,7 @@ import logging
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import ProgrammingError
 
 from app.db import get_session, reconcile_database_schema
 from app.main import app
@@ -52,11 +53,15 @@ def test_startup_reconciles_database_schema(monkeypatch):
 
 
 class FakeConnection:
-    def __init__(self):
+    def __init__(self, fail_pattern: str | None = None):
         self.statements = []
+        self.fail_pattern = fail_pattern
 
     async def execute(self, statement):
-        self.statements.append(str(statement))
+        sql = str(statement)
+        self.statements.append(sql)
+        if self.fail_pattern and self.fail_pattern in sql:
+            raise ProgrammingError(sql, {}, Exception("unsupported"))
 
 
 class FakeBegin:
@@ -71,8 +76,8 @@ class FakeBegin:
 
 
 class FakeEngine:
-    def __init__(self):
-        self.connection = FakeConnection()
+    def __init__(self, fail_pattern: str | None = None):
+        self.connection = FakeConnection(fail_pattern=fail_pattern)
 
     def begin(self):
         return FakeBegin(self.connection)
@@ -88,10 +93,41 @@ async def test_reconcile_database_schema_applies_trial_summary_and_sync_log_chan
     await reconcile_database_schema()
 
     sql = "\n".join(fake_engine.connection.statements)
+    assert "CREATE EXTENSION IF NOT EXISTS pg_trgm" in sql
     assert "ALTER TABLE trials" in sql
     assert "ADD COLUMN IF NOT EXISTS ai_summary TEXT" in sql
     assert "ADD COLUMN IF NOT EXISTS ai_summary_generated_at TIMESTAMPTZ" in sql
     assert "CREATE TABLE IF NOT EXISTS sync_log" in sql
+    assert "CREATE INDEX IF NOT EXISTS idx_trials_title_trgm" in sql
+    assert "CREATE INDEX IF NOT EXISTS idx_trials_sponsor_trgm" in sql
+    assert "CREATE INDEX IF NOT EXISTS idx_publications_title_trgm" in sql
+    assert "CREATE INDEX IF NOT EXISTS idx_publications_abstract_trgm" in sql
+
+
+@pytest.mark.asyncio
+async def test_reconcile_database_schema_warns_in_development_when_pg_trgm_is_unavailable(
+    monkeypatch, caplog
+):
+    fake_engine = FakeEngine(fail_pattern="CREATE EXTENSION IF NOT EXISTS pg_trgm")
+    monkeypatch.setattr("app.db.engine", fake_engine)
+    monkeypatch.setattr("app.db.settings.deployment_env", "development")
+
+    with caplog.at_level(logging.WARNING, logger="candle.api"):
+        await reconcile_database_schema()
+
+    assert "Skipping schema statement during development" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_reconcile_database_schema_raises_in_production_when_pg_trgm_is_unavailable(
+    monkeypatch,
+):
+    fake_engine = FakeEngine(fail_pattern="CREATE EXTENSION IF NOT EXISTS pg_trgm")
+    monkeypatch.setattr("app.db.engine", fake_engine)
+    monkeypatch.setattr("app.db.settings.deployment_env", "production")
+
+    with pytest.raises(ProgrammingError):
+        await reconcile_database_schema()
 
 
 def test_ask_smoke(monkeypatch):
