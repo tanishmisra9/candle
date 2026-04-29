@@ -4,6 +4,10 @@ from fastapi.testclient import TestClient
 
 from app.db import get_session
 from app.main import app
+from app.services.openai_executor import (
+    OpenAIServiceUnavailableError,
+    OpenAITimeoutError,
+)
 
 
 class DummySession:
@@ -148,7 +152,7 @@ def test_publication_overview_returns_500_when_openai_key_missing(monkeypatch):
     app.dependency_overrides.clear()
 
 
-def test_publication_overview_returns_500_when_openai_fails(monkeypatch):
+def test_publication_overview_returns_503_when_openai_fails(monkeypatch):
     session = DummySession(
         {
             "PMID4": SimpleNamespace(
@@ -159,7 +163,7 @@ def test_publication_overview_returns_500_when_openai_fails(monkeypatch):
     )
 
     async def _stub_get_or_generate_publication_overview(session, publication, force=False):
-        raise ValueError("boom")
+        raise OpenAIServiceUnavailableError("OpenAI request failed.")
 
     app.dependency_overrides[get_session] = override_session(session)
     monkeypatch.setattr(
@@ -170,8 +174,8 @@ def test_publication_overview_returns_500_when_openai_fails(monkeypatch):
 
     response = client.post("/publications/PMID4/overview")
 
-    assert response.status_code == 500
-    assert response.json()["detail"] == "Unable to generate publication overview."
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Publication overview service is temporarily unavailable."
 
     app.dependency_overrides.clear()
 
@@ -187,7 +191,7 @@ def test_publication_overview_returns_504_when_openai_times_out(monkeypatch):
     )
 
     async def _stub_get_or_generate_publication_overview(session, publication, force=False):
-        raise TimeoutError()
+        raise OpenAITimeoutError("OpenAI request timed out.")
 
     app.dependency_overrides[get_session] = override_session(session)
     monkeypatch.setattr(

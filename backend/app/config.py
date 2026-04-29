@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     llm_concurrency_limit: int = 8
     llm_request_body_max_bytes: int = 8 * 1024
     ask_question_max_chars: int = 2000
+    ask_openai_timeout_seconds: int = 15
+    publication_overview_timeout_seconds: int = 12
+    embedding_timeout_seconds: int = 20
+    trial_summary_timeout_seconds: int = 20
+    background_openai_max_retries: int = 2
+    background_openai_retry_backoff_seconds: float = 0.5
     clinical_trials_base_url: str = "https://clinicaltrials.gov/api/v2/studies"
     pubmed_search_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
     pubmed_fetch_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"

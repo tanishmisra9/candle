@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models import Trial
 from app.services.embeddings import get_openai_client
+from app.services.openai_executor import run_openai_operation
 
 
 TRIAL_SUMMARY_SYSTEM_PROMPT = (
@@ -37,13 +38,18 @@ async def generate_trial_summary_text(trial: Trial) -> str | None:
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for trial summary generation.")
 
-    response = await get_openai_client().chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.2,
-        messages=[
-            {"role": "system", "content": TRIAL_SUMMARY_SYSTEM_PROMPT},
-            {"role": "user", "content": trial_summary_user_message(trial)},
-        ],
+    response = await run_openai_operation(
+        lambda: get_openai_client().chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.2,
+            messages=[
+                {"role": "system", "content": TRIAL_SUMMARY_SYSTEM_PROMPT},
+                {"role": "user", "content": trial_summary_user_message(trial)},
+            ],
+        ),
+        timeout_seconds=settings.trial_summary_timeout_seconds,
+        retries=settings.background_openai_max_retries,
+        retry_backoff_seconds=settings.background_openai_retry_backoff_seconds,
     )
     return (response.choices[0].message.content or "").strip() or None
 

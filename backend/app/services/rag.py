@@ -9,6 +9,7 @@ from app.models import Publication, Trial
 from app.config import get_settings
 from app.schemas import AskResponse, AskSource
 from app.services.embeddings import embed_query, get_openai_client
+from app.services.openai_executor import run_openai_operation
 from app.services.retrieval import RetrievedChunk, retrieve_similar_chunks
 
 
@@ -568,15 +569,18 @@ async def answer_question(question: str, session) -> AskResponse:
         )
 
     context_block = "\n\n".join(context_lines)
-    response = await get_openai_client().chat.completions.create(
-        model=settings.chat_model,
-        temperature=0.2,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Context:\n\n{context_block}"},
-            {"role": "user", "content": source_reasoning_instruction(question)},
-            {"role": "user", "content": question},
-        ],
+    response = await run_openai_operation(
+        lambda: get_openai_client().chat.completions.create(
+            model=settings.chat_model,
+            temperature=0.2,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Context:\n\n{context_block}"},
+                {"role": "user", "content": source_reasoning_instruction(question)},
+                {"role": "user", "content": question},
+            ],
+        ),
+        timeout_seconds=settings.ask_openai_timeout_seconds,
     )
     answer = response.choices[0].message.content or ""
     answer = answer.strip()

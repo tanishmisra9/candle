@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,10 +8,10 @@ from sqlalchemy.sql import text
 from app.config import get_settings
 from app.models import Publication
 from app.services.embeddings import get_openai_client
+from app.services.openai_executor import run_openai_operation
 
 
 PUBLICATION_OVERVIEW_PROMPT_VERSION = "v2"
-PUBLICATION_OVERVIEW_TIMEOUT_SECONDS = 12
 
 PUBLICATION_OVERVIEW_SYSTEM_PROMPT = """You are a plain-language science communicator helping patients and families understand medical research about Choroideremia (CHM), a rare inherited retinal disease.
 
@@ -89,8 +88,8 @@ async def generate_publication_overview_text(abstract: str) -> str | None:
             "OPENAI_API_KEY is required for publication overview generation."
         )
 
-    response = await asyncio.wait_for(
-        get_openai_client().chat.completions.create(
+    response = await run_openai_operation(
+        lambda: get_openai_client().chat.completions.create(
             model="gpt-4o-mini",
             temperature=0.2,
             messages=[
@@ -98,7 +97,7 @@ async def generate_publication_overview_text(abstract: str) -> str | None:
                 {"role": "user", "content": abstract},
             ],
         ),
-        timeout=PUBLICATION_OVERVIEW_TIMEOUT_SECONDS,
+        timeout_seconds=settings.publication_overview_timeout_seconds,
     )
     return (response.choices[0].message.content or "").strip() or None
 

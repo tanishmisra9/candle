@@ -10,6 +10,10 @@ from app.services.llm_guardrails import (
     enforce_llm_rate_limit,
     llm_concurrency_slot,
 )
+from app.services.openai_executor import (
+    OpenAIServiceUnavailableError,
+    OpenAITimeoutError,
+)
 from app.services.rag import answer_question
 
 
@@ -34,5 +38,12 @@ async def ask(
     try:
         async with llm_concurrency_slot():
             return await answer_question(question, session)
+    except OpenAITimeoutError as exc:
+        raise HTTPException(status_code=504, detail="Ask request timed out.") from exc
+    except OpenAIServiceUnavailableError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="The AI service is temporarily unavailable.",
+        ) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

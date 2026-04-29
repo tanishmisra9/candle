@@ -6,6 +6,7 @@ from typing import Sequence
 from openai import AsyncOpenAI
 
 from app.config import get_settings
+from app.services.openai_executor import run_openai_operation
 
 
 settings = get_settings()
@@ -22,9 +23,12 @@ async def embed_texts(texts: Sequence[str]) -> list[list[float]]:
     if not texts:
         return []
 
-    response = await get_openai_client().embeddings.create(
-        model=settings.embedding_model,
-        input=list(texts),
+    response = await run_openai_operation(
+        lambda: get_openai_client().embeddings.create(
+            model=settings.embedding_model,
+            input=list(texts),
+        ),
+        timeout_seconds=settings.embedding_timeout_seconds,
     )
     return [item.embedding for item in response.data]
 

@@ -6,6 +6,8 @@ from types import SimpleNamespace
 import pytest
 
 from app.ingest.summarise import generate_trial_summaries, trial_summary_user_message
+from app.ingest.summarise import generate_trial_summary_text
+from app.services.openai_executor import OpenAITimeoutError
 
 
 class DummyScalarResult:
@@ -127,3 +129,29 @@ async def test_generate_trial_summaries_raises_when_openai_key_missing(monkeypat
         await generate_trial_summaries(session)
 
     assert session.commit_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_generate_trial_summary_text_raises_timeout(monkeypatch):
+    trial = make_trial("NCT00000003")
+
+    monkeypatch.setattr(
+        "app.ingest.summarise.get_settings",
+        lambda: SimpleNamespace(
+            openai_api_key="test-key",
+            trial_summary_timeout_seconds=20,
+            background_openai_max_retries=2,
+            background_openai_retry_backoff_seconds=0.5,
+        ),
+    )
+
+    async def fake_run_openai_operation(*args, **kwargs):
+        raise OpenAITimeoutError("OpenAI request timed out.")
+
+    monkeypatch.setattr(
+        "app.ingest.summarise.run_openai_operation",
+        fake_run_openai_operation,
+    )
+
+    with pytest.raises(OpenAITimeoutError, match="OpenAI request timed out."):
+        await generate_trial_summary_text(trial)

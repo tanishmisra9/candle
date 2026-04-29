@@ -11,6 +11,10 @@ from app.services.llm_guardrails import (
     enforce_llm_rate_limit,
     llm_concurrency_slot,
 )
+from app.services.openai_executor import (
+    OpenAIServiceUnavailableError,
+    OpenAITimeoutError,
+)
 from app.services.publication_overviews import (
     get_or_generate_publication_overview,
 )
@@ -59,10 +63,15 @@ async def publication_overview(
             overview, _generated = await get_or_generate_publication_overview(
                 session, publication
             )
+    except OpenAITimeoutError as exc:
+        raise HTTPException(status_code=504, detail="Publication overview timed out.") from exc
+    except OpenAIServiceUnavailableError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Publication overview service is temporarily unavailable.",
+        ) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-    except TimeoutError as exc:
-        raise HTTPException(status_code=504, detail="Publication overview timed out.") from exc
     except Exception as exc:  # pragma: no cover - exercised via API smoke test
         raise HTTPException(
             status_code=500, detail="Unable to generate publication overview."
