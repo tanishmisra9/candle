@@ -13,6 +13,8 @@ import { Button } from "./ui/Button";
 
 const SNAPSHOT_SECTION_HEADING_CLASS =
   "text-[13px] font-medium uppercase tracking-[0.16em] text-muted";
+const AI_DISCLAIMER_COPY =
+  "This is AI-generated. Always verify medical information with a qualified professional.";
 
 function formatDate(value: string | null) {
   if (!value) return "Unknown";
@@ -32,6 +34,11 @@ function formatLocationCountLabel(count: number) {
 
 function formatMoreLocationsLabel(count: number) {
   return `Show ${count} more location${count === 1 ? "" : "s"}`;
+}
+
+function normalizeSummary(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }
 
 type TrialSnapshotProps = {
@@ -103,6 +110,8 @@ export function TrialSnapshot({
     return null;
   }
 
+  const summary = normalizeSummary(detailQuery.data?.ai_summary);
+
   return createPortal(
     <AnimatePresence>
       {trialId ? (
@@ -172,206 +181,237 @@ export function TrialSnapshot({
               ref={setContentNode}
               className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-5 md:px-8 md:pb-8 md:pt-6"
             >
-              {detailQuery.isLoading ? (
-                <p className="text-[14px] text-muted">Loading trial details…</p>
-              ) : detailQuery.data ? (
+              {detailQuery.isLoading || detailQuery.data ? (
                 <div className="grid gap-6 md:grid-cols-[1.25fr_0.75fr] md:gap-8">
                   <div className="space-y-6 md:space-y-8">
-                    <section className="space-y-3">
-                      <h3 className={SNAPSHOT_SECTION_HEADING_CLASS}>Snapshot</h3>
-                      <p className="text-[15px] leading-[1.6] text-text">
-                        {detailQuery.data.intervention || "Intervention details not reported."}
+                    <section className="rounded-card border border-line bg-glass px-5 py-4 shadow-panel">
+                      <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
+                        OVERVIEW
                       </p>
-                      <div className="grid gap-3 text-[14px] text-muted">
-                        <div className="inline-flex items-center gap-2">
-                          <Activity size={16} strokeWidth={1.5} />
-                          {formatStatusLabel(detailQuery.data.status)}
-                        </div>
-                        <div className="inline-flex items-center gap-2">
-                          <CalendarRange size={16} strokeWidth={1.5} />
-                          {formatDate(detailQuery.data.start_date)} to{" "}
-                          {formatDate(detailQuery.data.completion_date)}
-                        </div>
-                        <div className="inline-flex items-center gap-2">
-                          <MapPin size={16} strokeWidth={1.5} />
-                          {formatLocationCountLabel(detailQuery.data.locations.length)} listed
-                        </div>
-                        {detailQuery.data.contact_email ? (
-                          <div className="inline-flex items-center gap-2">
-                            <Mail size={16} strokeWidth={1.5} />
-                            {detailQuery.data.contact_email}
-                          </div>
-                        ) : null}
-                      </div>
-                      <a
-                        href={detailQuery.data.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex w-fit items-center gap-2 rounded-full border border-[rgba(232,163,61,0.28)] bg-[rgba(232,163,61,0.12)] px-4 py-2 text-[13px] font-medium text-accent transition hover:bg-[rgba(232,163,61,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
-                      >
-                        <ExternalLink size={14} strokeWidth={1.7} className="opacity-80" />
-                        ClinicalTrials.gov
-                      </a>
-                      {detailQuery.data.locations.length ? (
-                        <motion.div layout className="space-y-3 pt-2">
-                          <h4 className={SNAPSHOT_SECTION_HEADING_CLASS}>Locations</h4>
-                          <div className="space-y-2">
-                            {detailQuery.data.locations.slice(0, 3).map((location, index) => {
-                              const locationLine = formatLocationLine(
-                                location.city,
-                                location.country,
-                              );
-                              const locationTitle =
-                                location.facility?.trim() ||
-                                locationLine ||
-                                `Location ${index + 1}`;
-
-                              return (
-                                <div
-                                  key={`${locationTitle}-${index}`}
-                                  className="rounded-[16px] border border-line px-4 py-3"
-                                >
-                                  <p className="text-[14px] font-medium text-text">
-                                    {locationTitle}
-                                  </p>
-                                  {location.facility?.trim() && locationLine ? (
-                                    <p className="mt-1 text-[13px] text-muted">{locationLine}</p>
-                                  ) : null}
-                                  {location.status ? (
-                                    <p className="mt-1 text-[13px] text-muted">
-                                      {location.status}
-                                    </p>
-                                  ) : null}
-                                </div>
-                              );
-                            })}
-                            <motion.div
-                              initial={false}
-                              animate={{
-                                height: showAllLocations ? "auto" : 0,
-                                opacity: showAllLocations ? 1 : 0,
-                                filter: showAllLocations ? "blur(0px)" : "blur(8px)",
-                              }}
-                              transition={{
-                                height: { duration: 0.34, ease: [0.22, 1, 0.36, 1] },
-                                opacity: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
-                                filter: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
-                              }}
-                              className="overflow-hidden"
-                              style={{ pointerEvents: showAllLocations ? "auto" : "none" }}
-                            >
-                              <div className="space-y-2 pt-2">
-                                {detailQuery.data.locations.slice(3).map((location, index) => {
-                                  const locationLine = formatLocationLine(
-                                    location.city,
-                                    location.country,
-                                  );
-                                  const locationTitle =
-                                    location.facility?.trim() ||
-                                    locationLine ||
-                                    `Location ${index + 4}`;
-
-                                  return (
-                                    <div
-                                      key={`${locationTitle}-${index + 3}`}
-                                      className="rounded-[16px] border border-line px-4 py-3"
-                                    >
-                                      <p className="text-[14px] font-medium text-text">
-                                        {locationTitle}
-                                      </p>
-                                      {location.facility?.trim() && locationLine ? (
-                                        <p className="mt-1 text-[13px] text-muted">
-                                          {locationLine}
-                                        </p>
-                                      ) : null}
-                                      {location.status ? (
-                                        <p className="mt-1 text-[13px] text-muted">
-                                          {location.status}
-                                        </p>
-                                      ) : null}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </motion.div>
-                          </div>
-                          {detailQuery.data.locations.length > 3 ? (
-                            <button
-                              type="button"
-                              onClick={() => setShowAllLocations((current) => !current)}
-                              className="inline-flex text-[14px] text-muted transition hover:text-text"
-                            >
-                              {showAllLocations
-                                ? "Show fewer locations"
-                                : formatMoreLocationsLabel(
-                                    detailQuery.data.locations.length - 3,
-                                  )}
-                            </button>
-                          ) : null}
-                        </motion.div>
-                      ) : null}
-                    </section>
-
-                    <section className="space-y-3">
-                      <h3 className={SNAPSHOT_SECTION_HEADING_CLASS}>Outcomes</h3>
-                      <div className="space-y-3">
-                        {detailQuery.data.outcomes.length ? (
-                          detailQuery.data.outcomes.map((outcome, index) => (
-                            <div
-                              key={`${outcome.outcome_type}-${index}`}
-                              className="rounded-[18px] border border-line p-4"
-                            >
-                              <p className="text-[12px] uppercase tracking-[0.14em] text-muted">
-                                {outcome.outcome_type}
-                              </p>
-                              <p className="mt-2 text-[15px] font-medium text-text">
-                                {outcome.measure}
-                              </p>
-                              {outcome.timeframe ? (
-                                <p className="mt-1 text-[13px] text-muted">{outcome.timeframe}</p>
-                              ) : null}
-                              {outcome.description ? (
-                                <p className="mt-2 text-[14px] leading-6 text-muted">
-                                  {outcome.description}
-                                </p>
-                              ) : null}
-                            </div>
-                          ))
+                      <p className="mt-2 text-[12px] text-muted">{AI_DISCLAIMER_COPY}</p>
+                      <div className="mt-3 min-h-[88px]">
+                        {detailQuery.isLoading ? (
+                          <p className="text-[14px] text-muted">Loading summary…</p>
+                        ) : summary ? (
+                          <p className="text-[16px] leading-[1.6] text-text">{summary}</p>
                         ) : (
-                          <p className="text-[14px] text-muted">
-                            No structured outcomes were available in the upstream record.
-                          </p>
+                          <p className="text-[14px] text-muted">No summary available.</p>
                         )}
                       </div>
                     </section>
+                    {detailQuery.data ? (
+                      <>
+                        <section className="space-y-3">
+                          <h3 className={SNAPSHOT_SECTION_HEADING_CLASS}>Snapshot</h3>
+                          <p className="text-[15px] leading-[1.6] text-text">
+                            {detailQuery.data.intervention || "Intervention details not reported."}
+                          </p>
+                          <div className="grid gap-3 text-[14px] text-muted">
+                            <div className="inline-flex items-center gap-2">
+                              <Activity size={16} strokeWidth={1.5} />
+                              {formatStatusLabel(detailQuery.data.status)}
+                            </div>
+                            <div className="inline-flex items-center gap-2">
+                              <CalendarRange size={16} strokeWidth={1.5} />
+                              {formatDate(detailQuery.data.start_date)} to{" "}
+                              {formatDate(detailQuery.data.completion_date)}
+                            </div>
+                            <div className="inline-flex items-center gap-2">
+                              <MapPin size={16} strokeWidth={1.5} />
+                              {formatLocationCountLabel(detailQuery.data.locations.length)} listed
+                            </div>
+                            {detailQuery.data.contact_email ? (
+                              <div className="inline-flex items-center gap-2">
+                                <Mail size={16} strokeWidth={1.5} />
+                                {detailQuery.data.contact_email}
+                              </div>
+                            ) : null}
+                          </div>
+                          <a
+                            href={detailQuery.data.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex w-fit items-center gap-2 rounded-full border border-[rgba(232,163,61,0.28)] bg-[rgba(232,163,61,0.12)] px-4 py-2 text-[13px] font-medium text-accent transition hover:bg-[rgba(232,163,61,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+                          >
+                            <ExternalLink size={14} strokeWidth={1.7} className="opacity-80" />
+                            ClinicalTrials.gov
+                          </a>
+                          {detailQuery.data.locations.length ? (
+                            <motion.div layout className="space-y-3 pt-2">
+                              <h4 className={SNAPSHOT_SECTION_HEADING_CLASS}>Locations</h4>
+                              <div className="space-y-2">
+                                {detailQuery.data.locations
+                                  .slice(0, 3)
+                                  .map((location, index) => {
+                                    const locationLine = formatLocationLine(
+                                      location.city,
+                                      location.country,
+                                    );
+                                    const locationTitle =
+                                      location.facility?.trim() ||
+                                      locationLine ||
+                                      `Location ${index + 1}`;
+
+                                    return (
+                                      <div
+                                        key={`${locationTitle}-${index}`}
+                                        className="rounded-[16px] border border-line px-4 py-3"
+                                      >
+                                        <p className="text-[14px] font-medium text-text">
+                                          {locationTitle}
+                                        </p>
+                                        {location.facility?.trim() && locationLine ? (
+                                          <p className="mt-1 text-[13px] text-muted">
+                                            {locationLine}
+                                          </p>
+                                        ) : null}
+                                        {location.status ? (
+                                          <p className="mt-1 text-[13px] text-muted">
+                                            {location.status}
+                                          </p>
+                                        ) : null}
+                                      </div>
+                                    );
+                                  })}
+                                <motion.div
+                                  initial={false}
+                                  animate={{
+                                    height: showAllLocations ? "auto" : 0,
+                                    opacity: showAllLocations ? 1 : 0,
+                                    filter: showAllLocations ? "blur(0px)" : "blur(8px)",
+                                  }}
+                                  transition={{
+                                    height: { duration: 0.34, ease: [0.22, 1, 0.36, 1] },
+                                    opacity: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+                                    filter: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
+                                  }}
+                                  className="overflow-hidden"
+                                  style={{ pointerEvents: showAllLocations ? "auto" : "none" }}
+                                >
+                                  <div className="space-y-2 pt-2">
+                                    {detailQuery.data.locations.slice(3).map((location, index) => {
+                                      const locationLine = formatLocationLine(
+                                        location.city,
+                                        location.country,
+                                      );
+                                      const locationTitle =
+                                        location.facility?.trim() ||
+                                        locationLine ||
+                                        `Location ${index + 4}`;
+
+                                      return (
+                                        <div
+                                          key={`${locationTitle}-${index + 3}`}
+                                          className="rounded-[16px] border border-line px-4 py-3"
+                                        >
+                                          <p className="text-[14px] font-medium text-text">
+                                            {locationTitle}
+                                          </p>
+                                          {location.facility?.trim() && locationLine ? (
+                                            <p className="mt-1 text-[13px] text-muted">
+                                              {locationLine}
+                                            </p>
+                                          ) : null}
+                                          {location.status ? (
+                                            <p className="mt-1 text-[13px] text-muted">
+                                              {location.status}
+                                            </p>
+                                          ) : null}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </motion.div>
+                              </div>
+                              {detailQuery.data.locations.length > 3 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowAllLocations((current) => !current)}
+                                  className="inline-flex text-[14px] text-muted transition hover:text-text"
+                                >
+                                  {showAllLocations
+                                    ? "Show fewer locations"
+                                    : formatMoreLocationsLabel(
+                                        detailQuery.data.locations.length - 3,
+                                      )}
+                                </button>
+                              ) : null}
+                            </motion.div>
+                          ) : null}
+                        </section>
+
+                        <section className="space-y-3">
+                          <h3 className={SNAPSHOT_SECTION_HEADING_CLASS}>Outcomes</h3>
+                          <div className="space-y-3">
+                            {detailQuery.data.outcomes.length ? (
+                              detailQuery.data.outcomes.map((outcome, index) => (
+                                <div
+                                  key={`${outcome.outcome_type}-${index}`}
+                                  className="rounded-[18px] border border-line p-4"
+                                >
+                                  <p className="text-[12px] uppercase tracking-[0.14em] text-muted">
+                                    {outcome.outcome_type}
+                                  </p>
+                                  <p className="mt-2 text-[15px] font-medium text-text">
+                                    {outcome.measure}
+                                  </p>
+                                  {outcome.timeframe ? (
+                                    <p className="mt-1 text-[13px] text-muted">
+                                      {outcome.timeframe}
+                                    </p>
+                                  ) : null}
+                                  {outcome.description ? (
+                                    <p className="mt-2 text-[14px] leading-6 text-muted">
+                                      {outcome.description}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-[14px] text-muted">
+                                No structured outcomes were available in the upstream record.
+                              </p>
+                            )}
+                          </div>
+                        </section>
+                      </>
+                    ) : (
+                      <p className="text-[14px] text-muted">Loading trial details…</p>
+                    )}
                   </div>
 
                   <aside className="space-y-3">
-                    <h3 className={SNAPSHOT_SECTION_HEADING_CLASS}>Linked Literature</h3>
-                    <div className="space-y-3">
-                      {detailQuery.data.publications.length ? (
-                        detailQuery.data.publications.map((publication) => (
-                          <button
-                            type="button"
-                            key={publication.pmid}
-                            onClick={() => onOpenPublicationSnapshot(publication)}
-                            className="block w-full rounded-[18px] border border-line p-4 text-left transition hover:border-[rgba(232,163,61,0.22)]"
-                          >
-                            <p className="text-[15px] font-medium leading-6 text-text">
-                              {publication.title}
+                    {detailQuery.data ? (
+                      <>
+                        <h3 className={SNAPSHOT_SECTION_HEADING_CLASS}>Linked Literature</h3>
+                        <div className="space-y-3">
+                          {detailQuery.data.publications.length ? (
+                            detailQuery.data.publications.map((publication) => (
+                              <button
+                                type="button"
+                                key={publication.pmid}
+                                onClick={() => onOpenPublicationSnapshot(publication)}
+                                className="block w-full rounded-[18px] border border-line p-4 text-left transition hover:border-[rgba(232,163,61,0.22)]"
+                              >
+                                <p className="text-[15px] font-medium leading-6 text-text">
+                                  {publication.title}
+                                </p>
+                                <p className="mt-2 text-[13px] text-muted">
+                                  {publication.authors[0]?.split(",")[0] ?? "Unknown author"} et al.
+                                  {publication.pub_date
+                                    ? `, ${publication.pub_date.slice(0, 4)}`
+                                    : ""}
+                                </p>
+                              </button>
+                            ))
+                          ) : (
+                            <p className="text-[14px] text-muted">
+                              No linked publications yet for this trial.
                             </p>
-                            <p className="mt-2 text-[13px] text-muted">
-                              {publication.authors[0]?.split(",")[0] ?? "Unknown author"} et al.
-                              {publication.pub_date ? `, ${publication.pub_date.slice(0, 4)}` : ""}
-                            </p>
-                          </button>
-                        ))
-                      ) : (
-                        <p className="text-[14px] text-muted">
-                          No linked publications yet for this trial.
-                        </p>
-                      )}
-                    </div>
+                          )}
+                        </div>
+                      </>
+                    ) : null}
                   </aside>
                 </div>
               ) : (

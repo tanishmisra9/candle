@@ -59,6 +59,7 @@ async def get_trial(
     publications = publications_result.scalars().all()
 
     payload = TrialSummary.model_validate(trial).model_dump()
+    payload["ai_summary"] = trial.ai_summary
     payload["publications"] = [pub for pub in publications]
     payload["outcomes"] = derive_outcomes(trial.raw_json)
     return TrialDetail.model_validate(payload)

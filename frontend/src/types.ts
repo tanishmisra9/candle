@@ -40,6 +40,7 @@ export type OutcomeEntry = {
 };
 
 export type TrialDetail = TrialSummary & {
+  ai_summary: string | null;
   publications: PublicationSummary[];
   outcomes: OutcomeEntry[];
 };

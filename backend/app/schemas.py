@@ -51,6 +51,7 @@ class TrialSummary(BaseModel):
 
 
 class TrialDetail(TrialSummary):
+    ai_summary: str | None = None
     publications: list[PublicationSummary] = Field(default_factory=list)
     outcomes: list[OutcomeEntry] = Field(default_factory=list)
 
