@@ -1,10 +1,18 @@
+import base64
+import json
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import Publication
-from app.schemas import PublicationOverviewResponse, PublicationSummary
+from app.schemas import (
+    PublicationCursorPage,
+    PublicationOverviewResponse,
+    PublicationSummary,
+)
 from app.services.llm_guardrails import (
     PUBLICATION_OVERVIEW_ROUTE,
     enforce_llm_body_size,
@@ -23,13 +31,101 @@ from app.services.publication_overviews import (
 router = APIRouter(prefix="/publications", tags=["publications"])
 
 
-@router.get("", response_model=list[PublicationSummary])
+def encode_publication_cursor(pub_date: date | None, pmid: str) -> str:
+    payload = {
+        "pub_date": pub_date.isoformat() if pub_date else None,
+        "pmid": pmid,
+    }
+    return base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("ascii")
+
+
+def decode_publication_cursor(cursor: str) -> tuple[date | None, str]:
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8"))
+        raw_date = payload.get("pub_date")
+        pmid = payload["pmid"]
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid cursor.") from exc
+
+    if raw_date is None:
+        return None, pmid
+
+    try:
+        return date.fromisoformat(raw_date), pmid
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid cursor.") from exc
+
+
+async def fetch_publication_cursor_page(
+    session: AsyncSession,
+    *,
+    trial_id: str | None,
+    q: str | None,
+    limit: int,
+    cursor: str | None,
+) -> PublicationCursorPage:
+    stmt = select(Publication)
+    if trial_id:
+        stmt = stmt.where(Publication.trial_id == trial_id)
+    if q:
+        search = f"%{q}%"
+        stmt = stmt.where(
+            or_(Publication.title.ilike(search), Publication.abstract.ilike(search))
+        )
+
+    if cursor:
+        cursor_date, cursor_pmid = decode_publication_cursor(cursor)
+        if cursor_date is None:
+            stmt = stmt.where(
+                Publication.pub_date.is_(None),
+                Publication.pmid > cursor_pmid,
+            )
+        else:
+            stmt = stmt.where(
+                or_(
+                    Publication.pub_date.is_(None),
+                    Publication.pub_date < cursor_date,
+                    (Publication.pub_date == cursor_date) & (Publication.pmid > cursor_pmid),
+                )
+            )
+
+    stmt = stmt.order_by(Publication.pub_date.desc().nullslast(), Publication.pmid.asc()).limit(
+        limit + 1
+    )
+    result = await session.execute(stmt)
+    publications = result.scalars().all()
+    has_more = len(publications) > limit
+    publications = publications[:limit]
+
+    next_cursor = None
+    if has_more and publications:
+        last_publication = publications[-1]
+        next_cursor = encode_publication_cursor(last_publication.pub_date, last_publication.pmid)
+
+    return PublicationCursorPage(
+        items=[PublicationSummary.model_validate(publication) for publication in publications],
+        next_cursor=next_cursor,
+    )
+
+
+@router.get("", response_model=list[PublicationSummary] | PublicationCursorPage)
 async def list_publications(
     trial_id: str | None = None,
     q: str | None = None,
+    cursor: str | None = None,
+    envelope: bool = False,
     limit: int = Query(default=200, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
-) -> list[PublicationSummary]:
+) -> list[PublicationSummary] | PublicationCursorPage:
+    if cursor or envelope:
+        return await fetch_publication_cursor_page(
+            session,
+            trial_id=trial_id,
+            q=q,
+            limit=limit,
+            cursor=cursor,
+        )
+
     stmt = select(Publication).order_by(
         Publication.pub_date.desc().nullslast(), Publication.title.asc()
     )

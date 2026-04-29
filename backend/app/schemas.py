@@ -31,6 +31,11 @@ class PublicationOverviewResponse(BaseModel):
     overview: str | None
 
 
+class PublicationCursorPage(BaseModel):
+    items: list["PublicationSummary"] = Field(default_factory=list)
+    next_cursor: str | None = None
+
+
 class TrialSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -54,6 +59,11 @@ class TrialDetail(TrialSummary):
     ai_summary: str | None = None
     publications: list[PublicationSummary] = Field(default_factory=list)
     outcomes: list[OutcomeEntry] = Field(default_factory=list)
+
+
+class TrialCursorPage(BaseModel):
+    items: list[TrialSummary] = Field(default_factory=list)
+    next_cursor: str | None = None
 
 
 class SyncLogEntry(BaseModel):
