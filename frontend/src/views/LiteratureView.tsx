@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion, useReducedMotion, useScroll } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 import { PublicationRow } from "../components/PublicationRow";
@@ -16,12 +16,10 @@ type LiteratureViewProps = {
 
 export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProps) {
   const pageSize = 50;
-  const { scrollY } = useScroll();
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [linkedOnly, setLinkedOnly] = useState(false);
-  const [compactDesktopControls, setCompactDesktopControls] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const deferredSearch = useDeferredValue(search);
@@ -30,26 +28,6 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     hideAfter: 140,
     revealWithin: 72,
   });
-
-  useEffect(() => {
-    if (isMobile) {
-      setCompactDesktopControls(false);
-      return;
-    }
-
-    let lastValue = 0;
-    return scrollY.on("change", (value) => {
-      const goingDown = value > lastValue;
-      if (value < 90) {
-        setCompactDesktopControls(false);
-      } else if (goingDown && value > 180) {
-        setCompactDesktopControls(true);
-      } else if (!goingDown) {
-        setCompactDesktopControls(false);
-      }
-      lastValue = value;
-    });
-  }, [isMobile, scrollY]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -111,11 +89,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           scale: isControlsVisible ? 1 : 0.985,
           filter: isControlsVisible ? "blur(0px)" : "blur(8px)",
         }
-      : {
-          y: compactDesktopControls ? -4 : 0,
-          paddingTop: compactDesktopControls ? 10 : 16,
-          paddingBottom: compactDesktopControls ? 10 : 16,
-        };
+      : undefined;
 
   return (
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
@@ -137,9 +111,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         transition={startupReveal?.transition}
         className="space-y-8 md:space-y-12"
       >
-        <motion.div
-          animate={controlsAnimate}
-          transition={{ type: "spring", stiffness: 400, damping: 32 }}
+        <div
           className={cn(
             "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start md:px-4",
             NAV_OFFSET_CLASS,
@@ -147,17 +119,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           )}
         >
           <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center md:gap-3">
-            <motion.div
-              animate={
-                prefersReducedMotion || isMobile
-                  ? undefined
-                  : {
-                      scale: compactDesktopControls ? 0.985 : 1,
-                    }
-              }
-              transition={{ type: "spring", stiffness: 400, damping: 32 }}
-              className="relative w-full md:w-[420px]"
-            >
+            <div className="relative w-full md:w-[420px]">
               <Search
                 size={17}
                 strokeWidth={1.5}
@@ -171,13 +133,13 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                 className={cn(
                   "w-full rounded-full border border-line bg-glass pl-11 pr-14 text-[14px] text-text shadow-panel outline-none backdrop-blur-2xl placeholder:text-muted transition-all focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
                   "text-[16px]",
-                  compactDesktopControls ? "py-3" : "py-3.5",
+                  "py-3.5",
                 )}
               />
               <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
                 ⌘K
               </span>
-            </motion.div>
+            </div>
 
             <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
               <button
@@ -193,7 +155,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
               </button>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
