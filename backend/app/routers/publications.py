@@ -1,10 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import Publication
 from app.schemas import PublicationOverviewResponse, PublicationSummary
+from app.services.llm_guardrails import (
+    PUBLICATION_OVERVIEW_ROUTE,
+    enforce_llm_body_size,
+    enforce_llm_rate_limit,
+    llm_concurrency_slot,
+)
 from app.services.publication_overviews import (
     get_or_generate_publication_overview,
 )
@@ -37,16 +43,22 @@ async def list_publications(
 
 @router.post("/{pmid}/overview", response_model=PublicationOverviewResponse)
 async def publication_overview(
-    pmid: str, session: AsyncSession = Depends(get_session)
+    pmid: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
 ) -> PublicationOverviewResponse:
+    await enforce_llm_body_size(request)
+    await enforce_llm_rate_limit(request, PUBLICATION_OVERVIEW_ROUTE)
+
     publication = await session.get(Publication, pmid)
     if publication is None:
         raise HTTPException(status_code=404, detail="Publication not found")
 
     try:
-        overview, _generated = await get_or_generate_publication_overview(
-            session, publication
-        )
+        async with llm_concurrency_slot():
+            overview, _generated = await get_or_generate_publication_overview(
+                session, publication
+            )
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     except TimeoutError as exc:

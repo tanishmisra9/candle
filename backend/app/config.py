@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     chat_model: str = "gpt-4o-mini"
     frontend_origin: str = "http://localhost:5173"
+    trust_proxy_headers: bool = False
+    ask_rate_limit_per_minute: int = 6
+    ask_rate_limit_burst: int = 2
+    publication_overview_rate_limit_per_minute: int = 20
+    publication_overview_rate_limit_burst: int = 5
+    llm_concurrency_limit: int = 8
+    llm_request_body_max_bytes: int = 8 * 1024
+    ask_question_max_chars: int = 2000
     clinical_trials_base_url: str = "https://clinicaltrials.gov/api/v2/studies"
     pubmed_search_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
     pubmed_fetch_url: str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"

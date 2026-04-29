@@ -83,6 +83,15 @@ To force-refresh publication overviews for everything already saved:
 cd backend && uv run python -m app.ingest.overviews --force
 ```
 
+## Public Deployment Note
+
+If you expose Candle publicly, add edge protection in front of the backend for the expensive AI endpoints:
+
+- `POST /ask`
+- `POST /publications/{pmid}/overview`
+
+The app now applies in-process rate limits and concurrency caps, but a Vercel bot/WAF rule or upstream proxy throttle is still a strong extra layer for public internet traffic.
+
 ## Pre-outreach Cleanup
 
 Before CureCHM outreach, run the one-time cleanup for older non-CHM trials that were ingested before the raw relevance guard existed.
