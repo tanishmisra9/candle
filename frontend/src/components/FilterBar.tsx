@@ -6,6 +6,9 @@ import { NAV_OFFSET_CLASS } from "../lib/mobile";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 
+const isMac = navigator.platform.toUpperCase().includes("MAC");
+const kbdShortcut = isMac ? "⌘K" : "Ctrl+K";
+
 type FilterGroup = {
   label: string;
   value: string;
@@ -85,7 +88,7 @@ export function FilterBar({
           className="pl-11 pr-14"
         />
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
-          ⌘K
+          {kbdShortcut}
         </span>
       </div>
 

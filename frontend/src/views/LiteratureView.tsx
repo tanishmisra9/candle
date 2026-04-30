@@ -10,6 +10,9 @@ import { listPublicationsPage } from "../lib/api";
 import { NAV_OFFSET_CLASS, useIsMobile, useScrollVisibilityState } from "../lib/mobile";
 import type { PublicationSummary } from "../types";
 
+const isMac = navigator.platform.toUpperCase().includes("MAC");
+const kbdShortcut = isMac ? "⌘K" : "Ctrl+K";
+
 type LiteratureViewProps = {
   onOpenPublicationSnapshot: (publication: PublicationSummary) => void;
 };
@@ -165,7 +168,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                 )}
               />
               <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
-                ⌘K
+                {kbdShortcut}
               </span>
             </div>
 
