@@ -9,12 +9,25 @@ import { Input } from "./ui/Input";
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 const kbdShortcut = isMac ? "⌘K" : "Ctrl+K";
 
-type FilterGroup = {
+type FilterOption = { label: string; value: string };
+
+type SingleSelectFilterGroup = {
+  selectionMode?: "single";
   label: string;
   value: string;
-  options: Array<{ label: string; value: string }>;
+  options: FilterOption[];
   onSelect: (value: string) => void;
 };
+
+type MultiSelectFilterGroup = {
+  selectionMode: "multiple";
+  label: string;
+  selectedValues: string[];
+  options: FilterOption[];
+  onToggle: (value: string) => void;
+};
+
+type FilterGroup = SingleSelectFilterGroup | MultiSelectFilterGroup;
 
 type FilterBarProps = {
   groups: FilterGroup[];
@@ -95,8 +108,19 @@ export function FilterBar({
       <div className={cn("flex flex-wrap items-center gap-2.5", groupsClassName)}>
         {groups.map((group) => {
           const isOpen = openGroup === group.label;
-          const activeLabel =
-            group.options.find((option) => option.value === group.value)?.label ?? group.label;
+          const isMultiSelect = group.selectionMode === "multiple";
+          const activeLabel = isMultiSelect
+            ? group.selectedValues.length === 0
+              ? group.label
+              : group.selectedValues.length === 1
+                ? (group.options.find((option) => option.value === group.selectedValues[0])?.label ??
+                  group.label)
+                : `${group.label} (${group.selectedValues.length})`
+            : group.value
+              ? (group.options.find((option) => option.value === group.value)?.label ??
+                group.label)
+              : group.label;
+          const isActive = isMultiSelect ? group.selectedValues.length > 0 : Boolean(group.value);
 
           return (
             <div key={group.label} className="relative">
@@ -106,12 +130,12 @@ export function FilterBar({
                 onClick={() => setOpenGroup(isOpen ? null : group.label)}
                 className={cn(
                   "justify-center px-4 py-2.5 text-[14px]",
-                  group.value &&
+                  isActive &&
                     "border-[rgba(232,163,61,0.28)] bg-[rgba(232,163,61,0.08)] text-text",
-                  isOpen && !group.value && "border-[rgba(232,163,61,0.28)]",
+                  isOpen && !isActive && "border-[rgba(232,163,61,0.28)]",
                 )}
               >
-                {group.value ? activeLabel : group.label}
+                {activeLabel}
               </Button>
               {isOpen ? (
                 <div className="absolute left-0 top-[calc(100%+10px)] z-20 w-60 rounded-[20px] border border-line bg-panel p-2 shadow-panel backdrop-blur-2xl">
@@ -120,17 +144,35 @@ export function FilterBar({
                       key={option.value || "all"}
                       type="button"
                       onClick={() => {
+                        if (isMultiSelect) {
+                          group.onToggle(option.value);
+                          return;
+                        }
                         group.onSelect(option.value);
                         setOpenGroup(null);
                       }}
                       className={cn(
                         "flex w-full items-center justify-between rounded-[14px] px-3.5 py-2.5 text-left text-[14px] transition",
-                        option.value === group.value
+                        isMultiSelect
+                          ? group.selectedValues.includes(option.value)
+                            ? "bg-[rgba(232,163,61,0.14)] text-text"
+                            : "text-muted hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.06)]"
+                          : option.value === group.value
                           ? "bg-[rgba(232,163,61,0.14)] text-text"
                           : "text-muted hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.06)]",
                       )}
                     >
                       <span>{option.label}</span>
+                      {isMultiSelect ? (
+                        <input
+                          type="checkbox"
+                          readOnly
+                          tabIndex={-1}
+                          checked={group.selectedValues.includes(option.value)}
+                          aria-hidden="true"
+                          className="h-4 w-4 rounded border-line bg-transparent accent-[rgba(232,163,61,0.9)]"
+                        />
+                      ) : null}
                     </button>
                   ))}
                 </div>

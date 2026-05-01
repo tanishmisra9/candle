@@ -41,7 +41,7 @@ function matchesFacetSelections(
   trial: TrialSummary,
   filters: {
     status: string;
-    phase: string;
+    phases: string[];
     interventionType: string;
     sponsor: string;
     search: string;
@@ -62,8 +62,8 @@ function matchesFacetSelections(
 
   if (
     excludedFacet !== "phase" &&
-    filters.phase &&
-    (trial.phase ?? "").toLowerCase() !== filters.phase.toLowerCase()
+    filters.phases.length > 0 &&
+    !filters.phases.some((phase) => phase.toLowerCase() === (trial.phase ?? "").toLowerCase())
   ) {
     return false;
   }
@@ -109,6 +109,29 @@ function buildFacetOptions(
   ];
 }
 
+function buildMultiSelectFacetOptions(
+  trials: TrialSummary[],
+  key: TrialFacetKey,
+  selectedValues: string[],
+  labelForValue: (value: string) => string,
+) {
+  const values = uniqueOptions(trials, key);
+  const seen = new Set(values.map((value) => value.toLowerCase()));
+  const orderedValues = [...selectedValues, ...values].filter((value) => {
+    const normalized = value.toLowerCase();
+    if (seen.has(normalized)) {
+      seen.delete(normalized);
+      return true;
+    }
+    return !values.some((existing) => existing.toLowerCase() === normalized);
+  });
+
+  return orderedValues.map((value) => ({
+    label: labelForValue(value),
+    value,
+  }));
+}
+
 type DashboardViewProps = {
   onOpenTrialSnapshot: (trialId: string) => void;
 };
@@ -117,7 +140,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
   const [status, setStatus] = useState("");
-  const [phase, setPhase] = useState("");
+  const [phase, setPhase] = useState<string[]>([]);
   const [interventionType, setInterventionType] = useState("");
   const [sponsor, setSponsor] = useState("");
   const [search, setSearch] = useState("");
@@ -150,7 +173,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const allTrials = trialsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const activeFilters = {
     status,
-    phase,
+    phases: phase,
     interventionType,
     sponsor,
     search: normalizedSearch,
@@ -165,7 +188,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     status,
     formatStatusLabel,
   );
-  const phaseOptions = buildFacetOptions(
+  const phaseOptions = buildMultiSelectFacetOptions(
     allTrials.filter((trial) =>
       matchesFacetSelections(trial, activeFilters, "phase"),
     ),
@@ -190,7 +213,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     (value) => value,
   );
   const hasActiveFilters = Boolean(
-    status || phase || interventionType || sponsor || search.trim(),
+    status || phase.length || interventionType || sponsor || search.trim(),
   );
   const showTrialSkeletons =
     trialsQuery.isPending || trialsQuery.isFetchingNextPage || Boolean(trialsQuery.hasNextPage);
@@ -207,10 +230,17 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
       };
   const clearFilters = () => {
     setStatus("");
-    setPhase("");
+    setPhase([]);
     setInterventionType("");
     setSponsor("");
     setSearch("");
+  };
+  const togglePhase = (phaseValue: string) => {
+    setPhase((current) =>
+      current.some((value) => value.toLowerCase() === phaseValue.toLowerCase())
+        ? current.filter((value) => value.toLowerCase() !== phaseValue.toLowerCase())
+        : [...current, phaseValue],
+    );
   };
   const stickyTrayAnimate = prefersReducedMotion
     ? undefined
@@ -232,8 +262,9 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         },
         {
           label: "Phase",
-          value: phase,
-          onSelect: setPhase,
+          selectionMode: "multiple",
+          selectedValues: phase,
+          onToggle: togglePhase,
           options: phaseOptions,
         },
         {
