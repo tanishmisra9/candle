@@ -12,6 +12,10 @@ type TrialCardProps = {
 
 export function TrialCard({ trial, onOpen }: TrialCardProps) {
   const prefersReducedMotion = useReducedMotion();
+  const enrollmentLabel =
+    trial.enrollment === null ? "Participant count unavailable" : `${trial.enrollment} participants`;
+  const locationCount = trial.locations.length;
+  const locationLabel = `${locationCount} site${locationCount === 1 ? "" : "s"}`;
 
   return (
     <motion.button
@@ -41,13 +45,13 @@ export function TrialCard({ trial, onOpen }: TrialCardProps) {
           <Building2 size={15} strokeWidth={1.5} />
           {trial.sponsor || "Unknown sponsor"}
         </span>
-        <span className="inline-flex items-center gap-1.5">
-          <Users size={15} strokeWidth={1.5} />
+        <span className="inline-flex items-center gap-1.5" aria-label={enrollmentLabel}>
+          <Users size={15} strokeWidth={1.5} aria-hidden="true" />
           {trial.enrollment ?? "—"}
         </span>
-        <span className="inline-flex items-center gap-1.5">
-          <MapPin size={15} strokeWidth={1.5} />
-          {trial.locations.length}
+        <span className="inline-flex items-center gap-1.5" aria-label={locationLabel}>
+          <MapPin size={15} strokeWidth={1.5} aria-hidden="true" />
+          {locationCount}
         </span>
       </div>
     </motion.button>
