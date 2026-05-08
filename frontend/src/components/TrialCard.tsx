@@ -45,13 +45,15 @@ export function TrialCard({ trial, onOpen }: TrialCardProps) {
           <Building2 size={15} strokeWidth={1.5} />
           {trial.sponsor || "Unknown sponsor"}
         </span>
-        <span className="inline-flex items-center gap-1.5" aria-label={enrollmentLabel}>
+        <span className="inline-flex items-center gap-1.5">
           <Users size={15} strokeWidth={1.5} aria-hidden="true" />
-          {trial.enrollment ?? "—"}
+          <span aria-hidden="true">{trial.enrollment ?? "—"}</span>
+          <span className="sr-only">{enrollmentLabel}</span>
         </span>
-        <span className="inline-flex items-center gap-1.5" aria-label={locationLabel}>
+        <span className="inline-flex items-center gap-1.5">
           <MapPin size={15} strokeWidth={1.5} aria-hidden="true" />
-          {locationCount}
+          <span aria-hidden="true">{locationCount}</span>
+          <span className="sr-only">{locationLabel}</span>
         </span>
       </div>
     </motion.button>

@@ -39,11 +39,11 @@ describe("TrialCard accessibility", () => {
     const { container } = render(<TrialCard trial={makeTrialSummary()} onOpen={() => {}} />);
 
     const results = await axe(container);
+    const cardButton = screen.getByRole("button");
 
     expect(results.violations).toHaveLength(0);
-
-    expect(screen.getByText("128")).toHaveAccessibleName(/participants/i);
-    expect(screen.getByText("3")).toHaveAccessibleName(/sites/i);
+    expect(cardButton).toHaveAccessibleName(/128 participants/i);
+    expect(cardButton).toHaveAccessibleName(/3 sites/i);
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 });
