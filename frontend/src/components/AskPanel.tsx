@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { SendHorizonal } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { askQuestion } from "../lib/api";
 import type { AskMessage } from "../types";
@@ -13,6 +13,22 @@ const EXAMPLE_QUESTIONS = [
   "What did the RTx-015 Phase 1 trial report?",
   "What publications exist on AAV gene therapy for CHM?",
   "Which trials have the most enrolled participants?",
+  "What is the primary endpoint of the Kiora KIO-301 trial?",
+  "Which trials are sponsored by 4D Molecular Therapeutics?",
+  "What does the research say about natural disease progression in CHM?",
+  "Are there any completed Phase 3 CHM trials?",
+  "Which trials are currently enrolling by invitation?",
+  "What imaging outcomes have been reported in CHM publications?",
+  "What gene therapy vectors have been studied for CHM?",
+  "Which trials have sites outside the United States?",
+  "What visual acuity outcomes have been reported in CHM gene therapy trials?",
+  "Which sponsor has run the most CHM trials?",
+  "What is the total enrollment across all CHM trials?",
+  "Are there any observational studies tracking CHM disease progression?",
+  "What publications are linked to the Biogen natural history study?",
+  "Which trials use microperimetry as an outcome measure?",
+  "What CHM trials have been withdrawn or terminated?",
+  "Are there any trials studying vitamin A or neuroprotective treatments for CHM?",
 ] as const;
 
 export function AskPanel({
@@ -22,6 +38,11 @@ export function AskPanel({
 }) {
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<AskMessage[]>([]);
+  const exampleQuestions = useMemo(() => {
+    return [...EXAMPLE_QUESTIONS]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 4);
+  }, []);
 
   const mutation = useMutation({
     mutationFn: askQuestion,
@@ -74,7 +95,7 @@ export function AskPanel({
               Ask anything about indexed CHM trials and publications.
             </p>
             <div className="mx-auto mt-10 grid max-w-[760px] grid-cols-1 gap-4 md:grid-cols-2">
-              {EXAMPLE_QUESTIONS.map((question) => (
+              {exampleQuestions.map((question) => (
                 <button
                   key={question}
                   type="button"
