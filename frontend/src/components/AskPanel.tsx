@@ -8,6 +8,13 @@ import { ChatMessage } from "./ChatMessage";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 
+const EXAMPLE_QUESTIONS = [
+  "Which CHM gene therapy trials are currently recruiting?",
+  "What did the RTx-015 Phase 1 trial report?",
+  "What publications exist on AAV gene therapy for CHM?",
+  "Which trials have the most enrolled participants?",
+] as const;
+
 export function AskPanel({
   onOpenTrialSnapshot,
 }: {
@@ -64,8 +71,20 @@ export function AskPanel({
               Ask
             </h1>
             <p className="mt-4 text-[17px] text-muted">
-              Research-backed responses
+              Ask anything about indexed CHM trials and publications.
             </p>
+            <div className="mx-auto mt-10 grid max-w-[760px] grid-cols-1 gap-4 md:grid-cols-2">
+              {EXAMPLE_QUESTIONS.map((question) => (
+                <button
+                  key={question}
+                  type="button"
+                  onClick={() => sendQuestion(question)}
+                  className="inline-flex rounded-full border border-line bg-glass px-5 py-3.5 text-left text-[15px] text-muted shadow-panel backdrop-blur-2xl transition hover:border-[rgba(232,163,61,0.28)] hover:text-text"
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="space-y-5 pb-32">
