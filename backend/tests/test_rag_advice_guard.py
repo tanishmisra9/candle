@@ -1,4 +1,5 @@
 from app.services.rag import (
+    SYSTEM_PROMPT,
     contains_advice_language,
     is_advice_request,
     is_distress_message,
@@ -55,3 +56,16 @@ def test_output_validation_passes_factual():
 
 def test_distress_detection():
     assert is_distress_message("I don't want to live like this anymore") is True
+
+
+def test_system_prompt_requires_answers_to_follow_retrieved_sources():
+    assert (
+        "Your answer must come from the provided context sources. Never answer from general knowledge."
+        in SYSTEM_PROMPT
+    )
+    assert (
+        "If sources are present in the context, your answer MUST be derived from those sources."
+        in SYSTEM_PROMPT
+    )
+    assert "Speak as if you simply know this." not in SYSTEM_PROMPT
+    assert "strongest alternative" not in SYSTEM_PROMPT
