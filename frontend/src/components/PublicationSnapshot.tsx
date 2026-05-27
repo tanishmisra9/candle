@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CalendarRange, ExternalLink, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
 import { getPublicationOverview } from "../lib/api";
+import { useFocusTrap } from "../lib/a11y";
 import { cn } from "../lib/cn";
 import { useIsMobile, useScrolledPastThreshold } from "../lib/mobile";
 import type { PublicationSummary } from "../types";
@@ -57,6 +58,10 @@ export function PublicationSnapshot({
     () => new Map(),
   );
   const [contentNode, setContentNode] = useState<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
+  const reactTitleId = useId();
   const overviewCacheRef = useRef(overviewCache);
   const isHeaderCondensed = useScrolledPastThreshold({
     enabled: Boolean(publication) && isMobile,
@@ -80,6 +85,8 @@ export function PublicationSnapshot({
   }, [publication]);
 
   const isTopmost = Boolean(publication) && (!isTrialSnapshotOpen || layer === "above-trial");
+
+  useFocusTrap(dialogRef, isTopmost);
 
   useEffect(() => {
     if (!publication || !isTopmost) return;
@@ -159,11 +166,46 @@ export function PublicationSnapshot({
     contentNode.scrollTo({ top: 0 });
   }, [contentNode, publication]);
 
+  useEffect(() => {
+    if (publication) {
+      if (!wasOpenRef.current) {
+        triggerRef.current =
+          document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      }
+      wasOpenRef.current = true;
+      return;
+    }
+
+    if (wasOpenRef.current) {
+      triggerRef.current?.focus();
+      triggerRef.current = null;
+    }
+
+    wasOpenRef.current = false;
+  }, [publication]);
+
+  useEffect(() => {
+    if (!publication || !isTopmost) return;
+    dialogRef.current?.focus();
+  }, [isTopmost, publication]);
+
   if (typeof document === "undefined") {
     return null;
   }
 
-  return createPortal(
+  const titleId = publication
+    ? `publication-snapshot-title-${publication.pmid}`
+    : reactTitleId;
+  const liveRegionAnnouncement = publication
+    ? `${publication.title} details opened`
+    : "";
+
+  return (
+    <>
+      <span className="sr-only" aria-live="assertive" aria-atomic="true">
+        {liveRegionAnnouncement}
+      </span>
+      {createPortal(
     <AnimatePresence>
       {publication ? (
         <motion.div
@@ -176,6 +218,11 @@ export function PublicationSnapshot({
           onClick={isTopmost ? onClose : undefined}
         >
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            tabIndex={-1}
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.28 } }}
             exit={{ opacity: 0, y: 20 }}
@@ -212,6 +259,7 @@ export function PublicationSnapshot({
                     PMID {publication.pmid}
                   </motion.p>
                   <h2
+                    id={titleId}
                     className={cn(
                       "mt-2 font-medium tracking-[-0.03em] text-text transition-all duration-200 md:text-[32px]",
                       isMobile
@@ -224,8 +272,13 @@ export function PublicationSnapshot({
                     {publication.title}
                   </h2>
                 </div>
-                <Button variant="ghost" onClick={onClose} className="shrink-0 self-start">
-                  <X size={18} strokeWidth={1.5} />
+                <Button
+                  variant="ghost"
+                  onClick={onClose}
+                  aria-label="Close publication details"
+                  className="shrink-0 self-start"
+                >
+                  <X size={18} strokeWidth={1.5} aria-hidden="true" />
                 </Button>
               </div>
             </motion.div>
@@ -293,7 +346,7 @@ export function PublicationSnapshot({
                           <button
                             type="button"
                             onClick={() => onOpenTrialSnapshot(publication.trial_id as string)}
-                            className="inline-flex rounded-full border border-[rgba(232,163,61,0.3)] bg-[rgba(232,163,61,0.12)] px-3.5 py-1.5 text-[13px] text-accent transition hover:bg-[rgba(232,163,61,0.18)]"
+                            className="focus-ring inline-flex rounded-full border border-[rgba(232,163,61,0.3)] bg-[rgba(232,163,61,0.12)] px-3.5 py-1.5 text-[13px] text-accent transition hover:bg-[rgba(232,163,61,0.18)]"
                           >
                             {publication.trial_id}
                           </button>
@@ -319,5 +372,7 @@ export function PublicationSnapshot({
       ) : null}
     </AnimatePresence>,
     document.body,
+      )}
+    </>
   );
 }

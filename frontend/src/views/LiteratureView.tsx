@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
@@ -25,6 +25,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const [linkedOnly, setLinkedOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const searchFieldId = useId();
   const isControlsVisible = useScrollVisibilityState({
     enabled: isMobile,
     hideAfter: 140,
@@ -151,12 +152,17 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         >
           <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center md:gap-3">
             <div className="relative w-full md:w-[420px]">
+              <label htmlFor={searchFieldId} className="sr-only">
+                Search title or abstract
+              </label>
               <Search
                 size={17}
                 strokeWidth={1.5}
                 className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
+                aria-hidden="true"
               />
               <input
+                id={searchFieldId}
                 ref={inputRef}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -177,7 +183,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                 type="button"
                 onClick={() => setLinkedOnly((current) => !current)}
                 className={cn(
-                  "rounded-full px-5 py-2.5 text-[14px] font-medium transition",
+                  "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
                   linkedOnly ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
                 )}
                 aria-pressed={linkedOnly}
@@ -230,14 +236,14 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
               onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
               disabled={currentPage === 1}
               className={cn(
-                "inline-flex h-12 w-12 items-center justify-center rounded-full border border-line bg-glass text-text shadow-panel backdrop-blur-2xl transition",
+                "focus-ring inline-flex h-12 w-12 items-center justify-center rounded-full border border-line bg-glass text-text shadow-panel backdrop-blur-2xl transition",
                 currentPage === 1
                   ? "cursor-not-allowed opacity-40"
                   : "hover:bg-[rgba(255,255,255,0.06)]",
               )}
               aria-label="Previous page"
             >
-              <ChevronLeft size={18} strokeWidth={1.8} />
+              <ChevronLeft size={18} strokeWidth={1.8} aria-hidden="true" />
             </button>
             <p className="min-w-[90px] text-center text-[14px] text-muted">
               {currentPage} / {totalPages}
@@ -247,14 +253,14 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
               onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
               disabled={currentPage === totalPages}
               className={cn(
-                "inline-flex h-12 w-12 items-center justify-center rounded-full border border-line bg-glass text-text shadow-panel backdrop-blur-2xl transition",
+                "focus-ring inline-flex h-12 w-12 items-center justify-center rounded-full border border-line bg-glass text-text shadow-panel backdrop-blur-2xl transition",
                 currentPage === totalPages
                   ? "cursor-not-allowed opacity-40"
                   : "hover:bg-[rgba(255,255,255,0.06)]",
               )}
               aria-label="Next page"
             >
-              <ChevronRight size={18} strokeWidth={1.8} />
+              <ChevronRight size={18} strokeWidth={1.8} aria-hidden="true" />
             </button>
           </div>
         ) : null}

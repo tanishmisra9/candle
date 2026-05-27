@@ -1,10 +1,11 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 
 import { GlassNav } from "./components/GlassNav";
 import { PublicationSnapshot } from "./components/PublicationSnapshot";
 import { TrialSnapshot } from "./components/TrialSnapshot";
+import { usePageTitle } from "./hooks/usePageTitle";
 import type { PublicationSummary } from "./types";
 import { AskView } from "./views/AskView";
 import { DashboardView } from "./views/DashboardView";
@@ -16,6 +17,9 @@ export default function App() {
   const prefersReducedMotion = useReducedMotion();
   const [selectedTrialId, setSelectedTrialId] = useState<string | null>(null);
   const [selectedPublication, setSelectedPublication] = useState<PublicationSummary | null>(null);
+  usePageTitle();
+  const isOverlayOpen = Boolean(selectedTrialId) || Boolean(selectedPublication);
+  const pageContentRef = useRef<HTMLDivElement>(null);
   const [publicationSnapshotLayer, setPublicationSnapshotLayer] = useState<
     "above-trial" | "below-trial"
   >("below-trial");
@@ -49,10 +53,28 @@ export default function App() {
     root.classList.add("dark");
   }, []);
 
+  useEffect(() => {
+    const node = pageContentRef.current;
+    if (!node) return;
+    if (isOverlayOpen) {
+      node.setAttribute("inert", "");
+    } else {
+      node.removeAttribute("inert");
+    }
+  }, [isOverlayOpen]);
+
   return (
     <div className="min-h-screen">
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
       <GlassNav />
-      <main className="mx-auto max-w-[1360px] px-4 pb-20 sm:px-5 md:px-10">
+      <div ref={pageContentRef} aria-hidden={isOverlayOpen ? true : undefined}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-[1360px] px-4 pb-20 sm:px-5 md:px-10 outline-none"
+      >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}
@@ -98,6 +120,7 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </main>
+      </div>
       <TrialSnapshot
         trialId={selectedTrialId}
         onClose={() => setSelectedTrialId(null)}

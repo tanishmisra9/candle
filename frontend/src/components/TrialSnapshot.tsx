@@ -5,6 +5,7 @@ import { Activity, CalendarRange, ExternalLink, Mail, MapPin, X } from "lucide-r
 import { createPortal } from "react-dom";
 
 import { getTrial } from "../lib/api";
+import { useFocusTrap } from "../lib/a11y";
 import { cn } from "../lib/cn";
 import type { PublicationSummary } from "../types";
 import { formatStatusLabel } from "../lib/formatters";
@@ -70,11 +71,17 @@ export function TrialSnapshot({
     target: contentNode,
   });
 
+  const isTopmost =
+    Boolean(trialId) &&
+    !(isPublicationSnapshotOpen && publicationSnapshotLayer === "above-trial");
+
   const detailQuery = useQuery({
     queryKey: ["trial", trialId],
     queryFn: () => getTrial(trialId as string),
     enabled: Boolean(trialId),
   });
+
+  useFocusTrap(dialogRef, isTopmost);
 
   useEffect(() => {
     if (!trialId) return;
@@ -88,8 +95,7 @@ export function TrialSnapshot({
   }, [trialId]);
 
   useEffect(() => {
-    if (!trialId) return;
-    if (isPublicationSnapshotOpen && publicationSnapshotLayer === "above-trial") return;
+    if (!trialId || !isTopmost) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -99,7 +105,7 @@ export function TrialSnapshot({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isPublicationSnapshotOpen, onClose, publicationSnapshotLayer, trialId]);
+  }, [isTopmost, onClose, trialId]);
 
   useEffect(() => {
     setShowAllLocations(false);
@@ -129,9 +135,9 @@ export function TrialSnapshot({
   }, [trialId]);
 
   useEffect(() => {
-    if (!trialId) return;
+    if (!trialId || !isTopmost) return;
     dialogRef.current?.focus();
-  }, [trialId]);
+  }, [isTopmost, trialId]);
 
   if (typeof document === "undefined") {
     return null;
@@ -385,7 +391,7 @@ export function TrialSnapshot({
                                     <button
                                       type="button"
                                       onClick={() => setShowAllLocations((current) => !current)}
-                                      className="inline-flex text-[14px] text-muted transition hover:text-text"
+                                      className="focus-ring inline-flex rounded-md text-[14px] text-muted transition hover:text-text"
                                     >
                                       {showAllLocations
                                         ? "Show fewer locations"
@@ -449,7 +455,7 @@ export function TrialSnapshot({
                                     type="button"
                                     key={publication.pmid}
                                     onClick={() => onOpenPublicationSnapshot(publication)}
-                                    className="block w-full rounded-[18px] border border-line p-4 text-left transition hover:border-[rgba(232,163,61,0.22)]"
+                                    className="focus-ring block w-full rounded-[18px] border border-line p-4 text-left transition hover:border-[rgba(232,163,61,0.22)]"
                                   >
                                     <p className="text-[15px] font-medium leading-6 text-text">
                                       {publication.title}
