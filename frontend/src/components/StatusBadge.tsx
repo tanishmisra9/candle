@@ -33,7 +33,7 @@ const tierStyles = {
   active: "bg-[rgba(52,199,89,0.1)] border-[rgba(52,199,89,0.22)] text-[#34C759]",
   completed: "border-line bg-glass text-muted",
   terminated:
-    "bg-[rgba(255,69,58,0.08)] border-[rgba(255,69,58,0.16)] text-[rgba(255,69,58,0.7)]",
+    "bg-[rgba(255,69,58,0.08)] border-[rgba(255,69,58,0.16)] text-[#ff7b72]",
   unknown: "border-line bg-glass text-muted",
 } as const;
 
