@@ -207,7 +207,8 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                   key={trial.id}
                   type="button"
                   onClick={() => onOpen(trial.id)}
-                  className="flex h-[44px] w-full items-center rounded-[12px] px-3 text-left text-[13px] text-text transition-colors duration-200 hover:bg-[rgba(255,255,255,0.04)] hover:text-[#F5E0B6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--panel)]"
+                  aria-label={`${trial.title} (${trial.id})`}
+                  className="focus-ring flex h-[44px] w-full items-center rounded-[12px] px-3 text-left text-[13px] text-text transition-colors duration-200 hover:bg-[rgba(255,255,255,0.04)] hover:text-[#F5E0B6]"
                   title={trial.title}
                 >
                   <span className="block truncate">{label}</span>
@@ -217,16 +218,19 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
           </div>
         </div>
 
-        <div ref={scrollRef} className="overflow-x-auto px-7 pb-7 pt-9">
+        <div
+          ref={scrollRef}
+          className="relative overflow-x-auto px-7 pb-7 pt-9"
+          style={{ minWidth: `${width}px` }}
+        >
           <motion.svg
             initial={prefersReducedMotion ? undefined : { opacity: 0 }}
             animate={prefersReducedMotion ? undefined : { opacity: 1 }}
             transition={{ duration: 0.24 }}
             viewBox={`0 0 ${width} ${chartHeight}`}
-            className="block"
-            style={{ minWidth: `${width}px`, width: `${width}px` }}
-            role="img"
-            aria-label="Trial timeline"
+            className="pointer-events-none block"
+            style={{ minWidth: `${width}px`, width: `${width}px`, height: `${chartHeight}px` }}
+            aria-hidden="true"
           >
             {Array.from({ length: span + 1 }, (_, index) => {
               const year = startYear + index;
@@ -314,13 +318,39 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                     rx={9}
                     fill={colorForStatus(trial.status)}
                     opacity={0.92}
-                  >
-                    <title>{`${trial.id}: ${trial.title}`}</title>
-                  </rect>
+                  />
                 </motion.g>
               );
             })}
           </motion.svg>
+
+          {trials.map((trial, index) => {
+            const start = yearFromDate(trial.start_date) ?? startYear;
+            const end = yearFromDate(trial.completion_date) ?? start;
+            const x = leftPadding + ((start - startYear) / span) * usableWidth;
+            const barWidth = Math.max(
+              10,
+              ((Math.max(start, end) - start + 0.35) / span) * usableWidth,
+            );
+            const y = topPadding + index * rowHeight;
+
+            return (
+              <button
+                key={`bar-${trial.id}`}
+                type="button"
+                onClick={() => onOpen(trial.id)}
+                aria-label={`${trial.title} (${trial.id})`}
+                className="focus-ring absolute rounded-full transition hover:brightness-110"
+                style={{
+                  left: `${x}px`,
+                  top: `${y - 5}px`,
+                  width: `${barWidth}px`,
+                  height: "18px",
+                }}
+                title={trial.title}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

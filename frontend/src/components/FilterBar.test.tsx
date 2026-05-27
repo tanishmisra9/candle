@@ -36,10 +36,10 @@ describe("FilterBar multi-select phase group", () => {
     expect(screen.getByRole("button", { name: "Phase (2)" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Phase (2)" }));
-    fireEvent.click(screen.getByRole("button", { name: /Phase 3/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Phase 3/i }));
 
     expect(onToggle).toHaveBeenCalledWith("PHASE3");
-    expect(screen.getByRole("button", { name: /Phase 1/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Phase 1/i })).toBeInTheDocument();
 
     rerender(
       <FilterBar
@@ -61,7 +61,8 @@ describe("FilterBar multi-select phase group", () => {
       />,
     );
 
-    expect(screen.getAllByRole("button", { name: "Phase 1" })).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Phase 1" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Phase 1" })).toBeInTheDocument();
   });
 
   it("leaves single-select groups behaving the same way", () => {
@@ -87,7 +88,7 @@ describe("FilterBar multi-select phase group", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Status" }));
-    fireEvent.click(screen.getByRole("button", { name: "Recruiting" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Recruiting" }));
 
     expect(onSelect).toHaveBeenCalledWith("RECRUITING");
   });

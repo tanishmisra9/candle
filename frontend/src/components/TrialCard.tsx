@@ -26,7 +26,7 @@ export function TrialCard({ trial, onOpen }: TrialCardProps) {
           ? undefined
           : { y: -3, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } }
       }
-      className="group flex h-full flex-col rounded-card border border-line bg-panel p-7 text-left shadow-panel transition-all hover:border-[rgba(232,163,61,0.22)] hover:shadow-panel-hover"
+      className="focus-ring group flex h-full flex-col rounded-card border border-line bg-panel p-7 text-left shadow-panel transition-all hover:border-[rgba(232,163,61,0.22)] hover:shadow-panel-hover"
     >
       <div className="flex items-center justify-between gap-3">
         <StatusBadge status={trial.status} />
