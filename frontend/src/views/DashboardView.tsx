@@ -242,7 +242,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         : [...current, phaseValue],
     );
   };
-  const stickyTrayAnimate = prefersReducedMotion
+  const stickyTrayScrollAnimate = prefersReducedMotion
     ? undefined
     : {
         y: isControlsVisible ? 0 : -18,
@@ -250,6 +250,17 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         scale: isControlsVisible ? 1 : 0.985,
         filter: isControlsVisible ? "blur(0px)" : "blur(8px)",
       };
+  const mobileStickyTrayAnimate =
+    prefersReducedMotion || !isMobile
+      ? undefined
+      : contentReady
+        ? stickyTrayScrollAnimate
+        : {
+            y: -18,
+            opacity: 0,
+            scale: 0.985,
+            filter: "blur(8px)",
+          };
   const listMotion = prefersReducedMotion
     ? undefined
     : {
@@ -348,12 +359,12 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
       >
         {isMobile ? (
           <motion.div
-            animate={stickyTrayAnimate}
+            animate={mobileStickyTrayAnimate}
             transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.85 }}
             className={cn(
               "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4",
               NAV_OFFSET_CLASS,
-              !isControlsVisible && "pointer-events-none",
+              contentReady && !isControlsVisible && "pointer-events-none",
             )}
           >
             {filterBar}

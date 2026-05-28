@@ -113,17 +113,6 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     }
   }, [currentPage, totalPages]);
 
-  const controlsAnimate = prefersReducedMotion
-    ? undefined
-    : isMobile
-      ? {
-          y: isControlsVisible ? 0 : -18,
-          opacity: isControlsVisible ? 1 : 0,
-          scale: isControlsVisible ? 1 : 0.985,
-          filter: isControlsVisible ? "blur(0px)" : "blur(8px)",
-        }
-      : undefined;
-
   return (
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
       <motion.header
@@ -139,15 +128,16 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
       </motion.header>
 
       <motion.div
-        initial={prefersReducedMotion ? undefined : { opacity: 0 }}
-        animate={prefersReducedMotion ? undefined : { opacity: 1 }}
-        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        initial={startupReveal?.initial}
+        animate={startupReveal?.animate}
+        transition={startupReveal?.transition}
+        className="space-y-8 md:space-y-12"
       >
         <div
           className={cn(
             "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start md:px-4",
             NAV_OFFSET_CLASS,
-            isMobile && !isControlsVisible && "pointer-events-none",
+            contentReady && isMobile && !isControlsVisible && "pointer-events-none",
           )}
         >
           <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center md:gap-3">
@@ -198,14 +188,6 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
             </div>
           </div>
         </div>
-      </motion.div>
-
-      <motion.div
-        initial={startupReveal?.initial}
-        animate={startupReveal?.animate}
-        transition={startupReveal?.transition}
-        className="space-y-8 md:space-y-12"
-      >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={`${linkedOnly ? "linked" : "all"}-${currentPage}`}
