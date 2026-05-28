@@ -6,7 +6,7 @@ Closure pass for remaining WCAG gaps flagged after the tiered ADA work (`d5dbbb8
 
 | Check | Result | Notes |
 | --- | --- | --- |
-| `vitest-axe` (`src/components/*.a11y.test.tsx`) | **6/6 passing** | `color-contrast` rule disabled in jsdom (documented limitation). Contrast remains manual-only. |
+| `vitest-axe` (`src/components/*.a11y.test.tsx`) | **6/6 passing** | Component-level coverage only (~30–40% of real-world issues). `color-contrast` disabled in jsdom. **Not sufficient for full conformance sign-off.** |
 
 ## Criterion disposition
 
@@ -32,9 +32,14 @@ Closure pass for remaining WCAG gaps flagged after the tiered ADA work (`d5dbbb8
 
 ## Residual risks (manual-only)
 
+Automated checks in this closure pass do **not** establish full WCAG conformance. A human reviewer must complete the items below before treating accessibility as done.
+
 1. **Color contrast (1.4.3)**: Not verified by axe in jsdom; manual token review only.
 2. **320px / 200% text spacing**: Verified manually in closure pass; not in CI.
 3. **Stacked overlay keyboard paths**: Focus trap covered by unit tests; full stacked open/close walkthrough remains manual QA.
+4. **Full-route Lighthouse / axe**: Run on all four routes (`/`, `/trials`, `/literature`, `/ask`) in a real browser, including open overlays where applicable. Component `vitest-axe` does not substitute for route-level scans.
+5. **Screen reader pass**: VoiceOver (macOS/iOS) and NVDA (Windows) walkthrough of primary flows—navigation, filters, trial/publication snapshots, Ask send/receive/error.
+6. **Contrast at zoom on real devices**: Confirm readable contrast and no loss of functionality at **200%** and **400%** browser zoom on physical or emulated devices (not jsdom).
 
 ## Manual verification checklist (completed in closure pass)
 
