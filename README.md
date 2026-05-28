@@ -2,7 +2,7 @@
 
 Candle is a quiet research dashboard for Choroideremia (CHM). It pulls clinical trials from ClinicalTrials.gov, publications from PubMed, links them where possible, generates persistent plain-language publication overviews and trial summaries, and lets you explore the corpus through a calmer interface for trials, literature, and grounded Q&A.
 
-**Live app:** [https://candle-ten-chi.vercel.app](https://candle-ten-chi.vercel.app)
+**Live app:** [https://www.candleforchm.org](https://www.candleforchm.org)
 
 ## What Candle Does
 
