@@ -1,149 +1,222 @@
 # Candle
 
-Candle is a quiet research dashboard for Choroideremia (CHM). It pulls clinical trials from ClinicalTrials.gov, publications from PubMed, links them where possible, generates persistent plain-language publication overviews, and lets you explore the whole corpus through a calmer interface for trials, literature, and grounded Q&A.
+Candle is a quiet research dashboard for Choroideremia (CHM). It pulls clinical trials from ClinicalTrials.gov, publications from PubMed, links them where possible, generates persistent plain-language publication overviews and trial summaries, and lets you explore the corpus through a calmer interface for trials, literature, and grounded Q&A.
 
-Live app: [https://candle-ten-chi.vercel.app](https://candle-ten-chi.vercel.app)
+**Live app:** [https://candle-ten-chi.vercel.app](https://candle-ten-chi.vercel.app)
 
 ## What Candle Does
 
-- Browse CHM trials in grid or timeline view, with detailed trial snapshots.
-- Explore linked literature in a dedicated reader with saved AI-generated overviews.
-- Ask grounded questions across the trial and publication corpus.
-- Keep publication overviews persistent in the database so they are fast after first generation.
+- **Trials** (`/trials`) — Browse CHM trials in grid or timeline view; open detailed trial snapshots with AI summaries, locations, and linked publications.
+- **Literature** (`/literature`) — Search and paginate publications; open reader snapshots with persisted AI overviews and trial links.
+- **Ask** (`/ask`) — Ask grounded questions across trials and publications via retrieval-augmented generation (RAG).
+- **Home** (`/`) — Entry point with quick navigation into the three main areas.
+
+Publication overviews and trial summaries are stored in Postgres after first generation so repeat visits stay fast.
+
+## Stack
+
+| Layer | Technologies |
+| --- | --- |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, Framer Motion, TanStack Query, React Router |
+| Backend | FastAPI, SQLAlchemy (async), asyncpg, Pydantic Settings |
+| Database | PostgreSQL 16 with **pgvector** (embeddings) and **pg_trgm** (substring search) |
+| AI | OpenAI — chat for Ask, embeddings for retrieval, overviews and trial summaries during ingest |
+| Local infra | Docker Compose (`pgvector/pgvector:pg16`) |
 
 ## Prerequisites
 
-- Docker
-- Python 3.11+
-- Node 20+
-- `uv`
-- `pnpm`
-- An OpenAI API key
+- Docker (for local Postgres)
+- Python **3.11+**
+- Node **20+**
+- [`uv`](https://docs.astral.sh/uv/) (Python package manager)
+- [`pnpm`](https://pnpm.io/) (frontend package manager)
+- An **OpenAI API key**
 
 ## Quick Start
 
-The fastest first-time setup is:
-
 ```bash
 cp .env.example .env
-# open .env and paste your OpenAI API key
+# Edit .env and set OPENAI_API_KEY (required for Ask and AI summaries)
 
 make bootstrap
 ```
 
-Then open:
+`make bootstrap` installs dependencies, starts Postgres, runs the full ingest pipeline, then launches the backend and frontend.
 
-- Frontend: `http://localhost:5173`
-- Backend: `http://localhost:8000`
+Open:
 
-## Local Development
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- Backend: [http://localhost:8000](http://localhost:8000)
+- API health: [http://localhost:8000/healthz](http://localhost:8000/healthz)
 
-If you want to run the pieces manually:
+## Local Development (manual)
 
 ```bash
-# 1. Clone and enter
-git clone <repo> candle && cd candle
+git clone <repo-url> candle && cd candle
 
-# 2. Configure
 cp .env.example .env
-# open .env and paste your OpenAI API key
+# Set OPENAI_API_KEY and adjust URLs if needed
 
-# 3. Install app dependencies
 cd backend && uv sync && cd ..
 pnpm --dir frontend install
 
-# 4. Start Postgres
-make up
-
-# 5. Ingest real data
-make ingest
-
-# 6. Backend (terminal 1)
-make backend
-
-# 7. Frontend (terminal 2)
-make frontend
+make up          # Postgres
+make wait-db     # optional: block until DB is ready
+make ingest      # full data pipeline (see below)
+make dev         # backend :8000 + frontend :5173
 ```
 
-## Useful Commands
+Or run services in separate terminals: `make backend` and `make frontend`.
 
-```bash
-make up         # start Postgres
-make down       # stop Postgres
-make ingest     # ingest trials + publications, link them, generate overviews, store embeddings
-make backend    # run FastAPI on :8000
-make frontend   # run Vite on :5173
-make dev        # run backend + frontend together
-make bootstrap  # one-command local setup
-```
+## Environment Variables
 
-To force-refresh publication overviews for everything already saved:
+Copy [`.env.example`](.env.example) to `.env` at the repo root. The backend reads the root `.env`; the frontend uses `VITE_*` variables at build time.
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Async SQLAlchemy URL (default: local Docker Postgres) |
+| `OPENAI_API_KEY` | Required for `/ask`, publication overviews, embeddings, trial summaries |
+| `EMBEDDING_MODEL` | OpenAI embedding model (default: `text-embedding-3-small`) |
+| `CHAT_MODEL` | OpenAI chat model for Ask (default: `gpt-4o-mini`) |
+| `FRONTEND_ORIGIN` | CORS allowlist for the API (default: `http://localhost:5173`) |
+| `VITE_API_BASE_URL` | Frontend → backend base URL (default: `http://localhost:8000`) |
+| `DEPLOYMENT_ENV` | `development` or `production` — enforces production DB URL and `pg_trgm` behavior |
+| `TRUST_PROXY_HEADERS` | Set `true` behind a reverse proxy that sets `X-Forwarded-For` (rate limiting) |
+| `CLINICAL_TRIALS_BASE_URL` | ClinicalTrials.gov API v2 base |
+| `PUBMED_SEARCH_URL` / `PUBMED_FETCH_URL` | NCBI E-utilities endpoints |
+| `NCBI_USER_AGENT` | Required identifier string for PubMed requests |
+
+Rate limits and LLM guards (optional overrides via env) are defined in [`backend/app/config.py`](backend/app/config.py): Ask and publication-overview endpoints have per-IP limits, concurrency caps, body size limits, and timeouts.
+
+## Makefile Commands
+
+| Command | Description |
+| --- | --- |
+| `make up` | Start Postgres (Docker Compose) |
+| `make down` | Stop Postgres |
+| `make wait-db` | Wait until Postgres accepts connections |
+| `make ingest` | Run full ingest pipeline (see [Data flow](#data-flow)) |
+| `make backend` | FastAPI with reload on `:8000` |
+| `make frontend` | Vite dev server on `:5173` |
+| `make dev` | Backend + frontend together |
+| `make bootstrap` | Install deps, start DB, ingest, then run dev servers |
+
+### Ingest maintenance
+
+Force-regenerate all publication overviews:
 
 ```bash
 cd backend && uv run python -m app.ingest.overviews --force
 ```
 
-## Public Deployment Note
+## Data Flow
 
-If you expose Candle publicly, add edge protection in front of the backend for the expensive AI endpoints:
+`make ingest` runs [`backend/app/ingest/run.py`](backend/app/ingest/run.py):
+
+1. Ingest trials from ClinicalTrials.gov
+2. Ingest publications from PubMed
+3. Link publications to trials (heuristic matching)
+4. Generate and persist publication overviews (OpenAI)
+5. Store embeddings for trials and publications (pgvector)
+6. Generate and persist AI trial summaries (checkpointed per trial)
+
+Each run is recorded in `sync_log`. Trial summaries are committed individually so a partial failure does not discard earlier progress in the same batch.
+
+## API Overview
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/healthz` | Liveness |
+| `GET` | `/readyz` | Readiness (DB connectivity) |
+| `GET` | `/trials` | List trials (cursor pagination with `envelope=true`) |
+| `GET` | `/trials/{trial_id}` | Trial detail |
+| `GET` | `/publications` | List publications (cursor pagination) |
+| `POST` | `/publications/{pmid}/overview` | Generate or fetch persisted overview |
+| `POST` | `/ask` | Grounded Q&A (RAG) |
+| `GET` | `/sync/status` | Recent ingest run history |
+
+## Testing
+
+**Backend** (from `backend/`):
+
+```bash
+uv run pytest
+```
+
+**Frontend** (from `frontend/`):
+
+```bash
+pnpm test              # unit + component tests
+pnpm run build         # typecheck + production build
+```
+
+Accessibility component tests (`vitest-axe`) live in `frontend/src/components/*.a11y.test.tsx`. See [Accessibility](#accessibility) below — passing these tests is necessary but not sufficient for full WCAG sign-off.
+
+## Accessibility
+
+The frontend includes structured landmarks, keyboard support, focus management for modals, reduced-motion handling, and automated axe checks on key components.
+
+- Closure sign-off and residual manual QA: [`frontend/docs/ADA_CLOSURE.md`](frontend/docs/ADA_CLOSURE.md)
+- **Important:** Component-level `vitest-axe` covers only part of real-world accessibility. Human review should still include full-route scans, screen readers (VoiceOver / NVDA), and contrast checks at 200% / 400% zoom before claiming full conformance.
+
+## Deployment Notes
+
+### Public exposure
+
+If Candle is exposed on the public internet, add edge protection in front of expensive AI routes:
 
 - `POST /ask`
 - `POST /publications/{pmid}/overview`
 
-The app now applies in-process rate limits and concurrency caps, but a Vercel bot/WAF rule or upstream proxy throttle is still a strong extra layer for public internet traffic.
+The backend applies in-process rate limits, concurrency caps, and request body limits, but a WAF or reverse-proxy throttle is still recommended.
 
-For production Postgres, Candle also expects the `pg_trgm` extension to be available so substring search indexes can be created. Either grant the application role permission to create extensions, or preinstall `pg_trgm` before starting the backend.
+### Production database
+
+- Use a managed Postgres with **pgvector** enabled (embeddings).
+- Ensure **`pg_trgm`** is available for title/sponsor/abstract search indexes. Grant `CREATE EXTENSION` to the app role, or preinstall `pg_trgm` before the API starts.
+- Set `DEPLOYMENT_ENV=production` and a non-default `DATABASE_URL`. The API refuses to start in production with the local default URL.
+
+### Frontend (Vercel)
+
+The SPA is configured in [`frontend/vercel.json`](frontend/vercel.json) with a catch-all rewrite to `index.html`. Set `VITE_API_BASE_URL` to your deployed API origin at build time.
 
 ## Pre-outreach Cleanup
 
-Before CureCHM outreach, run the one-time cleanup for older non-CHM trials that were ingested before the raw relevance guard existed.
+Before CureCHM outreach, remove older non-CHM trials ingested before the relevance guard existed.
 
 From `backend/`:
 
 ```bash
 uv run python scripts/cleanup_non_chm_trials.py --dry-run
+uv run python scripts/cleanup_non_chm_trials.py   # after reviewing counts
 ```
 
-Review the reported count. If it looks correct, run the cleanup for real:
-
-```bash
-uv run python scripts/cleanup_non_chm_trials.py
-```
-
-After the cleanup completes, re-run the embedding pipeline from the repo root so the current trial corpus is fully re-embedded:
+Then re-embed from the repo root:
 
 ```bash
 make ingest
 ```
 
-## Data Flow
-
-`make ingest` runs the full backend pipeline:
-
-1. ingest trials
-2. ingest publications
-3. link publications to trials
-4. generate and persist publication overviews
-5. store embeddings for Ask
-
-Trial AI summaries are refreshed in checkpointed batches: Candle fetches stale trials in pages, but commits each completed summary individually so a later upstream failure does not discard earlier progress in the same run.
-
-## Stack
-
-- Frontend: React, TypeScript, Vite, Tailwind, Framer Motion
-- Backend: FastAPI, SQLAlchemy, asyncpg
-- Database: Postgres
-- AI: OpenAI for Ask responses and publication overviews
-
 ## Repo Layout
 
 ```text
 candle/
-├── backend/      # FastAPI app, ingest pipeline, AI services, tests
-├── db/           # database initialization
-├── frontend/     # React app
+├── backend/
+│   ├── app/
+│   │   ├── main.py           # FastAPI app, health, CORS
+│   │   ├── routers/          # trials, publications, ask, sync
+│   │   ├── services/         # RAG, embeddings, LLM guards, overviews
+│   │   └── ingest/           # ClinicalTrials, PubMed, link, embed, summarise
+│   ├── scripts/              # one-off maintenance (e.g. trial cleanup)
+│   └── tests/
+├── db/init/                  # initial SQL (extensions, tables)
+├── frontend/
+│   ├── src/                  # React app (views, components, hooks)
+│   ├── docs/ADA_CLOSURE.md   # accessibility closure sign-off
+│   └── vercel.json
 ├── docker-compose.yml
 ├── Makefile
+├── .env.example
 └── README.md
 ```
 
