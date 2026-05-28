@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 
 import { getPublicationOverview } from "../lib/api";
 import { useFocusTrap } from "../lib/a11y";
+import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
 import { cn } from "../lib/cn";
 import { useIsMobile, useScrolledPastThreshold } from "../lib/mobile";
 import type { PublicationSummary } from "../types";
@@ -87,6 +88,16 @@ export function PublicationSnapshot({
   const isTopmost = Boolean(publication) && (!isTrialSnapshotOpen || layer === "above-trial");
 
   useFocusTrap(dialogRef, isTopmost);
+
+  useEffect(() => {
+    const node = dialogRef.current;
+    if (!node) return;
+    if (!isTopmost) {
+      node.setAttribute("inert", "");
+    } else {
+      node.removeAttribute("inert");
+    }
+  }, [isTopmost, publication]);
 
   useEffect(() => {
     if (!publication || !isTopmost) return;
@@ -199,6 +210,8 @@ export function PublicationSnapshot({
   const liveRegionAnnouncement = publication
     ? `${publication.title} details opened`
     : "";
+  const backdropMotion = overlayBackdropMotion(prefersReducedMotion);
+  const panelMotion = overlayPanelMotion(prefersReducedMotion);
 
   return (
     <>
@@ -212,9 +225,9 @@ export function PublicationSnapshot({
           className={`fixed inset-0 ${
             layer === "above-trial" ? "z-[70]" : "z-50"
           } flex items-end overflow-y-auto bg-[rgba(11,11,15,0.28)] p-3 backdrop-blur-sm md:items-start md:justify-center md:px-6 md:pb-6 md:pt-16`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          initial={backdropMotion.initial}
+          animate={backdropMotion.animate}
+          exit={backdropMotion.exit}
           onClick={isTopmost ? onClose : undefined}
         >
           <motion.div
@@ -222,10 +235,11 @@ export function PublicationSnapshot({
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
+            aria-hidden={!isTopmost ? true : undefined}
             tabIndex={-1}
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0, transition: { duration: 0.28 } }}
-            exit={{ opacity: 0, y: 20 }}
+            initial={panelMotion.initial}
+            animate={panelMotion.animate}
+            exit={panelMotion.exit}
             onClick={(event) => event.stopPropagation()}
             className="flex h-[min(87svh,920px)] w-full flex-col overflow-hidden rounded-[26px] border border-line bg-panel shadow-panel md:h-[min(calc(100vh-7rem),920px)] md:max-w-[1040px] md:rounded-[30px]"
           >
@@ -276,7 +290,7 @@ export function PublicationSnapshot({
                   variant="ghost"
                   onClick={onClose}
                   aria-label="Close publication details"
-                  className="shrink-0 self-start"
+                  className="shrink-0 self-start min-h-12 min-w-12 p-0"
                 >
                   <X size={18} strokeWidth={1.5} aria-hidden="true" />
                 </Button>
@@ -302,7 +316,14 @@ export function PublicationSnapshot({
                         <p className="text-[14px] text-muted">Generating summary…</p>
                       ) : null}
                       {selectedOverview?.status === "error" ? (
-                        <p className="text-[14px] text-muted">Overview unavailable right now.</p>
+                        <p
+                          role="status"
+                          aria-live="polite"
+                          className="text-[14px] text-muted"
+                        >
+                          Overview unavailable right now. Try closing and reopening this
+                          publication, or refresh the page.
+                        </p>
                       ) : null}
                       {selectedOverview?.status === "success" && selectedOverview.overview ? (
                         <p className="text-[16px] leading-[1.6] text-text">

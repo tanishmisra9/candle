@@ -37,20 +37,36 @@ export function GlassNav() {
     });
   }, [scrollY]);
 
+  const headerOffset = compact ? 4 : 0;
+  const logoPadding = {
+    paddingTop: compact ? (isMobile ? 8 : 11) : isMobile ? 10 : 14,
+    paddingBottom: compact ? (isMobile ? 8 : 11) : isMobile ? 10 : 14,
+    paddingLeft: compact ? (isMobile ? 13 : 16) : isMobile ? 14 : 18,
+    paddingRight: compact ? (isMobile ? 13 : 16) : isMobile ? 14 : 18,
+  };
+  const navPadding = {
+    paddingTop: compact ? (isMobile ? 4 : 5) : isMobile ? 5 : 6,
+    paddingBottom: compact ? (isMobile ? 4 : 5) : isMobile ? 5 : 6,
+    paddingLeft: compact ? (isMobile ? 4 : 5) : isMobile ? 5 : 6,
+    paddingRight: compact ? (isMobile ? 4 : 5) : isMobile ? 5 : 6,
+  };
+
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-40 px-4 pt-4 sm:px-5 md:px-10 md:pt-5">
-      <motion.div
-        aria-hidden="true"
-        style={{
-          opacity: bandOpacity,
-          y: bandTranslateY,
-        }}
-        className="top-glass-band"
-      />
+      {prefersReducedMotion ? (
+        <div aria-hidden="true" className="top-glass-band opacity-50" />
+      ) : (
+        <motion.div
+          aria-hidden="true"
+          style={{
+            opacity: bandOpacity,
+            y: bandTranslateY,
+          }}
+          className="top-glass-band"
+        />
+      )}
       <motion.header
-        animate={{
-          y: compact ? 4 : 0,
-        }}
+        animate={prefersReducedMotion ? false : { y: headerOffset }}
         transition={{ type: "spring", stiffness: 400, damping: 32 }}
         className="pointer-events-auto mx-auto flex max-w-[1360px] items-center justify-between gap-3 md:gap-5"
       >
@@ -59,12 +75,8 @@ export function GlassNav() {
           className="rounded-[16px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-canvas md:rounded-[18px]"
         >
           <motion.div
-            animate={{
-              paddingTop: compact ? (isMobile ? 8 : 11) : isMobile ? 10 : 14,
-              paddingBottom: compact ? (isMobile ? 8 : 11) : isMobile ? 10 : 14,
-              paddingLeft: compact ? (isMobile ? 13 : 16) : isMobile ? 14 : 18,
-              paddingRight: compact ? (isMobile ? 13 : 16) : isMobile ? 14 : 18,
-            }}
+            animate={prefersReducedMotion ? false : logoPadding}
+            style={prefersReducedMotion ? logoPadding : undefined}
             transition={{ type: "spring", stiffness: 400, damping: 32 }}
             className="glass-nav glass-nav-header flex items-center gap-2.5 rounded-[16px] md:gap-3 md:rounded-[18px]"
           >
@@ -78,12 +90,8 @@ export function GlassNav() {
         </Link>
 
         <motion.nav
-          animate={{
-            paddingTop: compact ? (isMobile ? 4 : 5) : isMobile ? 5 : 6,
-            paddingBottom: compact ? (isMobile ? 4 : 5) : isMobile ? 5 : 6,
-            paddingLeft: compact ? (isMobile ? 4 : 5) : isMobile ? 5 : 6,
-            paddingRight: compact ? (isMobile ? 4 : 5) : isMobile ? 5 : 6,
-          }}
+          animate={prefersReducedMotion ? false : navPadding}
+          style={prefersReducedMotion ? navPadding : undefined}
           transition={{ type: "spring", stiffness: 400, damping: 32 }}
           className="glass-nav glass-nav-header flex items-center gap-0.5 rounded-full md:gap-1"
         >

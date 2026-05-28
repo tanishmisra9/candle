@@ -1,6 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
+import { useReducedMotion } from "framer-motion";
 import { SendHorizonal } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+
+import { cn } from "../lib/cn";
 
 import { askQuestion } from "../lib/api";
 import type { AskMessage } from "../types";
@@ -39,6 +42,7 @@ export function AskPanel({
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [statusMessage, setStatusMessage] = useState("");
+  const prefersReducedMotion = useReducedMotion();
   const questionFieldId = useId();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const exampleQuestions = useMemo(() => {
@@ -91,11 +95,29 @@ export function AskPanel({
 
   useEffect(() => {
     if (!messages.length) return;
-    messagesEndRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [messages, mutation.isPending]);
+    messagesEndRef.current?.scrollIntoView({
+      block: "end",
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
+  }, [messages, mutation.isPending, prefersReducedMotion]);
 
   return (
     <section className="mx-auto flex min-h-[calc(100vh-148px)] max-w-[920px] flex-col justify-center pb-16 pt-28">
+      <header className={cn(emptyState ? "pb-8 text-center" : "sr-only")}>
+        <h1
+          className={cn(
+            "font-medium tracking-[-0.04em] text-text",
+            emptyState ? "text-[48px] md:text-[62px]" : "text-[28px]",
+          )}
+        >
+          Ask
+        </h1>
+        {emptyState ? (
+          <p className="mt-4 text-[17px] text-muted">
+            Ask anything about indexed CHM trials and publications.
+          </p>
+        ) : null}
+      </header>
       <div
         className="flex-1 space-y-10"
         role="log"
@@ -104,20 +126,14 @@ export function AskPanel({
         aria-label="Conversation"
       >
         {emptyState ? (
-          <div className="pb-32 pt-20 text-center">
-            <h1 className="text-[48px] font-medium tracking-[-0.04em] text-text md:text-[62px]">
-              Ask
-            </h1>
-            <p className="mt-4 text-[17px] text-muted">
-              Ask anything about indexed CHM trials and publications.
-            </p>
-            <div className="mx-auto mt-10 grid max-w-[760px] grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="pb-32 pt-12">
+            <div className="mx-auto grid max-w-[760px] grid-cols-1 gap-4 md:grid-cols-2">
               {exampleQuestions.map((question) => (
                 <button
                   key={question}
                   type="button"
                   onClick={() => sendQuestion(question)}
-                  className="focus-ring inline-flex rounded-full border border-line bg-glass px-5 py-3.5 text-left text-[15px] text-muted shadow-panel backdrop-blur-2xl transition hover:border-[rgba(232,163,61,0.28)] hover:text-text"
+                  className="focus-ring inline-flex min-h-12 rounded-full border border-line bg-glass px-5 py-3.5 text-left text-[15px] text-muted shadow-panel backdrop-blur-2xl transition hover:border-[rgba(232,163,61,0.28)] hover:text-text"
                 >
                   {question}
                 </button>

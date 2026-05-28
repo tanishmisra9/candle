@@ -187,6 +187,11 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                   linkedOnly ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
                 )}
                 aria-pressed={linkedOnly}
+                aria-label={
+                  linkedOnly
+                    ? "Showing linked publications only. Activate to show all publications."
+                    : "Activate to show linked publications only."
+                }
               >
                 Linked
               </button>

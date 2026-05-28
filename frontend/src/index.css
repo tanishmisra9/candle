@@ -164,10 +164,31 @@ a {
   box-shadow:
     0 0 0 2px var(--canvas),
     0 0 0 4px rgba(232, 163, 61, 0.45);
+  scroll-margin-top: calc(var(--nav-offset) + 12px);
+  scroll-margin-bottom: 12px;
+}
+
+:focus-visible {
+  scroll-margin-top: calc(var(--nav-offset) + 12px);
+  scroll-margin-bottom: 12px;
 }
 
 #main-content {
   scroll-margin-top: var(--nav-offset);
+}
+
+.a11y-text-spacing {
+  line-height: 1.5 !important;
+  letter-spacing: 0.12em !important;
+  word-spacing: 0.16em !important;
+}
+
+@media (max-width: 480px) {
+  .glass-nav input,
+  .glass-nav button,
+  .glass-nav [role="menuitem"] {
+    min-height: 2.75rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

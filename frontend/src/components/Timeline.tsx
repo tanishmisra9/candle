@@ -1,8 +1,20 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef } from "react";
 
+import { formatStatusLabel } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import type { TrialSummary } from "../types";
+
+const TIMELINE_STATUS_LEGEND = [
+  { key: "recruiting", label: "Recruiting", color: "#8AB6A8" },
+  { key: "active", label: "Active", color: "#86A8C8" },
+  { key: "terminated", label: "Terminated / withdrawn", color: "#C18A8A" },
+  { key: "other", label: "Other / unknown", color: "#B6B2AC" },
+] as const;
+
+function trialAriaLabel(trial: TrialSummary) {
+  return `${trial.title} (${trial.id}), status: ${formatStatusLabel(trial.status)}`;
+}
 
 function yearFromDate(value: string | null) {
   return value ? Number.parseInt(value.slice(0, 4), 10) : undefined;
@@ -62,10 +74,29 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
     return () => window.cancelAnimationFrame(frame);
   }, [width, chartHeight]);
 
+  const statusLegend = (
+    <ul
+      className="flex flex-wrap gap-x-4 gap-y-2 px-4 pt-4 text-[12px] text-muted md:px-7"
+      aria-label="Trial status legend"
+    >
+      {TIMELINE_STATUS_LEGEND.map((entry) => (
+        <li key={entry.key} className="inline-flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: entry.color }}
+          />
+          <span>{entry.label}</span>
+        </li>
+      ))}
+    </ul>
+  );
+
   if (isMobile) {
     return (
       <div className="rounded-card border border-line bg-panel shadow-panel">
-        <div ref={scrollRef} className="overflow-x-auto px-4 pb-5 pt-5">
+        {statusLegend}
+        <div ref={scrollRef} className="overflow-x-auto px-4 pb-5 pt-3">
           <div
             className="relative"
             style={{ minWidth: `${width}px`, width: `${width}px`, height: `${chartHeight}px` }}
@@ -167,19 +198,20 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                           ease: [0.22, 1, 0.36, 1],
                         }
                   }
-                  className="absolute flex h-[30px] items-center overflow-hidden rounded-full px-3 text-left shadow-[0_8px_20px_rgba(0,0,0,0.28)] transition-transform duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--panel)]"
+                  className="absolute flex min-h-9 items-center overflow-hidden rounded-full px-3 text-left shadow-[0_8px_20px_rgba(0,0,0,0.28)] transition-transform duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--panel)]"
                   style={{
                     left: `${x}px`,
-                    top: `${y - 6}px`,
+                    top: `${y - 8}px`,
                     width: `${barWidth}px`,
                     backgroundColor: colorForStatus(trial.status),
                     opacity: 0.96,
                   }}
-                  aria-label={`${trial.title} (${trial.id})`}
-                  title={trial.title}
+                  aria-label={trialAriaLabel(trial)}
+                  title={`${trial.title} — ${formatStatusLabel(trial.status)}`}
                 >
                   <span className="block w-full truncate text-[12px] font-medium text-[rgba(11,11,15,0.86)]">
                     {label}
+                    <span className="sr-only">, {formatStatusLabel(trial.status)}</span>
                   </span>
                 </motion.button>
               );
@@ -192,6 +224,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
 
   return (
     <div className="rounded-card border border-line bg-panel shadow-panel">
+      {statusLegend}
       <div className="grid overflow-hidden" style={{ gridTemplateColumns: `${labelColumnWidth}px minmax(0,1fr)` }}>
         <div className="border-r border-line px-5 pb-7 pt-9">
           <div
@@ -207,9 +240,9 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                   key={trial.id}
                   type="button"
                   onClick={() => onOpen(trial.id)}
-                  aria-label={`${trial.title} (${trial.id})`}
-                  className="focus-ring flex h-[44px] w-full items-center rounded-[12px] px-3 text-left text-[13px] text-text transition-colors duration-200 hover:bg-[rgba(255,255,255,0.04)] hover:text-[#F5E0B6]"
-                  title={trial.title}
+                  aria-label={trialAriaLabel(trial)}
+                  className="focus-ring flex min-h-11 w-full items-center rounded-[12px] px-3 text-left text-[13px] text-text transition-colors duration-200 hover:bg-[rgba(255,255,255,0.04)] hover:text-[#F5E0B6]"
+                  title={`${trial.title} — ${formatStatusLabel(trial.status)}`}
                 >
                   <span className="block truncate">{label}</span>
                 </button>
@@ -314,8 +347,8 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                     x={x}
                     y={y - 5}
                     width={barWidth}
-                    height={18}
-                    rx={9}
+                    height={24}
+                    rx={12}
                     fill={colorForStatus(trial.status)}
                     opacity={0.92}
                   />
@@ -339,15 +372,15 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                 key={`bar-${trial.id}`}
                 type="button"
                 onClick={() => onOpen(trial.id)}
-                aria-label={`${trial.title} (${trial.id})`}
-                className="focus-ring absolute rounded-full transition hover:brightness-110"
+                aria-label={trialAriaLabel(trial)}
+                className="focus-ring absolute min-h-6 rounded-full transition hover:brightness-110"
                 style={{
                   left: `${x}px`,
-                  top: `${y - 5}px`,
-                  width: `${barWidth}px`,
-                  height: "18px",
+                  top: `${y - 8}px`,
+                  width: `${Math.max(barWidth, 24)}px`,
+                  height: "24px",
                 }}
-                title={trial.title}
+                title={`${trial.title} — ${formatStatusLabel(trial.status)}`}
               />
             );
           })}

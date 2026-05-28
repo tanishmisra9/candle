@@ -250,6 +250,14 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         scale: isControlsVisible ? 1 : 0.985,
         filter: isControlsVisible ? "blur(0px)" : "blur(8px)",
       };
+  const listMotion = prefersReducedMotion
+    ? undefined
+    : {
+        initial: { opacity: 0, y: 8 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -8 },
+        transition: { duration: 0.24 },
+      };
 
   const filterBar = (
     <FilterBar
@@ -305,6 +313,11 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
           viewMode === "timeline" ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
         )}
         aria-pressed={viewMode === "timeline"}
+        aria-label={
+          viewMode === "timeline"
+            ? "Timeline view active. Activate to return to grid view."
+            : "Activate to switch to timeline view."
+        }
       >
         Timeline
       </button>
@@ -360,10 +373,10 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
           {showTrialSkeletons ? (
             <motion.div
               key="loading"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.24 }}
+              initial={listMotion?.initial}
+              animate={listMotion?.animate}
+              exit={listMotion?.exit}
+              transition={listMotion?.transition}
               className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
             >
               {Array.from({ length: 6 }).map((_, index) => (
@@ -373,10 +386,10 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
           ) : viewMode === "grid" ? (
             <motion.div
               key="grid"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.24 }}
+              initial={listMotion?.initial}
+              animate={listMotion?.animate}
+              exit={listMotion?.exit}
+              transition={listMotion?.transition}
               className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
             >
               {trials.map((trial) => (
@@ -390,10 +403,10 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
           ) : (
             <motion.div
               key="timeline"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.24 }}
+              initial={listMotion?.initial}
+              animate={listMotion?.animate}
+              exit={listMotion?.exit}
+              transition={listMotion?.transition}
               className="pt-4"
             >
               <Timeline

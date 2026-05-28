@@ -23,10 +23,12 @@ describe("AskPanel accessibility", () => {
     const results = await axe(container);
 
     expect(results.violations).toHaveLength(0);
+    expect(screen.getByRole("heading", { level: 1, name: "Ask" })).toBeInTheDocument();
     expect(
       screen.getByLabelText(/ask a question about chm trials/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
     expect(screen.getByRole("log", { name: "Conversation" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send question" })).toBeDisabled();
   });
 });

@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 
 import { getTrial } from "../lib/api";
 import { useFocusTrap } from "../lib/a11y";
+import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
 import { cn } from "../lib/cn";
 import type { PublicationSummary } from "../types";
 import { formatStatusLabel } from "../lib/formatters";
@@ -139,6 +140,16 @@ export function TrialSnapshot({
     dialogRef.current?.focus();
   }, [isTopmost, trialId]);
 
+  useEffect(() => {
+    const node = dialogRef.current;
+    if (!node) return;
+    if (!isTopmost) {
+      node.setAttribute("inert", "");
+    } else {
+      node.removeAttribute("inert");
+    }
+  }, [isTopmost, trialId]);
+
   if (typeof document === "undefined") {
     return null;
   }
@@ -151,6 +162,8 @@ export function TrialSnapshot({
       ? `${detailQuery.data.title} details opened`
       : "Trial details opened"
     : "";
+  const backdropMotion = overlayBackdropMotion(prefersReducedMotion);
+  const panelMotion = overlayPanelMotion(prefersReducedMotion);
 
   return (
     <>
@@ -162,9 +175,9 @@ export function TrialSnapshot({
           {trialId ? (
             <motion.div
               className="fixed inset-0 z-[60] flex items-end overflow-y-auto bg-[rgba(11,11,15,0.28)] p-3 backdrop-blur-sm md:items-start md:justify-center md:px-6 md:pb-6 md:pt-16"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={backdropMotion.initial}
+              animate={backdropMotion.animate}
+              exit={backdropMotion.exit}
               onClick={onClose}
             >
               <motion.div
@@ -172,10 +185,11 @@ export function TrialSnapshot({
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
+                aria-hidden={!isTopmost ? true : undefined}
                 tabIndex={-1}
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0, transition: { duration: 0.28 } }}
-                exit={{ opacity: 0, y: 20 }}
+                initial={panelMotion.initial}
+                animate={panelMotion.animate}
+                exit={panelMotion.exit}
                 onClick={(event) => event.stopPropagation()}
                 className="flex h-[min(87svh,920px)] w-full flex-col overflow-hidden rounded-[26px] border border-line bg-panel shadow-panel md:h-[min(calc(100vh-7rem),920px)] md:max-w-[1040px] md:rounded-[30px]"
               >
@@ -226,7 +240,7 @@ export function TrialSnapshot({
                       variant="ghost"
                       onClick={onClose}
                       aria-label="Close trial details"
-                      className="shrink-0 self-start"
+                      className="shrink-0 self-start min-h-12 min-w-12 p-0"
                     >
                       <X size={18} strokeWidth={1.5} aria-hidden="true" />
                     </Button>
