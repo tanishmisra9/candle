@@ -31,8 +31,9 @@ class DummyExecuteResult:
 
 
 class DummyChangedPageSession:
-    def __init__(self, rows):
+    def __init__(self, rows, *, embedded_at_by_id: dict[str, datetime] | None = None):
         self.rows = rows
+        self.embedded_at_by_id = embedded_at_by_id or {}
 
     async def execute(self, stmt):
         params = stmt.compile().params
@@ -42,9 +43,21 @@ class DummyChangedPageSession:
         if "FROM trials" in sql:
             cursor = params.get("id_1")
             page = [row for row in self.rows if cursor is None or row.id > cursor]
+            page = [
+                row
+                for row in page
+                if row.id not in self.embedded_at_by_id
+                or row.updated_at > self.embedded_at_by_id[row.id]
+            ]
         else:
             cursor = params.get("pmid_1")
             page = [row for row in self.rows if cursor is None or row.pmid > cursor]
+            page = [
+                row
+                for row in page
+                if row.pmid not in self.embedded_at_by_id
+                or row.updated_at > self.embedded_at_by_id[row.pmid]
+            ]
 
         return DummyExecuteResult(page[:limit])
 
@@ -100,14 +113,14 @@ async def test_changed_trial_page_skips_unchanged_trials():
         [
             make_trial("NCT00000001", now - timedelta(days=1)),
             make_trial("NCT00000002", now),
-        ]
+        ],
+        embedded_at_by_id={
+            "NCT00000001": now,
+            "NCT00000002": now - timedelta(days=2),
+        },
     )
 
-    changed_trials, next_last_id = await changed_trial_page(
-        session,
-        {"NCT00000001": now, "NCT00000002": now - timedelta(days=2)},
-        last_id=None,
-    )
+    changed_trials, next_last_id = await changed_trial_page(session, last_id=None)
 
     assert [trial.id for trial in changed_trials] == ["NCT00000002"]
     assert next_last_id == "NCT00000002"
@@ -120,14 +133,14 @@ async def test_changed_publication_page_skips_unchanged_publications():
         [
             make_publication("PMID1", now - timedelta(days=1)),
             make_publication("PMID2", now),
-        ]
+        ],
+        embedded_at_by_id={
+            "PMID1": now,
+            "PMID2": now - timedelta(days=2),
+        },
     )
 
-    changed_publications, next_last_pmid = await changed_publication_page(
-        session,
-        {"PMID1": now, "PMID2": now - timedelta(days=2)},
-        last_pmid=None,
-    )
+    changed_publications, next_last_pmid = await changed_publication_page(session, last_pmid=None)
 
     assert [publication.pmid for publication in changed_publications] == ["PMID2"]
     assert next_last_pmid == "PMID2"
@@ -168,7 +181,7 @@ async def test_store_chunk_records_batches_embedding_calls(monkeypatch):
     stored_count = await store_chunk_records(session, chunks)
 
     assert stored_count == 101
-    assert embed_batch_sizes == [100, 1]
+    assert embed_batch_sizes == [101]
     assert len(session.delete_statements) == 1
     assert len(session.added_rows) == 101
     assert session.commit_calls == 1

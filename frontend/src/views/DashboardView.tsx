@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { FilterBar } from "../components/FilterBar";
@@ -8,6 +9,7 @@ import { TrialCard } from "../components/TrialCard";
 import { TrialCardSkeleton } from "../components/TrialCardSkeleton";
 import { listTrialsPage } from "../lib/api";
 import { cn } from "../lib/cn";
+import { catalogQueryOptions } from "../lib/queryClient";
 import {
   formatInterventionTypeLabel,
   formatPhaseLabel,
@@ -150,25 +152,31 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     hideAfter: 140,
     revealWithin: 72,
   });
-  const normalizedSearch = search.trim().toLowerCase();
+  const normalizedSearch = search.trim();
+  const trialQueryParams = useMemo(
+    () => ({
+      envelope: "true" as const,
+      limit: 100,
+      status: status || undefined,
+      phases: phase.length ? phase : undefined,
+      intervention_type: interventionType || undefined,
+      sponsor: sponsor || undefined,
+      q: normalizedSearch || undefined,
+    }),
+    [status, phase, interventionType, sponsor, normalizedSearch],
+  );
 
   const trialsQuery = useInfiniteQuery({
-    queryKey: ["trials", "cursor"],
+    queryKey: ["trials", "cursor", trialQueryParams],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
       listTrialsPage({
-        envelope: "true",
-        limit: 200,
+        ...trialQueryParams,
         cursor: pageParam ?? undefined,
       }),
     getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
+    ...catalogQueryOptions,
   });
-
-  useEffect(() => {
-    if (trialsQuery.hasNextPage && !trialsQuery.isFetchingNextPage) {
-      void trialsQuery.fetchNextPage();
-    }
-  }, [trialsQuery.fetchNextPage, trialsQuery.hasNextPage, trialsQuery.isFetchingNextPage]);
 
   const allTrials = trialsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const activeFilters = {
@@ -176,9 +184,9 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     phases: phase,
     interventionType,
     sponsor,
-    search: normalizedSearch,
+    search: normalizedSearch.toLowerCase(),
   };
-  const trials = allTrials.filter((trial) => matchesFacetSelections(trial, activeFilters));
+  const trials = allTrials;
 
   const statusOptions = buildFacetOptions(
     allTrials.filter((trial) =>
@@ -215,19 +223,30 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const hasActiveFilters = Boolean(
     status || phase.length || interventionType || sponsor || search.trim(),
   );
-  const showTrialSkeletons =
-    trialsQuery.isPending || trialsQuery.isFetchingNextPage || Boolean(trialsQuery.hasNextPage);
-  const contentReady =
-    trialsQuery.isFetched && !trialsQuery.isFetchingNextPage && !trialsQuery.hasNextPage;
+  const showTrialSkeletons = trialsQuery.isPending;
+  const contentReady = trialsQuery.isSuccess;
   const startupReveal = prefersReducedMotion
     ? undefined
     : {
-        initial: { opacity: 0, filter: "blur(14px)" },
-        animate: contentReady
-          ? { opacity: 1, filter: "blur(0px)" }
-          : { opacity: 0, filter: "blur(14px)" },
-        transition: { duration: 0.36, ease: [0.22, 1, 0.36, 1] as const },
+        initial: { opacity: 0, y: 10 },
+        animate: contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 },
+        transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const },
       };
+  const trialGridRef = useRef<HTMLDivElement | null>(null);
+  const trialRows = useMemo(() => {
+    const columns = 3;
+    const rows: TrialSummary[][] = [];
+    for (let index = 0; index < trials.length; index += columns) {
+      rows.push(trials.slice(index, index + columns));
+    }
+    return rows;
+  }, [trials]);
+  const trialRowVirtualizer = useVirtualizer({
+    count: trialRows.length,
+    getScrollElement: () => trialGridRef.current,
+    estimateSize: () => 320,
+    overscan: 4,
+  });
   const clearFilters = () => {
     setStatus("");
     setPhase([]);
@@ -380,6 +399,19 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
           </div>
         )}
 
+        {trialsQuery.isError ? (
+          <div className="rounded-card border border-line bg-panel p-6 text-[15px] text-muted">
+            <p>Trials could not be loaded.</p>
+            <button
+              type="button"
+              className="focus-ring mt-4 rounded-full border border-line px-4 py-2 text-[14px] text-text"
+              onClick={() => void trialsQuery.refetch()}
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
+
         <AnimatePresence mode="wait" initial={false}>
           {showTrialSkeletons ? (
             <motion.div
@@ -401,15 +433,45 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
               animate={listMotion?.animate}
               exit={listMotion?.exit}
               transition={listMotion?.transition}
-              className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
+              className="space-y-6"
             >
-              {trials.map((trial) => (
-                <TrialCard
-                  key={trial.id}
-                  trial={trial}
-                  onOpen={() => onOpenTrialSnapshot(trial.id)}
-                />
-              ))}
+              <div ref={trialGridRef} className="max-h-[70vh] overflow-auto pr-1">
+                <div
+                  className="relative w-full"
+                  style={{ height: `${trialRowVirtualizer.getTotalSize()}px` }}
+                >
+                  {trialRowVirtualizer.getVirtualItems().map((virtualRow) => {
+                    const rowTrials = trialRows[virtualRow.index] ?? [];
+                    return (
+                      <div
+                        key={virtualRow.key}
+                        ref={trialRowVirtualizer.measureElement}
+                        data-index={virtualRow.index}
+                        className="absolute left-0 top-0 grid w-full gap-6 md:grid-cols-2 xl:grid-cols-3"
+                        style={{ transform: `translateY(${virtualRow.start}px)` }}
+                      >
+                        {rowTrials.map((trial) => (
+                          <TrialCard
+                            key={trial.id}
+                            trial={trial}
+                            onOpen={onOpenTrialSnapshot}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              {trialsQuery.hasNextPage ? (
+                <button
+                  type="button"
+                  className="focus-ring rounded-full border border-line px-5 py-2.5 text-[14px] text-text"
+                  disabled={trialsQuery.isFetchingNextPage}
+                  onClick={() => void trialsQuery.fetchNextPage()}
+                >
+                  {trialsQuery.isFetchingNextPage ? "Loading more trials…" : "Load more trials"}
+                </button>
+              ) : null}
             </motion.div>
           ) : (
             <motion.div

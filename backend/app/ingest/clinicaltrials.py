@@ -5,6 +5,8 @@ from typing import Any
 
 import httpx
 from sqlalchemy import func
+
+from app.services.http_retry import run_http_request
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -160,8 +162,9 @@ async def ingest_trials(session: AsyncSession) -> int:
             if page_token:
                 params["pageToken"] = page_token
 
-            response = await client.get(settings.clinical_trials_base_url, params=params)
-            response.raise_for_status()
+            response = await run_http_request(
+                lambda: client.get(settings.clinical_trials_base_url, params=params)
+            )
             payload = response.json()
             studies = payload.get("studies") or []
 

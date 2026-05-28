@@ -1,4 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS trials (
     id TEXT PRIMARY KEY,
@@ -85,7 +86,21 @@ CREATE INDEX IF NOT EXISTS idx_trials_status ON trials(status);
 CREATE INDEX IF NOT EXISTS idx_trials_phase ON trials(phase);
 CREATE INDEX IF NOT EXISTS idx_trials_intervention_type ON trials(intervention_type);
 CREATE INDEX IF NOT EXISTS idx_trials_sponsor ON trials(sponsor);
+CREATE INDEX IF NOT EXISTS idx_trials_updated_at ON trials(updated_at);
+CREATE INDEX IF NOT EXISTS idx_trials_cursor_sort
+    ON trials (COALESCE(start_date, completion_date) DESC NULLS LAST, id ASC);
+CREATE INDEX IF NOT EXISTS idx_trials_title_trgm
+    ON trials USING gin (title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_trials_sponsor_trgm
+    ON trials USING gin (sponsor gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_publications_trial_id ON publications(trial_id);
+CREATE INDEX IF NOT EXISTS idx_publications_updated_at ON publications(updated_at);
+CREATE INDEX IF NOT EXISTS idx_publications_cursor_sort
+    ON publications (pub_date DESC NULLS LAST, pmid ASC);
+CREATE INDEX IF NOT EXISTS idx_publications_title_trgm
+    ON publications USING gin (title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_publications_abstract_trgm
+    ON publications USING gin (abstract gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_publication_overviews_prompt_lookup
     ON publication_overviews(pmid, abstract_hash, prompt_version);
 CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_type, source_id);

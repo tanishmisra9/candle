@@ -1,3 +1,4 @@
+import { memo, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -6,7 +7,37 @@ import { messageEntranceMotion } from "../lib/motion";
 import type { AskMessage } from "../types";
 import { SourceChip } from "./SourceChip";
 
-export function ChatMessage({
+const markdownComponents = {
+  p: ({ children }: { children?: ReactNode }) => (
+    <p className="mb-3 leading-[1.6] text-text last:mb-0">{children}</p>
+  ),
+  ul: ({ children }: { children?: ReactNode }) => (
+    <ul className="mb-3 space-y-1.5 pl-4 last:mb-0">{children}</ul>
+  ),
+  ol: ({ children }: { children?: ReactNode }) => (
+    <ol className="mb-3 list-decimal space-y-1.5 pl-4 last:mb-0">{children}</ol>
+  ),
+  li: ({ children }: { children?: ReactNode }) => (
+    <li className="leading-[1.6] text-text marker:text-muted">{children}</li>
+  ),
+  strong: ({ children }: { children?: ReactNode }) => (
+    <strong className="font-semibold text-text">{children}</strong>
+  ),
+  em: ({ children }: { children?: ReactNode }) => (
+    <em className="italic text-muted">{children}</em>
+  ),
+  h1: ({ children }: { children?: ReactNode }) => (
+    <p className="mb-2 font-semibold text-text">{children}</p>
+  ),
+  h2: ({ children }: { children?: ReactNode }) => (
+    <p className="mb-2 font-semibold text-text">{children}</p>
+  ),
+  h3: ({ children }: { children?: ReactNode }) => (
+    <p className="mb-2 font-medium text-text">{children}</p>
+  ),
+};
+
+export const ChatMessage = memo(function ChatMessage({
   message,
   onOpenTrialSnapshot,
 }: {
@@ -35,40 +66,7 @@ export function ChatMessage({
           {isUser ? (
             message.content
           ) : (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                p: ({ children }) => (
-                  <p className="mb-3 leading-[1.6] text-text last:mb-0">{children}</p>
-                ),
-                ul: ({ children }) => (
-                  <ul className="mb-3 space-y-1.5 pl-4 last:mb-0">{children}</ul>
-                ),
-                ol: ({ children }) => (
-                  <ol className="mb-3 list-decimal space-y-1.5 pl-4 last:mb-0">
-                    {children}
-                  </ol>
-                ),
-                li: ({ children }) => (
-                  <li className="leading-[1.6] text-text marker:text-muted">{children}</li>
-                ),
-                strong: ({ children }) => (
-                  <strong className="font-semibold text-text">{children}</strong>
-                ),
-                em: ({ children }) => (
-                  <em className="italic text-muted">{children}</em>
-                ),
-                h1: ({ children }) => (
-                  <p className="mb-2 font-semibold text-text">{children}</p>
-                ),
-                h2: ({ children }) => (
-                  <p className="mb-2 font-semibold text-text">{children}</p>
-                ),
-                h3: ({ children }) => (
-                  <p className="mb-2 font-medium text-text">{children}</p>
-                ),
-              }}
-            >
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {message.content}
             </ReactMarkdown>
           )}
@@ -87,4 +85,4 @@ export function ChatMessage({
       </div>
     </motion.div>
   );
-}
+});

@@ -1,16 +1,34 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { GlassNav } from "./components/GlassNav";
 import { PublicationSnapshot } from "./components/PublicationSnapshot";
 import { TrialSnapshot } from "./components/TrialSnapshot";
 import { usePageTitle } from "./hooks/usePageTitle";
 import type { PublicationSummary } from "./types";
-import { AskView } from "./views/AskView";
-import { DashboardView } from "./views/DashboardView";
-import { HomeView } from "./views/HomeView";
-import { LiteratureView } from "./views/LiteratureView";
+
+const HomeView = lazy(() =>
+  import("./views/HomeView").then((module) => ({ default: module.HomeView })),
+);
+const DashboardView = lazy(() =>
+  import("./views/DashboardView").then((module) => ({ default: module.DashboardView })),
+);
+const LiteratureView = lazy(() =>
+  import("./views/LiteratureView").then((module) => ({ default: module.LiteratureView })),
+);
+const AskView = lazy(() =>
+  import("./views/AskView").then((module) => ({ default: module.AskView })),
+);
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-[40vh] items-center justify-center pt-32 text-[15px] text-muted">
+      Loading view…
+    </div>
+  );
+}
 
 export default function App() {
   const location = useLocation();
@@ -24,7 +42,7 @@ export default function App() {
     "above-trial" | "below-trial"
   >("below-trial");
   const pageTransition = {
-    duration: 0.42,
+    duration: 0.32,
     ease: [0.22, 1, 0.36, 1] as const,
   };
 
@@ -70,56 +88,48 @@ export default function App() {
       </a>
       <GlassNav />
       <div ref={pageContentRef} aria-hidden={isOverlayOpen ? true : undefined}>
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="mx-auto max-w-[1360px] px-4 pb-20 sm:px-5 md:px-10 outline-none"
-      >
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={location.pathname}
-            initial={
-              prefersReducedMotion
-                ? { opacity: 0 }
-                : { opacity: 0, filter: "blur(16px)" }
-            }
-            animate={
-              prefersReducedMotion
-                ? { opacity: 1 }
-                : { opacity: 1, filter: "blur(0px)" }
-            }
-            exit={
-              prefersReducedMotion
-                ? { opacity: 0 }
-                : { opacity: 0, filter: "blur(10px)" }
-            }
-            transition={pageTransition}
-            style={{ willChange: "opacity, filter, transform" }}
-          >
-            <Routes location={location}>
-              <Route path="/" element={<HomeView />} />
-              <Route
-                path="/trials"
-                element={<DashboardView onOpenTrialSnapshot={openTrialSnapshot} />}
-              />
-              <Route
-                path="/literature"
-                element={
-                  <LiteratureView
-                    onOpenPublicationSnapshot={(publication) =>
-                      openPublicationSnapshot(publication, "below-trial")
-                    }
-                  />
-                }
-              />
-              <Route
-                path="/ask"
-                element={<AskView onOpenTrialSnapshot={openTrialSnapshot} />}
-              />
-            </Routes>
-          </motion.div>
-        </AnimatePresence>
-      </main>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="mx-auto max-w-[1360px] px-4 pb-20 sm:px-5 md:px-10 outline-none"
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+              animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+              exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+              transition={pageTransition}
+              style={{ willChange: "opacity, transform" }}
+            >
+              <Suspense fallback={<RouteFallback />}>
+                <ErrorBoundary>
+                  <Routes location={location}>
+                    <Route path="/" element={<HomeView />} />
+                    <Route
+                      path="/trials"
+                      element={<DashboardView onOpenTrialSnapshot={openTrialSnapshot} />}
+                    />
+                    <Route
+                      path="/literature"
+                      element={
+                        <LiteratureView
+                          onOpenPublicationSnapshot={(publication) =>
+                            openPublicationSnapshot(publication, "below-trial")
+                          }
+                        />
+                      }
+                    />
+                    <Route
+                      path="/ask"
+                      element={<AskView onOpenTrialSnapshot={openTrialSnapshot} />}
+                    />
+                  </Routes>
+                </ErrorBoundary>
+              </Suspense>
+            </motion.div>
+          </AnimatePresence>
+        </main>
       </div>
       <TrialSnapshot
         trialId={selectedTrialId}

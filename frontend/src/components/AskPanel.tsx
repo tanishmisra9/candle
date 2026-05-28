@@ -1,11 +1,9 @@
-import { useMutation } from "@tanstack/react-query";
 import { useReducedMotion } from "framer-motion";
 import { SendHorizonal } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { cn } from "../lib/cn";
-
-import { askQuestion } from "../lib/api";
+import { askQuestion, askQuestionStream } from "../lib/api";
 import type { AskMessage } from "../types";
 import { ChatMessage } from "./ChatMessage";
 import { Button } from "./ui/Button";
@@ -42,71 +40,131 @@ export function AskPanel({
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [statusMessage, setStatusMessage] = useState("");
+  const [isPending, setIsPending] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const questionFieldId = useId();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const exampleQuestions = useMemo(() => {
     return [...EXAMPLE_QUESTIONS]
       .sort(() => Math.random() - 0.5)
       .slice(0, 4);
   }, []);
 
-  const mutation = useMutation({
-    mutationFn: askQuestion,
-    onSuccess: (data) => {
-      setStatusMessage("Answer received.");
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${current.length + 1}`,
-          role: "assistant",
-          content: data.answer,
-          sources: data.sources,
-        },
-      ]);
-    },
-    onError: () => {
-      setStatusMessage("Answer could not be completed.");
-      setMessages((current) => [
-        ...current,
-        {
-          id: `assistant-${current.length + 1}`,
-          role: "assistant",
-          content:
-            "I couldn't complete that answer just now. Please check that the backend is running and the OpenAI key is configured.",
-        },
-      ]);
-    },
-  });
-
   const sendQuestion = (question: string) => {
     const trimmed = question.trim();
-    if (!trimmed || mutation.isPending) return;
+    if (!trimmed || isPending) {
+      return;
+    }
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const assistantId = `assistant-${Date.now()}`;
     setMessages((current) => [
       ...current,
-      { id: `user-${current.length + 1}`, role: "user", content: trimmed },
+      { id: `user-${Date.now()}`, role: "user", content: trimmed },
+      { id: assistantId, role: "assistant", content: "" },
     ]);
-    setStatusMessage("Sending your question.");
+    setStatusMessage("Generating answer.");
     setDraft("");
-    mutation.mutate(trimmed);
+    setIsPending(true);
+
+    void askQuestionStream(
+      trimmed,
+      {
+        onDelta: (delta) => {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? { ...message, content: `${message.content}${delta}` }
+                : message,
+            ),
+          );
+        },
+        onDone: (data) => {
+          setStatusMessage("Answer received.");
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId
+                ? {
+                    ...message,
+                    content: data.answer,
+                    sources: data.sources,
+                  }
+                : message,
+            ),
+          );
+          setIsPending(false);
+        },
+        onError: () => {
+          void askQuestion(trimmed)
+            .then((data) => {
+              setStatusMessage("Answer received.");
+              setMessages((current) =>
+                current.map((message) =>
+                  message.id === assistantId
+                    ? {
+                        ...message,
+                        content: data.answer,
+                        sources: data.sources,
+                      }
+                    : message,
+                ),
+              );
+            })
+            .catch(() => {
+              setStatusMessage("Answer could not be completed.");
+              setMessages((current) =>
+                current.map((message) =>
+                  message.id === assistantId
+                    ? {
+                        ...message,
+                        content:
+                          "I couldn't complete that answer just now. Please check that the backend is running and the OpenAI key is configured.",
+                      }
+                    : message,
+                ),
+              );
+            })
+            .finally(() => {
+              setIsPending(false);
+            });
+        },
+      },
+      controller.signal,
+    ).catch(() => {
+      if (!controller.signal.aborted) {
+        setIsPending(false);
+      }
+    });
   };
 
-  const emptyState = messages.length === 0 && !mutation.isPending;
+  const emptyState = messages.length === 0 && !isPending;
+  const hasConversation = messages.length > 0 || isPending;
 
   useEffect(() => {
-    if (!messages.length) return;
+    if (!hasConversation) {
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({
       block: "end",
       behavior: prefersReducedMotion ? "auto" : "smooth",
     });
-  }, [messages, mutation.isPending, prefersReducedMotion]);
+  }, [messages, isPending, prefersReducedMotion, hasConversation]);
 
   return (
     <section className="mx-auto flex min-h-[calc(100vh-148px)] max-w-[920px] flex-col justify-center pb-16 pt-28">
-      <header className={cn(emptyState ? "pb-8 text-center" : "sr-only")}>
+      <header
+        className={cn(
+          "min-h-[120px] transition-all",
+          emptyState ? "pb-8 text-center" : "pb-4",
+        )}
+      >
         <h1
           className={cn(
-            "font-medium tracking-[-0.04em] text-text",
+            "font-medium tracking-[-0.04em] text-text transition-all",
             emptyState ? "text-[48px] md:text-[62px]" : "text-[28px]",
           )}
         >
@@ -119,7 +177,7 @@ export function AskPanel({
         ) : null}
       </header>
       <div
-        className="flex-1 space-y-10"
+        className="min-h-[280px] flex-1 space-y-10"
         role="log"
         aria-live="polite"
         aria-relevant="additions"
@@ -149,7 +207,7 @@ export function AskPanel({
                 onOpenTrialSnapshot={onOpenTrialSnapshot}
               />
             ))}
-            {mutation.isPending ? (
+            {isPending ? (
               <div className="flex justify-start" role="status" aria-live="polite">
                 <div className="inline-flex items-center gap-2 rounded-[22px] border border-line bg-glass px-5 py-4 backdrop-blur-2xl">
                   <span className="sr-only">Generating answer</span>
@@ -194,7 +252,7 @@ export function AskPanel({
             <Button
               type="submit"
               variant="primary"
-              disabled={!draft.trim() || mutation.isPending}
+              disabled={!draft.trim() || isPending}
               aria-label="Send question"
               className="h-12 w-12 shrink-0 p-0 opacity-100 transition-opacity disabled:opacity-30"
             >

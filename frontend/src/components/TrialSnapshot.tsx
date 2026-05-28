@@ -80,6 +80,9 @@ export function TrialSnapshot({
     queryKey: ["trial", trialId],
     queryFn: () => getTrial(trialId as string),
     enabled: Boolean(trialId),
+    staleTime: 30 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
   });
 
   useFocusTrap(dialogRef, isTopmost);
@@ -313,7 +316,7 @@ export function TrialSnapshot({
                                 ClinicalTrials.gov
                               </a>
                               {detailQuery.data.locations.length ? (
-                                <motion.div layout className="space-y-3 pt-2">
+                                <div className="space-y-3 pt-2">
                                   <h4 className={SNAPSHOT_SECTION_HEADING_CLASS}>Locations</h4>
                                   <div className="space-y-2">
                                     {detailQuery.data.locations
@@ -414,7 +417,7 @@ export function TrialSnapshot({
                                           )}
                                     </button>
                                   ) : null}
-                                </motion.div>
+                                </div>
                               ) : null}
                             </section>
 

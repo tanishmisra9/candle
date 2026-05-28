@@ -32,10 +32,13 @@ from app.services.publication_overviews import (
 router = APIRouter(prefix="/publications", tags=["publications"])
 
 
-def publication_filter_signature(*, trial_id: str | None, q: str | None, limit: int) -> str:
+def publication_filter_signature(
+    *, trial_id: str | None, q: str | None, linked_only: bool, limit: int
+) -> str:
     payload = {
         "trial_id": (trial_id or "").strip().lower(),
         "q": (q or "").strip().lower(),
+        "linked_only": linked_only,
         "limit": limit,
     }
     serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -84,13 +87,21 @@ async def fetch_publication_cursor_page(
     *,
     trial_id: str | None,
     q: str | None,
+    linked_only: bool,
     limit: int,
     cursor: str | None,
 ) -> PublicationCursorPage:
     stmt = select(Publication)
-    current_signature = publication_filter_signature(trial_id=trial_id, q=q, limit=limit)
+    current_signature = publication_filter_signature(
+        trial_id=trial_id,
+        q=q,
+        linked_only=linked_only,
+        limit=limit,
+    )
     if trial_id:
         stmt = stmt.where(Publication.trial_id == trial_id)
+    if linked_only:
+        stmt = stmt.where(Publication.trial_id.is_not(None))
     if q:
         search = f"%{q}%"
         stmt = stmt.where(
@@ -145,6 +156,7 @@ async def fetch_publication_cursor_page(
 async def list_publications(
     trial_id: str | None = None,
     q: str | None = None,
+    linked_only: bool = False,
     cursor: str | None = None,
     envelope: bool = False,
     limit: int = Query(default=200, ge=1, le=500),
@@ -155,6 +167,7 @@ async def list_publications(
             session,
             trial_id=trial_id,
             q=q,
+            linked_only=linked_only,
             limit=limit,
             cursor=cursor,
         )
@@ -164,6 +177,8 @@ async def list_publications(
     )
     if trial_id:
         stmt = stmt.where(Publication.trial_id == trial_id)
+    if linked_only:
+        stmt = stmt.where(Publication.trial_id.is_not(None))
     if q:
         search = f"%{q}%"
         stmt = stmt.where(

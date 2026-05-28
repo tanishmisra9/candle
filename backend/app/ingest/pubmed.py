@@ -9,6 +9,8 @@ from xml.etree import ElementTree as ET
 
 import httpx
 from sqlalchemy import func
+
+from app.services.http_retry import run_http_request
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -112,8 +114,9 @@ async def fetch_pmids(client: httpx.AsyncClient) -> list[str]:
         "term": 'choroideremia[MeSH] OR "CHM gene therapy"',
         "retmax": 500,
     }
-    response = await client.get(settings.pubmed_search_url, params=params)
-    response.raise_for_status()
+    response = await run_http_request(
+        lambda: client.get(settings.pubmed_search_url, params=params)
+    )
     root = ET.fromstring(response.text)
     return [node.text.strip() for node in root.findall(".//IdList/Id") if node.text]
 
@@ -132,8 +135,9 @@ async def ingest_publications(session: AsyncSession) -> int:
                 "rettype": "abstract",
                 "retmode": "xml",
             }
-            response = await client.get(settings.pubmed_fetch_url, params=params)
-            response.raise_for_status()
+            response = await run_http_request(
+                lambda: client.get(settings.pubmed_fetch_url, params=params)
+            )
             root = ET.fromstring(response.text)
             for article in root.findall(".//PubmedArticle"):
                 row = parse_article(article)

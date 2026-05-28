@@ -42,9 +42,13 @@ class DummyTrialCursorSession:
         params = stmt.compile().params
         rows = list(self.trials)
 
-        status = params.get("lower_1")
+        status = params.get("status_1") or params.get("lower_1")
         if status:
-            rows = [trial for trial in rows if (trial.status or "").lower() == status]
+            rows = [
+                trial
+                for trial in rows
+                if (trial.status or "").upper() == str(status).upper()
+            ]
 
         sponsor = params.get("sponsor_1")
         if sponsor:
@@ -239,6 +243,7 @@ def test_trials_cursor_progression_and_filtering():
         trial_filter_signature(
             status=None,
             phase=None,
+            phases=None,
             intervention_type=None,
             sponsor=None,
             q=None,
@@ -286,6 +291,7 @@ def test_trials_reject_cursor_with_mismatched_filters():
         trial_filter_signature(
             status=None,
             phase=None,
+            phases=None,
             intervention_type=None,
             sponsor="Biogen",
             q=None,
@@ -311,6 +317,7 @@ def test_trials_reject_cursor_with_mismatched_limit():
         trial_filter_signature(
             status=None,
             phase=None,
+            phases=None,
             intervention_type=None,
             sponsor=None,
             q=None,
@@ -356,7 +363,7 @@ def test_publications_cursor_progression_and_filtering():
     assert body["next_cursor"] == encode_publication_cursor(
         date(2024, 3, 1),
         "PMID2",
-        publication_filter_signature(trial_id=None, q=None, limit=2),
+        publication_filter_signature(trial_id=None, q=None, linked_only=False, limit=2),
     )
 
     next_page = client.get(
@@ -398,7 +405,12 @@ def test_publications_reject_cursor_with_mismatched_filters():
     cursor = encode_publication_cursor(
         date(2024, 3, 1),
         "PMID1",
-        publication_filter_signature(trial_id="NCT1", q="gene", limit=200),
+        publication_filter_signature(
+            trial_id="NCT1",
+            q="gene",
+            linked_only=False,
+            limit=200,
+        ),
     )
 
     response = client.get("/publications", params={"cursor": cursor, "trial_id": "NCT2", "q": "gene"})
@@ -416,7 +428,7 @@ def test_publications_reject_cursor_with_mismatched_limit():
     cursor = encode_publication_cursor(
         date(2024, 3, 1),
         "PMID1",
-        publication_filter_signature(trial_id=None, q=None, limit=2),
+        publication_filter_signature(trial_id=None, q=None, linked_only=False, limit=2),
     )
 
     response = client.get("/publications", params={"cursor": cursor, "limit": 3})

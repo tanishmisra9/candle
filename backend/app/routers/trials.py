@@ -23,14 +23,22 @@ def trial_filter_signature(
     *,
     status: str | None,
     phase: str | None,
+    phases: list[str] | None,
     intervention_type: str | None,
     sponsor: str | None,
     q: str | None,
     limit: int,
 ) -> str:
+    normalized_phases = sorted(
+        {
+            value.strip()
+            for value in [*(phases or []), phase or ""]
+            if value and value.strip()
+        }
+    )
     payload = {
         "status": (status or "").strip().lower(),
-        "phase": (phase or "").strip().lower(),
+        "phases": normalized_phases,
         "intervention_type": (intervention_type or "").strip().lower(),
         "sponsor": (sponsor or "").strip().lower(),
         "q": (q or "").strip().lower(),
@@ -77,11 +85,23 @@ def decode_trial_cursor(cursor: str) -> tuple[date | None, str, str]:
         raise HTTPException(status_code=400, detail="Invalid cursor.") from exc
 
 
+def _apply_phase_filter(stmt, phase: str | None, phases: list[str] | None):
+    selected_phases = [value.strip() for value in (phases or []) if value.strip()]
+    if phase and phase.strip():
+        selected_phases.append(phase.strip())
+    if not selected_phases:
+        return stmt
+    if len(selected_phases) == 1:
+        return stmt.where(Trial.phase == selected_phases[0])
+    return stmt.where(Trial.phase.in_(selected_phases))
+
+
 async def fetch_trial_cursor_page(
     session: AsyncSession,
     *,
     status: str | None,
     phase: str | None,
+    phases: list[str] | None,
     intervention_type: str | None,
     sponsor: str | None,
     q: str | None,
@@ -93,6 +113,7 @@ async def fetch_trial_cursor_page(
     current_signature = trial_filter_signature(
         status=status,
         phase=phase,
+        phases=phases,
         intervention_type=intervention_type,
         sponsor=sponsor,
         q=q,
@@ -100,11 +121,10 @@ async def fetch_trial_cursor_page(
     )
 
     if status:
-        stmt = stmt.where(func.lower(Trial.status) == status.lower())
-    if phase:
-        stmt = stmt.where(func.lower(Trial.phase) == phase.lower())
+        stmt = stmt.where(Trial.status == status.strip().upper())
+    stmt = _apply_phase_filter(stmt, phase, phases)
     if intervention_type:
-        stmt = stmt.where(func.lower(Trial.intervention_type) == intervention_type.lower())
+        stmt = stmt.where(Trial.intervention_type == intervention_type.strip())
     if sponsor:
         stmt = stmt.where(Trial.sponsor.ilike(f"%{sponsor}%"))
     if q:
@@ -152,6 +172,7 @@ async def fetch_trial_cursor_page(
 async def list_trials(
     status: str | None = None,
     phase: str | None = None,
+    phases: list[str] | None = Query(default=None),
     intervention_type: str | None = None,
     sponsor: str | None = None,
     q: str | None = None,
@@ -165,6 +186,7 @@ async def list_trials(
             session,
             status=status,
             phase=phase,
+            phases=phases,
             intervention_type=intervention_type,
             sponsor=sponsor,
             q=q,
@@ -178,11 +200,10 @@ async def list_trials(
     )
 
     if status:
-        stmt = stmt.where(func.lower(Trial.status) == status.lower())
-    if phase:
-        stmt = stmt.where(func.lower(Trial.phase) == phase.lower())
+        stmt = stmt.where(Trial.status == status.strip().upper())
+    stmt = _apply_phase_filter(stmt, phase, phases)
     if intervention_type:
-        stmt = stmt.where(func.lower(Trial.intervention_type) == intervention_type.lower())
+        stmt = stmt.where(Trial.intervention_type == intervention_type.strip())
     if sponsor:
         stmt = stmt.where(Trial.sponsor.ilike(f"%{sponsor}%"))
     if q:

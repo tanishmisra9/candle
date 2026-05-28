@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import DEFAULT_DATABASE_URL, get_settings
-from app.db import check_database_connectivity, reconcile_database_schema
+from app.db import check_database_connectivity, engine, reconcile_database_schema
 from app.middleware import LLMRequestBodyLimitMiddleware
 from app.routers.ask import router as ask_router
 from app.routers.publications import router as publications_router
@@ -19,19 +20,9 @@ settings = get_settings()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("candle.api")
 
-app = FastAPI(title="Candle API", version="0.1.0")
-app.add_middleware(LLMRequestBodyLimitMiddleware)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[settings.frontend_origin],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-
-@app.on_event("startup")
-async def validate_settings() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     if settings.deployment_env == "production" and (
         not settings.database_url or settings.database_url == DEFAULT_DATABASE_URL
     ):
@@ -44,6 +35,21 @@ async def validate_settings() -> None:
             "OPENAI_API_KEY is not set. The /ask endpoint and publication overviews "
             "will not function until it is configured in .env."
         )
+
+    yield
+
+    await engine.dispose()
+
+
+app = FastAPI(title="Candle API", version="0.1.0", lifespan=lifespan)
+app.add_middleware(LLMRequestBodyLimitMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.frontend_origin],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.middleware("http")

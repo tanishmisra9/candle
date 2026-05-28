@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from "framer-motion";
+import { memo } from "react";
 import { Building2, MapPin, Users } from "lucide-react";
 
 import type { TrialSummary } from "../types";
@@ -7,26 +7,20 @@ import { StatusBadge } from "./StatusBadge";
 
 type TrialCardProps = {
   trial: TrialSummary;
-  onOpen: () => void;
+  onOpen: (trialId: string) => void;
 };
 
-export function TrialCard({ trial, onOpen }: TrialCardProps) {
-  const prefersReducedMotion = useReducedMotion();
+export const TrialCard = memo(function TrialCard({ trial, onOpen }: TrialCardProps) {
   const enrollmentLabel =
     trial.enrollment === null ? "Participant count unavailable" : `${trial.enrollment} participants`;
   const locationCount = trial.locations.length;
   const locationLabel = `${locationCount} site${locationCount === 1 ? "" : "s"}`;
 
   return (
-    <motion.button
+    <button
       type="button"
-      onClick={onOpen}
-      whileHover={
-        prefersReducedMotion
-          ? undefined
-          : { y: -3, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } }
-      }
-      className="focus-ring group flex h-full flex-col rounded-card border border-line bg-panel p-7 text-left shadow-panel transition-all hover:border-[rgba(232,163,61,0.22)] hover:shadow-panel-hover"
+      onClick={() => onOpen(trial.id)}
+      className="focus-ring group flex h-full flex-col rounded-card border border-line bg-panel p-7 text-left shadow-panel transition-all hover:-translate-y-0.5 hover:border-[rgba(232,163,61,0.22)] hover:shadow-panel-hover"
     >
       <div className="flex items-center justify-between gap-3">
         <StatusBadge status={trial.status} />
@@ -56,6 +50,6 @@ export function TrialCard({ trial, onOpen }: TrialCardProps) {
           <span className="sr-only">{locationLabel}</span>
         </span>
       </div>
-    </motion.button>
+    </button>
   );
-}
+});

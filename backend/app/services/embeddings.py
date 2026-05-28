@@ -48,5 +48,10 @@ async def embed_texts(
 
 
 async def embed_query(text: str) -> list[float]:
-    embeddings = await embed_texts([text], retries=0, retry_backoff_seconds=0)
+    settings = get_settings()
+    embeddings = await embed_texts(
+        [text],
+        retries=settings.background_openai_max_retries,
+        retry_backoff_seconds=settings.background_openai_retry_backoff_seconds,
+    )
     return embeddings[0]

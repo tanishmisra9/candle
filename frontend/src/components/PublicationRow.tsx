@@ -1,10 +1,10 @@
-import { motion, useReducedMotion } from "framer-motion";
+import { memo } from "react";
 
 import type { PublicationSummary } from "../types";
 
 type PublicationRowProps = {
   publication: PublicationSummary;
-  onOpen: () => void;
+  onOpen: (publication: PublicationSummary) => void;
 };
 
 function formatAuthors(publication: PublicationSummary) {
@@ -13,15 +13,15 @@ function formatAuthors(publication: PublicationSummary) {
   return `${leadAuthor} et al., ${year}`;
 }
 
-export function PublicationRow({ publication, onOpen }: PublicationRowProps) {
-  const prefersReducedMotion = useReducedMotion();
-
+export const PublicationRow = memo(function PublicationRow({
+  publication,
+  onOpen,
+}: PublicationRowProps) {
   return (
-    <motion.button
+    <button
       type="button"
-      onClick={onOpen}
-      whileHover={prefersReducedMotion ? undefined : { y: -1, transition: { duration: 0.2 } }}
-      className="focus-ring flex w-full flex-col gap-4 border-b border-line px-2 py-6 text-left transition hover:bg-[rgba(0,0,0,0.015)] dark:hover:bg-[rgba(255,255,255,0.02)] md:flex-row md:items-start md:justify-between"
+      onClick={() => onOpen(publication)}
+      className="focus-ring flex w-full flex-col gap-4 border-b border-line px-2 py-6 text-left transition hover:-translate-y-px hover:bg-[rgba(0,0,0,0.015)] dark:hover:bg-[rgba(255,255,255,0.02)] md:flex-row md:items-start md:justify-between"
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-3">
@@ -44,6 +44,6 @@ export function PublicationRow({ publication, onOpen }: PublicationRowProps) {
           </span>
         </div>
       ) : null}
-    </motion.button>
+    </button>
   );
-}
+});

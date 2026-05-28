@@ -6,7 +6,7 @@ from datetime import date
 from typing import Any
 
 import tiktoken
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Embedding, Publication, Trial
@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.services.embeddings import embed_texts
 
 
-MAX_BATCH_SIZE = 100
+MAX_BATCH_SIZE = 512
 MAX_TOKENS = 500
 MIN_TOKENS = 300
 CHARS_PER_TOKEN = 4
@@ -109,15 +109,16 @@ def needs_embedding_refresh(updated_at, embedded_at) -> bool:
     return embedded_at is None or updated_at is None or updated_at > embedded_at
 
 
-async def latest_embedding_timestamps(
-    session: AsyncSession, source_type: str
-) -> dict[str, Any]:
-    result = await session.execute(
-        select(Embedding.source_id, func.max(Embedding.created_at))
+def latest_embedding_subquery(source_type: str):
+    return (
+        select(
+            Embedding.source_id.label("source_id"),
+            func.max(Embedding.created_at).label("embedded_at"),
+        )
         .where(Embedding.source_type == source_type)
         .group_by(Embedding.source_id)
+        .subquery()
     )
-    return {source_id: created_at for source_id, created_at in result.all()}
 
 
 def build_trial_records(trials: list[Trial]) -> list[ChunkRecord]:
@@ -199,47 +200,60 @@ async def store_chunk_records(session: AsyncSession, chunks: list[ChunkRecord]) 
     return len(rows)
 
 
+def _needs_refresh_clause(embedded_at_column):
+    return or_(
+        embedded_at_column.is_(None),
+        Trial.updated_at.is_(None),
+        Trial.updated_at > embedded_at_column,
+    )
+
+
 async def changed_trial_page(
     session: AsyncSession,
-    latest_timestamps: dict[str, Any],
     *,
     last_id: str | None,
 ) -> tuple[list[Trial], str | None]:
-    stmt = select(Trial).order_by(Trial.id.asc()).limit(SOURCE_PAGE_SIZE)
+    latest = latest_embedding_subquery("trial")
+    stmt = (
+        select(Trial)
+        .outerjoin(latest, Trial.id == latest.c.source_id)
+        .where(_needs_refresh_clause(latest.c.embedded_at))
+        .order_by(Trial.id.asc())
+        .limit(SOURCE_PAGE_SIZE)
+    )
     if last_id is not None:
         stmt = stmt.where(Trial.id > last_id)
 
     page = (await session.execute(stmt)).scalars().all()
-    changed = [
-        trial
-        for trial in page
-        if needs_embedding_refresh(trial.updated_at, latest_timestamps.get(trial.id))
-    ]
     next_last_id = page[-1].id if page else None
-    return changed, next_last_id
+    return page, next_last_id
 
 
 async def changed_publication_page(
     session: AsyncSession,
-    latest_timestamps: dict[str, Any],
     *,
     last_pmid: str | None,
 ) -> tuple[list[Publication], str | None]:
-    stmt = select(Publication).order_by(Publication.pmid.asc()).limit(SOURCE_PAGE_SIZE)
+    latest = latest_embedding_subquery("publication")
+    stmt = (
+        select(Publication)
+        .outerjoin(latest, Publication.pmid == latest.c.source_id)
+        .where(
+            or_(
+                latest.c.embedded_at.is_(None),
+                Publication.updated_at.is_(None),
+                Publication.updated_at > latest.c.embedded_at,
+            )
+        )
+        .order_by(Publication.pmid.asc())
+        .limit(SOURCE_PAGE_SIZE)
+    )
     if last_pmid is not None:
         stmt = stmt.where(Publication.pmid > last_pmid)
 
     page = (await session.execute(stmt)).scalars().all()
-    changed = [
-        publication
-        for publication in page
-        if needs_embedding_refresh(
-            publication.updated_at,
-            latest_timestamps.get(publication.pmid),
-        )
-    ]
     next_last_pmid = page[-1].pmid if page else None
-    return changed, next_last_pmid
+    return page, next_last_pmid
 
 
 async def store_embeddings(session: AsyncSession) -> int:
@@ -247,12 +261,10 @@ async def store_embeddings(session: AsyncSession) -> int:
     encoding = get_encoding(settings_model_name)
     stored_count = 0
 
-    trial_timestamps = await latest_embedding_timestamps(session, "trial")
     last_trial_id: str | None = None
     while True:
         changed_trials, last_trial_id = await changed_trial_page(
             session,
-            trial_timestamps,
             last_id=last_trial_id,
         )
         if last_trial_id is None:
@@ -262,12 +274,10 @@ async def store_embeddings(session: AsyncSession) -> int:
             build_trial_records(changed_trials),
         )
 
-    publication_timestamps = await latest_embedding_timestamps(session, "publication")
     last_publication_pmid: str | None = None
     while True:
         changed_publications, last_publication_pmid = await changed_publication_page(
             session,
-            publication_timestamps,
             last_pmid=last_publication_pmid,
         )
         if last_publication_pmid is None:

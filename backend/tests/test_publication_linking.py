@@ -49,7 +49,12 @@ class DummyLinkSession:
     async def scalars(self, stmt):
         return DummyScalarResult(self.trial_ids)
 
-    async def execute(self, stmt):
+    async def execute(self, stmt, param_list=None):
+        if param_list:
+            for params in param_list:
+                await self._execute_update(params)
+            return DummyExecuteResult([])
+
         sql = str(stmt)
         params = stmt.compile().params
 
@@ -76,14 +81,17 @@ class DummyLinkSession:
             return DummyExecuteResult(rows)
 
         if sql.startswith("UPDATE publications SET trial_id"):
-            pmid = params["pmid_1"]
-            next_trial_id = params.get("trial_id")
-            if self.fail_on_update_pmid == pmid:
-                raise RuntimeError("link update failed")
-            self.pending_updates[pmid] = next_trial_id
+            await self._execute_update(params)
             return DummyExecuteResult([])
 
         raise AssertionError(f"Unexpected statement: {sql}")
+
+    async def _execute_update(self, params):
+        pmid = params.get("pmid") or params.get("pmid_1")
+        next_trial_id = params.get("trial_id")
+        if self.fail_on_update_pmid == pmid:
+            raise RuntimeError("link update failed")
+        self.pending_updates[pmid] = next_trial_id
 
     async def commit(self):
         for pmid, trial_id in self.pending_updates.items():

@@ -56,7 +56,12 @@ async def get_cached_publication_overview(
 
 
 async def store_publication_overview(
-    session: AsyncSession, pmid: str, abstract_hash: str, overview: str
+    session: AsyncSession,
+    pmid: str,
+    abstract_hash: str,
+    overview: str,
+    *,
+    commit: bool = True,
 ) -> None:
     await session.execute(
         text(
@@ -78,7 +83,8 @@ async def store_publication_overview(
             "prompt_version": PUBLICATION_OVERVIEW_PROMPT_VERSION,
         },
     )
-    await session.commit()
+    if commit:
+        await session.commit()
 
 
 async def generate_publication_overview_text(abstract: str) -> str | None:
@@ -118,7 +124,26 @@ async def get_or_generate_publication_overview(
         if cached_overview is not None:
             return cached_overview, False
 
+    await session.execute(
+        text("SELECT pmid FROM publications WHERE pmid = :pmid FOR UPDATE"),
+        {"pmid": publication.pmid},
+    )
+
+    if not force:
+        cached_overview = await get_cached_publication_overview(
+            session, publication.pmid, abstract_hash
+        )
+        if cached_overview is not None:
+            return cached_overview, False
+
     overview = await generate_publication_overview_text(abstract)
     if overview is not None:
-        await store_publication_overview(session, publication.pmid, abstract_hash, overview)
+        await store_publication_overview(
+            session,
+            publication.pmid,
+            abstract_hash,
+            overview,
+            commit=False,
+        )
+        await session.commit()
     return overview, True

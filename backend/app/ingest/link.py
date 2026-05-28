@@ -22,6 +22,7 @@ async def link_publications_to_trials(session: AsyncSession) -> int:
 
     linked_count = 0
     last_pmid: str | None = None
+    pending_updates: list[dict[str, object]] = []
 
     try:
         while True:
@@ -50,13 +51,16 @@ async def link_publications_to_trials(session: AsyncSession) -> int:
                     linked_count += 1
 
                 if linked_trial_id != current_trial_id:
-                    await session.execute(
-                        update(Publication)
-                        .where(Publication.pmid == pmid)
-                        .values(trial_id=linked_trial_id)
-                    )
+                    pending_updates.append({"pmid": pmid, "trial_id": linked_trial_id})
 
                 last_pmid = pmid
+
+            if len(pending_updates) >= PUBLICATION_PAGE_SIZE:
+                await session.execute(update(Publication), pending_updates)
+                pending_updates.clear()
+
+        if pending_updates:
+            await session.execute(update(Publication), pending_updates)
 
         await session.commit()
         return linked_count

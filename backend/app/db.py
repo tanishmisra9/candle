@@ -51,6 +51,22 @@ SCHEMA_RECONCILIATION_STATEMENTS = (
     CREATE INDEX IF NOT EXISTS idx_publications_abstract_trgm
     ON publications USING gin (abstract gin_trgm_ops)
     """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_trials_updated_at
+    ON trials (updated_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_trials_cursor_sort
+    ON trials (COALESCE(start_date, completion_date) DESC NULLS LAST, id ASC)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_publications_updated_at
+    ON publications (updated_at)
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_publications_cursor_sort
+    ON publications (pub_date DESC NULLS LAST, pmid ASC)
+    """,
 )
 
 

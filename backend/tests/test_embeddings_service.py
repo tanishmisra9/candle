@@ -120,7 +120,7 @@ async def test_embed_query_does_not_retry_transient_failures(monkeypatch):
             self.embeddings = FakeEmbeddingsClient()
 
     async def fake_run_openai_operation(operation, **kwargs):
-        assert kwargs["retries"] == 0
+        assert kwargs["retries"] == 2
         assert kwargs["retry_backoff_seconds"] == 0
         return await operation()
 

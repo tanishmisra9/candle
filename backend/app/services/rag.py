@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from collections import OrderedDict
+from collections.abc import AsyncIterator
 import re
 
 from sqlalchemy import case, select
@@ -418,31 +421,38 @@ async def enrich_sources(session, sources: list[AskSource]) -> list[AskSource]:
     return enriched
 
 
-async def answer_question(question: str, session) -> AskResponse:
+async def _prepare_question_context(
+    question: str, session
+) -> tuple[str, list[RetrievedChunk], list[str], OrderedDict[str, AskSource], str | None]:
     if is_distress_message(question):
-        return AskResponse(answer=DISTRESS_RESPONSE, sources=[])
+        return "distress", [], [], OrderedDict(), DISTRESS_RESPONSE
 
     if is_advice_request(question):
-        return AskResponse(answer=ADVICE_REFUSAL, sources=[])
+        return "advice", [], [], OrderedDict(), ADVICE_REFUSAL
 
     settings = get_settings()
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for /ask.")
 
     question_embedding = await embed_query(question)
-    chunks = await retrieve_similar_chunks(session, question_embedding, limit=8)
-    if should_prioritize_trials(question):
-        trial_chunks = await retrieve_similar_chunks(
-            session, question_embedding, limit=4, source_type="trial"
-        )
+    prioritize_trials = should_prioritize_trials(question)
+    retrieved = await retrieve_similar_chunks(
+        session,
+        question_embedding,
+        limit=12 if prioritize_trials else 8,
+    )
+    filtered_chunks = await filter_non_chm_trial_chunks(session, retrieved)
+    if prioritize_trials:
+        trial_chunks = [chunk for chunk in filtered_chunks if chunk.source_type == "trial"]
+        other_chunks = [chunk for chunk in filtered_chunks if chunk.source_type != "trial"]
         merged: OrderedDict[tuple[str, str, str], RetrievedChunk] = OrderedDict()
-        for chunk in [*trial_chunks, *chunks]:
+        for chunk in [*trial_chunks, *other_chunks]:
             merged[(chunk.source_type, chunk.source_id, chunk.content)] = chunk
-        chunks = rank_chunks(question, await filter_non_chm_trial_chunks(session, list(merged.values())))[:6]
+        chunks = rank_chunks(question, list(merged.values()))[:6]
     else:
-        chunks = rank_chunks(question, await filter_non_chm_trial_chunks(session, chunks))[:6]
+        chunks = rank_chunks(question, filtered_chunks)[:6]
 
-    context_lines = []
+    context_lines: list[str] = []
     sources: OrderedDict[str, AskSource] = OrderedDict()
     explicit_trial_ids = extract_trial_ids(question)
     explicit_pmids = extract_pmids(question)
@@ -548,15 +558,13 @@ async def answer_question(question: str, session) -> AskResponse:
             )
 
     if not chunks and not context_lines:
-        return AskResponse(
-            answer=(
-                "I wasn't able to find indexed CHM trial or publication data relevant to that question. "
-                "Try asking about a specific trial by NCT ID, a publication by PMID, an intervention name, "
-                "sponsor, or phase. For broader CHM research questions, clinicaltrials.gov and "
-                "pubmed.ncbi.nlm.nih.gov are the authoritative sources."
-            ),
-            sources=[],
+        empty_answer = (
+            "I wasn't able to find indexed CHM trial or publication data relevant to that question. "
+            "Try asking about a specific trial by NCT ID, a publication by PMID, an intervention name, "
+            "sponsor, or phase. For broader CHM research questions, clinicaltrials.gov and "
+            "pubmed.ncbi.nlm.nih.gov are the authoritative sources."
         )
+        return "empty", [], [], OrderedDict(), empty_answer
 
     for index, chunk in enumerate(chunks, start=1):
         context_lines.append(
@@ -574,6 +582,18 @@ async def answer_question(question: str, session) -> AskResponse:
         )
 
     context_block = "\n\n".join(context_lines)
+    return "ready", chunks, context_lines, sources, context_block
+
+
+async def answer_question(question: str, session) -> AskResponse:
+    state, _chunks, _context_lines, sources, payload = await _prepare_question_context(
+        question, session
+    )
+    if state in {"distress", "advice", "empty"}:
+        return AskResponse(answer=payload or "", sources=[])
+
+    settings = get_settings()
+    context_block = payload or ""
     response = await run_openai_operation(
         lambda: get_openai_client().chat.completions.create(
             model=settings.chat_model,
@@ -586,6 +606,8 @@ async def answer_question(question: str, session) -> AskResponse:
             ],
         ),
         timeout_seconds=settings.ask_openai_timeout_seconds,
+        retries=settings.background_openai_max_retries,
+        retry_backoff_seconds=settings.background_openai_retry_backoff_seconds,
     )
     answer = response.choices[0].message.content or ""
     answer = answer.strip()
@@ -595,3 +617,51 @@ async def answer_question(question: str, session) -> AskResponse:
 
     enriched_sources = await enrich_sources(session, list(sources.values()))
     return AskResponse(answer=answer, sources=enriched_sources[:5])
+
+
+async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
+    state, _chunks, _context_lines, sources, payload = await _prepare_question_context(
+        question, session
+    )
+    if state in {"distress", "advice", "empty"}:
+        yield json.dumps({"type": "done", "answer": payload or "", "sources": []})
+        return
+
+    settings = get_settings()
+    context_block = payload or ""
+    stream = await asyncio.wait_for(
+        get_openai_client().chat.completions.create(
+            model=settings.chat_model,
+            temperature=0.2,
+            stream=True,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Context:\n\n{context_block}"},
+                {"role": "user", "content": source_reasoning_instruction(question)},
+                {"role": "user", "content": question},
+            ],
+        ),
+        timeout=settings.ask_openai_timeout_seconds,
+    )
+
+    answer_parts: list[str] = []
+    async for event in stream:
+        delta = event.choices[0].delta.content if event.choices else None
+        if not delta:
+            continue
+        answer_parts.append(delta)
+        yield json.dumps({"type": "delta", "delta": delta})
+
+    answer = "".join(answer_parts).strip()
+    if contains_advice_language(answer):
+        yield json.dumps({"type": "done", "answer": ADVICE_REFUSAL, "sources": []})
+        return
+
+    enriched_sources = await enrich_sources(session, list(sources.values()))
+    yield json.dumps(
+        {
+            "type": "done",
+            "answer": answer,
+            "sources": [source.model_dump() for source in enriched_sources[:5]],
+        }
+    )

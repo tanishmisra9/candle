@@ -1,12 +1,14 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { motion, useReducedMotion } from "framer-motion";
+import { Search } from "lucide-react";
 
 import { PublicationRow } from "../components/PublicationRow";
 import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { cn } from "../lib/cn";
 import { listPublicationsPage } from "../lib/api";
+import { catalogQueryOptions } from "../lib/queryClient";
 import { NAV_OFFSET_CLASS, useIsMobile, useScrollVisibilityState } from "../lib/mobile";
 import type { PublicationSummary } from "../types";
 
@@ -18,19 +20,28 @@ type LiteratureViewProps = {
 };
 
 export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProps) {
-  const pageSize = 50;
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [linkedOnly, setLinkedOnly] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const searchFieldId = useId();
   const isControlsVisible = useScrollVisibilityState({
     enabled: isMobile,
     hideAfter: 140,
     revealWithin: 72,
   });
+  const normalizedSearch = search.trim();
+  const publicationQueryParams = useMemo(
+    () => ({
+      envelope: "true" as const,
+      limit: 50,
+      q: normalizedSearch || undefined,
+      linked_only: linkedOnly,
+    }),
+    [normalizedSearch, linkedOnly],
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -45,73 +56,33 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   }, []);
 
   const publicationsQuery = useInfiniteQuery({
-    queryKey: ["publications", "cursor"],
+    queryKey: ["publications", "cursor", publicationQueryParams],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
       listPublicationsPage({
-        envelope: "true",
-        limit: 200,
+        ...publicationQueryParams,
         cursor: pageParam ?? undefined,
       }),
     getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
+    ...catalogQueryOptions,
   });
 
-  useEffect(() => {
-    if (publicationsQuery.hasNextPage && !publicationsQuery.isFetchingNextPage) {
-      void publicationsQuery.fetchNextPage();
-    }
-  }, [
-    publicationsQuery.fetchNextPage,
-    publicationsQuery.hasNextPage,
-    publicationsQuery.isFetchingNextPage,
-  ]);
-
-  const normalizedSearch = search.trim().toLowerCase();
-  const allPublications = publicationsQuery.data?.pages.flatMap((page) => page.items) ?? [];
-  const publications = allPublications.filter((publication) => {
-    if (linkedOnly && !publication.trial_id) {
-      return false;
-    }
-    if (!normalizedSearch) {
-      return true;
-    }
-    if (publication.title.toLowerCase().includes(normalizedSearch)) {
-      return true;
-    }
-    return (publication.abstract ?? "").toLowerCase().includes(normalizedSearch);
-  });
-  const showPublicationSkeletons =
-    publicationsQuery.isPending ||
-    publicationsQuery.isFetchingNextPage ||
-    Boolean(publicationsQuery.hasNextPage);
-  const totalPages = Math.max(1, Math.ceil(publications.length / pageSize));
-  const contentReady =
-    publicationsQuery.isFetched &&
-    !publicationsQuery.isFetchingNextPage &&
-    !publicationsQuery.hasNextPage;
+  const publications = publicationsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const showPublicationSkeletons = publicationsQuery.isPending;
+  const contentReady = publicationsQuery.isSuccess;
   const startupReveal = prefersReducedMotion
     ? undefined
     : {
-        initial: { opacity: 0, filter: "blur(14px)" },
-        animate: contentReady
-          ? { opacity: 1, filter: "blur(0px)" }
-          : { opacity: 0, filter: "blur(14px)" },
-        transition: { duration: 0.36, ease: [0.22, 1, 0.36, 1] as const },
+        initial: { opacity: 0, y: 10 },
+        animate: contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 },
+        transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const },
       };
-  const paginatedPublications = publications.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize,
-  );
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [linkedOnly, normalizedSearch]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  const publicationVirtualizer = useVirtualizer({
+    count: publications.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 132,
+    overscan: 8,
+  });
 
   return (
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
@@ -188,66 +159,75 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
             </div>
           </div>
         </div>
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={`${linkedOnly ? "linked" : "all"}-${currentPage}`}
-            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }}
-            animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-            exit={prefersReducedMotion ? undefined : { opacity: 0, y: -4 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="rounded-card border border-line bg-panel px-4 shadow-panel md:px-8"
-          >
-            {showPublicationSkeletons
-              ? Array.from({ length: 8 }).map((_, index) => (
-                  <PublicationRowSkeleton key={`publication-skeleton-${index}`} />
-                ))
-              : paginatedPublications.map((publication) => (
-                  <PublicationRow
-                    key={publication.pmid}
-                    publication={publication}
-                    onOpen={() => onOpenPublicationSnapshot(publication)}
-                  />
-                ))}
-            {!showPublicationSkeletons && !publications.length ? (
-              <div className="px-2 py-12 text-[15px] text-muted">
-                No publications matched this filter.
-              </div>
-            ) : null}
-          </motion.div>
-        </AnimatePresence>
 
-        {publications.length ? (
-          <div className="flex items-center justify-center gap-3">
+        {publicationsQuery.isError ? (
+          <div className="rounded-card border border-line bg-panel p-6 text-[15px] text-muted">
+            <p>Publications could not be loaded.</p>
             <button
               type="button"
-              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-              disabled={currentPage === 1}
-              className={cn(
-                "focus-ring inline-flex h-12 w-12 items-center justify-center rounded-full border border-line bg-glass text-text shadow-panel backdrop-blur-2xl transition",
-                currentPage === 1
-                  ? "cursor-not-allowed opacity-40"
-                  : "hover:bg-[rgba(255,255,255,0.06)]",
-              )}
-              aria-label="Previous page"
+              className="focus-ring mt-4 rounded-full border border-line px-4 py-2 text-[14px] text-text"
+              onClick={() => void publicationsQuery.refetch()}
             >
-              <ChevronLeft size={18} strokeWidth={1.8} aria-hidden="true" />
+              Retry
             </button>
-            <p className="min-w-[90px] text-center text-[14px] text-muted">
-              {currentPage} / {totalPages}
-            </p>
+          </div>
+        ) : null}
+
+        <div className="rounded-card border border-line bg-panel px-4 shadow-panel md:px-8">
+          {showPublicationSkeletons
+            ? Array.from({ length: 8 }).map((_, index) => (
+                <PublicationRowSkeleton key={`publication-skeleton-${index}`} />
+              ))
+            : null}
+
+          {!showPublicationSkeletons ? (
+            <div ref={listRef} className="max-h-[70vh] overflow-auto">
+              <div
+                className="relative w-full"
+                style={{ height: `${publicationVirtualizer.getTotalSize()}px` }}
+              >
+                {publicationVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const publication = publications[virtualRow.index];
+                  if (!publication) {
+                    return null;
+                  }
+                  return (
+                    <div
+                      key={virtualRow.key}
+                      ref={publicationVirtualizer.measureElement}
+                      data-index={virtualRow.index}
+                      className="absolute left-0 top-0 w-full"
+                      style={{ transform: `translateY(${virtualRow.start}px)` }}
+                    >
+                      <PublicationRow
+                        publication={publication}
+                        onOpen={onOpenPublicationSnapshot}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          {!showPublicationSkeletons && !publications.length ? (
+            <div className="px-2 py-12 text-[15px] text-muted">
+              No publications matched this filter.
+            </div>
+          ) : null}
+        </div>
+
+        {publicationsQuery.hasNextPage ? (
+          <div className="flex justify-center">
             <button
               type="button"
-              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-              disabled={currentPage === totalPages}
-              className={cn(
-                "focus-ring inline-flex h-12 w-12 items-center justify-center rounded-full border border-line bg-glass text-text shadow-panel backdrop-blur-2xl transition",
-                currentPage === totalPages
-                  ? "cursor-not-allowed opacity-40"
-                  : "hover:bg-[rgba(255,255,255,0.06)]",
-              )}
-              aria-label="Next page"
+              className="focus-ring rounded-full border border-line px-5 py-2.5 text-[14px] text-text"
+              disabled={publicationsQuery.isFetchingNextPage}
+              onClick={() => void publicationsQuery.fetchNextPage()}
             >
-              <ChevronRight size={18} strokeWidth={1.8} aria-hidden="true" />
+              {publicationsQuery.isFetchingNextPage
+                ? "Loading more publications…"
+                : "Load more publications"}
             </button>
           </div>
         ) : null}

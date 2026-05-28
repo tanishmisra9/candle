@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
@@ -36,4 +37,6 @@ async def run_openai_operation(
                 raise OpenAIServiceUnavailableError("OpenAI request failed.") from exc
 
         attempt += 1
-        await asyncio.sleep(retry_backoff_seconds * (2 ** (attempt - 1)))
+        base_delay = retry_backoff_seconds * (2 ** (attempt - 1))
+        jitter = random.uniform(0, base_delay * 0.25)
+        await asyncio.sleep(base_delay + jitter)
