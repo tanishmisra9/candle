@@ -96,44 +96,6 @@ export function useScrollVisibilityState({
   return isVisible;
 }
 
-const MOBILE_FADE_EASE = [0.22, 1, 0.36, 1] as const;
-
-/** Fade transition for mobile sticky tray show/hide. */
-export const MOBILE_TRAY_FADE = {
-  duration: 0.22,
-  ease: MOBILE_FADE_EASE,
-};
-
-/** Fade transition for secondary controls (filters, timeline, linked). */
-export const MOBILE_CONTROLS_FADE = {
-  duration: 0.18,
-  ease: MOBILE_FADE_EASE,
-};
-
-export const MOBILE_FADE_VISIBLE = {
-  opacity: 1,
-} as const;
-
-export const MOBILE_FADE_HIDDEN = {
-  opacity: 0,
-} as const;
-
-/** Subtle downward offset for list content when mobile tray is visible. */
-export const MOBILE_CONTENT_PUSH_OFFSET_PX = 12;
-
-export const MOBILE_CONTENT_PUSH_FADE = {
-  duration: 0.22,
-  ease: MOBILE_FADE_EASE,
-};
-
-export const MOBILE_CONTENT_PUSH_VISIBLE = {
-  y: MOBILE_CONTENT_PUSH_OFFSET_PX,
-} as const;
-
-export const MOBILE_CONTENT_PUSH_REST = {
-  y: 0,
-} as const;
-
 type UseStagedMobileControlsVisibilityOptions = {
   enabled?: boolean;
   hideAfter?: number;

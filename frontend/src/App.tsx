@@ -1,4 +1,3 @@
-import { AnimatePresence, motion } from "framer-motion";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 
@@ -40,10 +39,6 @@ export default function App() {
   const [publicationSnapshotLayer, setPublicationSnapshotLayer] = useState<
     "above-trial" | "below-trial"
   >("below-trial");
-  const pageTransition = {
-    duration: 0.32,
-    ease: [0.22, 1, 0.36, 1] as const,
-  };
 
   function openTrialSnapshot(trialId: string) {
     if (selectedPublication) {
@@ -92,42 +87,31 @@ export default function App() {
           tabIndex={-1}
           className="mx-auto max-w-[1360px] px-4 pb-20 sm:px-5 md:px-10 outline-none"
         >
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={pageTransition}
-              style={{ willChange: "opacity" }}
-            >
-              <Suspense fallback={<RouteFallback />}>
-                <ErrorBoundary>
-                  <Routes location={location}>
-                    <Route path="/" element={<HomeView />} />
-                    <Route
-                      path="/trials"
-                      element={<DashboardView onOpenTrialSnapshot={openTrialSnapshot} />}
-                    />
-                    <Route
-                      path="/literature"
-                      element={
-                        <LiteratureView
-                          onOpenPublicationSnapshot={(publication) =>
-                            openPublicationSnapshot(publication, "below-trial")
-                          }
-                        />
+          <Suspense fallback={<RouteFallback />}>
+            <ErrorBoundary>
+              <Routes location={location}>
+                <Route path="/" element={<HomeView />} />
+                <Route
+                  path="/trials"
+                  element={<DashboardView onOpenTrialSnapshot={openTrialSnapshot} />}
+                />
+                <Route
+                  path="/literature"
+                  element={
+                    <LiteratureView
+                      onOpenPublicationSnapshot={(publication) =>
+                        openPublicationSnapshot(publication, "below-trial")
                       }
                     />
-                    <Route
-                      path="/ask"
-                      element={<AskView onOpenTrialSnapshot={openTrialSnapshot} />}
-                    />
-                  </Routes>
-                </ErrorBoundary>
-              </Suspense>
-            </motion.div>
-          </AnimatePresence>
+                  }
+                />
+                <Route
+                  path="/ask"
+                  element={<AskView onOpenTrialSnapshot={openTrialSnapshot} />}
+                />
+              </Routes>
+            </ErrorBoundary>
+          </Suspense>
         </main>
       </div>
       <TrialSnapshot

@@ -1,14 +1,8 @@
 import { Search } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { cn } from "../lib/cn";
-import {
-  MOBILE_CONTROLS_FADE,
-  MOBILE_FADE_HIDDEN,
-  MOBILE_FADE_VISIBLE,
-  NAV_OFFSET_CLASS,
-} from "../lib/mobile";
+import { NAV_OFFSET_CLASS } from "../lib/mobile";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 
@@ -205,16 +199,8 @@ export function FilterBar({
         </span>
       </div>
 
-      <AnimatePresence initial={false}>
-        {showGroups ? (
-          <motion.div
-            key="filter-groups"
-            initial={MOBILE_FADE_HIDDEN}
-            animate={MOBILE_FADE_VISIBLE}
-            exit={MOBILE_FADE_HIDDEN}
-            transition={MOBILE_CONTROLS_FADE}
-            className={cn("flex flex-wrap items-center gap-2.5", groupsClassName)}
-          >
+      {showGroups ? (
+        <div className={cn("flex flex-wrap items-center gap-2.5", groupsClassName)}>
             {groups.map((group) => {
               const isOpen = openGroup === group.label;
               const menuId = `${instanceId}-${slugifyLabel(group.label)}-menu`;
@@ -327,9 +313,8 @@ export function FilterBar({
                 Clear all filters
               </Button>
             ) : null}
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+        </div>
+      ) : null}
     </div>
   );
 }

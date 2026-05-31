@@ -1,6 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Search } from "lucide-react";
 
 import { PublicationRow } from "../components/PublicationRow";
@@ -8,18 +7,7 @@ import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { cn } from "../lib/cn";
 import { listPublicationsPage } from "../lib/api";
 import { catalogQueryOptions } from "../lib/queryClient";
-import {
-  MOBILE_CONTENT_PUSH_FADE,
-  MOBILE_CONTENT_PUSH_REST,
-  MOBILE_CONTENT_PUSH_VISIBLE,
-  MOBILE_CONTROLS_FADE,
-  MOBILE_FADE_HIDDEN,
-  MOBILE_FADE_VISIBLE,
-  MOBILE_TRAY_FADE,
-  NAV_OFFSET_CLASS,
-  useIsMobile,
-  useStagedMobileControlsVisibility,
-} from "../lib/mobile";
+import { NAV_OFFSET_CLASS, useIsMobile, useStagedMobileControlsVisibility } from "../lib/mobile";
 import type { PublicationSummary } from "../types";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
@@ -31,7 +19,6 @@ type LiteratureViewProps = {
 
 export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProps) {
   const publicationPageSize = 200;
-  const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [linkedOnly, setLinkedOnly] = useState(false);
@@ -91,20 +78,6 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const publications = publicationsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const publicationTotal = publicationsQuery.data?.pages[0]?.total ?? publications.length;
   const showPublicationSkeletons = publicationsQuery.isPending;
-  const contentReady = publicationsQuery.isSuccess;
-  const startupReveal = prefersReducedMotion
-    ? undefined
-    : {
-        initial: { opacity: 0, y: 10 },
-        animate: contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 },
-        transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const },
-      };
-  const mobileContentPushAnimate =
-    prefersReducedMotion || !isMobile
-      ? undefined
-      : showSearch
-        ? MOBILE_CONTENT_PUSH_VISIBLE
-        : MOBILE_CONTENT_PUSH_REST;
 
   const literatureControls = (
     <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center md:gap-3">
@@ -135,78 +108,51 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         </span>
       </div>
 
-      <AnimatePresence initial={false}>
-        {!isMobile || showFullControls ? (
-          <motion.div
-            key="linked-filter"
-            initial={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-            animate={prefersReducedMotion ? undefined : MOBILE_FADE_VISIBLE}
-            exit={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-            transition={MOBILE_CONTROLS_FADE}
-            className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto"
+      {!isMobile || showFullControls ? (
+        <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
+          <button
+            type="button"
+            onClick={() => setLinkedOnly((current) => !current)}
+            className={cn(
+              "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
+              linkedOnly ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
+            )}
+            aria-pressed={linkedOnly}
+            aria-label={
+              linkedOnly
+                ? "Showing linked publications only. Activate to show all publications."
+                : "Activate to show linked publications only."
+            }
           >
-            <button
-              type="button"
-              onClick={() => setLinkedOnly((current) => !current)}
-              className={cn(
-                "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
-                linkedOnly ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
-              )}
-              aria-pressed={linkedOnly}
-              aria-label={
-                linkedOnly
-                  ? "Showing linked publications only. Activate to show all publications."
-                  : "Activate to show linked publications only."
-              }
-            >
-              Linked
-            </button>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+            Linked
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 
   return (
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
-      <motion.header
-        className="space-y-2"
-        initial={startupReveal?.initial}
-        animate={startupReveal?.animate}
-        transition={startupReveal?.transition}
-      >
+      <header className="space-y-2">
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           {publicationTotal} publications tracked
         </h1>
-      </motion.header>
+      </header>
 
       {isMobile ? (
-        <motion.div
-          animate={
-            prefersReducedMotion
-              ? undefined
-              : showSearch
-                ? MOBILE_FADE_VISIBLE
-                : MOBILE_FADE_HIDDEN
-          }
-          transition={MOBILE_TRAY_FADE}
+        <div
           aria-hidden={showSearch ? undefined : true}
           className={cn(
-            "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4",
+            "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 transition-opacity duration-200",
             NAV_OFFSET_CLASS,
-            !showSearch && "pointer-events-none",
+            showSearch ? "opacity-100" : "pointer-events-none opacity-0",
           )}
         >
           {literatureControls}
-        </motion.div>
+        </div>
       ) : null}
 
-      <motion.div
-        initial={startupReveal?.initial}
-        animate={startupReveal?.animate}
-        transition={startupReveal?.transition}
-        className="space-y-8 md:space-y-12"
-      >
+      <div className="space-y-8 md:space-y-12">
         {!isMobile ? (
           <div
             className={cn(
@@ -218,11 +164,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           </div>
         ) : null}
 
-        <motion.div
-          animate={mobileContentPushAnimate}
-          transition={MOBILE_CONTENT_PUSH_FADE}
-          className="space-y-8 md:space-y-12"
-        >
+        <div className="space-y-8 md:space-y-12">
           {publicationsQuery.isError ? (
             <div className="rounded-card border border-line bg-panel p-6 text-[15px] text-muted">
               <p>Publications could not be loaded.</p>
@@ -276,8 +218,8 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
               </button>
             </div>
           ) : null}
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </div>
   );
 }

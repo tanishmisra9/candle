@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { FilterBar } from "../components/FilterBar";
 import { Timeline } from "../components/Timeline";
@@ -14,18 +13,7 @@ import {
   formatPhaseLabel,
   formatStatusLabel,
 } from "../lib/formatters";
-import {
-  MOBILE_CONTENT_PUSH_FADE,
-  MOBILE_CONTENT_PUSH_REST,
-  MOBILE_CONTENT_PUSH_VISIBLE,
-  MOBILE_CONTROLS_FADE,
-  MOBILE_FADE_HIDDEN,
-  MOBILE_FADE_VISIBLE,
-  MOBILE_TRAY_FADE,
-  NAV_OFFSET_CLASS,
-  useIsMobile,
-  useStagedMobileControlsVisibility,
-} from "../lib/mobile";
+import { NAV_OFFSET_CLASS, useIsMobile, useStagedMobileControlsVisibility } from "../lib/mobile";
 import type { TrialSummary } from "../types";
 
 type ViewMode = "grid" | "timeline";
@@ -149,7 +137,6 @@ type DashboardViewProps = {
 };
 
 export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
-  const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
   const [status, setStatus] = useState("");
   const [phase, setPhase] = useState<string[]>([]);
@@ -236,14 +223,6 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     status || phase.length || interventionType || sponsor || search.trim(),
   );
   const showTrialSkeletons = trialsQuery.isPending;
-  const contentReady = trialsQuery.isSuccess;
-  const startupReveal = prefersReducedMotion
-    ? undefined
-    : {
-        initial: { opacity: 0, y: 10 },
-        animate: contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 },
-        transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const },
-      };
   const clearFilters = () => {
     setStatus("");
     setPhase([]);
@@ -258,20 +237,6 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         : [...current, phaseValue],
     );
   };
-  const mobileContentPushAnimate =
-    prefersReducedMotion || !isMobile
-      ? undefined
-      : showSearch
-        ? MOBILE_CONTENT_PUSH_VISIBLE
-        : MOBILE_CONTENT_PUSH_REST;
-  const listMotion = prefersReducedMotion
-    ? undefined
-    : {
-        initial: { opacity: 0, y: 8 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: -8 },
-        transition: { duration: 0.24 },
-      };
 
   const filterBar = (
     <FilterBar
@@ -341,58 +306,29 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
 
   return (
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
-      <motion.header
-        className="space-y-2"
-        initial={startupReveal?.initial}
-        animate={startupReveal?.animate}
-        transition={startupReveal?.transition}
-      >
+      <header className="space-y-2">
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           {trialTotal} trials tracked
         </h1>
-      </motion.header>
+      </header>
 
       {isMobile ? (
-        <motion.div
-          animate={
-            prefersReducedMotion
-              ? undefined
-              : showSearch
-                ? MOBILE_FADE_VISIBLE
-                : MOBILE_FADE_HIDDEN
-          }
-          transition={MOBILE_TRAY_FADE}
+        <div
           aria-hidden={showSearch ? undefined : true}
           className={cn(
-            "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4",
+            "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4 transition-opacity duration-200",
             NAV_OFFSET_CLASS,
-            !showSearch && "pointer-events-none",
+            showSearch ? "opacity-100" : "pointer-events-none opacity-0",
           )}
         >
           {filterBar}
-          <AnimatePresence initial={false}>
-            {showFullControls ? (
-              <motion.div
-                key="timeline-toggle"
-                initial={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-                animate={prefersReducedMotion ? undefined : MOBILE_FADE_VISIBLE}
-                exit={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-                transition={MOBILE_CONTROLS_FADE}
-                className="flex items-center justify-start"
-              >
-                {timelineToggle}
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </motion.div>
+          {showFullControls ? (
+            <div className="flex items-center justify-start">{timelineToggle}</div>
+          ) : null}
+        </div>
       ) : null}
 
-      <motion.div
-        initial={startupReveal?.initial}
-        animate={startupReveal?.animate}
-        transition={startupReveal?.transition}
-        className="space-y-4"
-      >
+      <div className="space-y-4">
         {!isMobile ? (
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             {filterBar}
@@ -403,11 +339,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
           </div>
         ) : null}
 
-        <motion.div
-          animate={mobileContentPushAnimate}
-          transition={MOBILE_CONTENT_PUSH_FADE}
-          className="space-y-4"
-        >
+        <div className="space-y-4">
           {trialsQuery.isError ? (
             <div className="rounded-card border border-line bg-panel p-6 text-[15px] text-muted">
               <p>Trials could not be loaded.</p>
@@ -421,29 +353,14 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
             </div>
           ) : null}
 
-          <AnimatePresence mode="wait" initial={false}>
           {showTrialSkeletons ? (
-            <motion.div
-              key="loading"
-              initial={listMotion?.initial}
-              animate={listMotion?.animate}
-              exit={listMotion?.exit}
-              transition={listMotion?.transition}
-              className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
-            >
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
                 <TrialCardSkeleton key={`trial-skeleton-${index}`} />
               ))}
-            </motion.div>
+            </div>
           ) : viewMode === "grid" ? (
-            <motion.div
-              key="grid"
-              initial={listMotion?.initial}
-              animate={listMotion?.animate}
-              exit={listMotion?.exit}
-              transition={listMotion?.transition}
-              className="space-y-6"
-            >
+            <div className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {trials.map((trial) => (
                   <TrialCard key={trial.id} trial={trial} onOpen={onOpenTrialSnapshot} />
@@ -464,26 +381,18 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
                   {trialsQuery.isFetchingNextPage ? "Loading more trials…" : "Load more trials"}
                 </button>
               ) : null}
-            </motion.div>
+            </div>
           ) : (
-            <motion.div
-              key="timeline"
-              initial={listMotion?.initial}
-              animate={listMotion?.animate}
-              exit={listMotion?.exit}
-              transition={listMotion?.transition}
-              className="pt-4"
-            >
+            <div className="pt-4">
               <Timeline
                 trials={trials}
                 axisTrials={allTrials}
                 onOpen={onOpenTrialSnapshot}
               />
-            </motion.div>
+            </div>
           )}
-          </AnimatePresence>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </div>
   );
 }
