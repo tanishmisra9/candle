@@ -116,7 +116,6 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         animate={startupReveal?.animate}
         transition={startupReveal?.transition}
       >
-        <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Publications</p>
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           {publicationTotal} publications tracked
         </h1>

@@ -156,22 +156,12 @@ export function AskPanel({
 
   return (
     <section className="mx-auto flex min-h-[calc(100vh-148px)] max-w-[920px] flex-col justify-center pb-16 pt-28">
-      <header
-        className={cn(
-          "min-h-[120px] transition-all",
-          emptyState ? "pb-8 text-center" : "pb-4",
-        )}
-      >
-        <h1
-          className={cn(
-            "font-medium tracking-[-0.04em] text-text transition-all",
-            emptyState ? "text-[48px] md:text-[62px]" : "text-[28px]",
-          )}
-        >
+      <header className={cn("space-y-2 transition-all", emptyState ? "pb-8" : "pb-4")}>
+        <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           Ask
         </h1>
         {emptyState ? (
-          <p className="mt-4 text-[17px] text-muted">
+          <p className="text-[17px] text-muted">
             Ask anything about indexed CHM trials and publications.
           </p>
         ) : null}

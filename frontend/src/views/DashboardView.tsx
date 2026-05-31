@@ -349,9 +349,6 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         animate={startupReveal?.animate}
         transition={startupReveal?.transition}
       >
-        <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
-          CHM Clinical Trials
-        </p>
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           {trialTotal} trials tracked
         </h1>
