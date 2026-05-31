@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 
@@ -32,7 +32,6 @@ function RouteFallback() {
 
 export default function App() {
   const location = useLocation();
-  const prefersReducedMotion = useReducedMotion();
   const [selectedTrialId, setSelectedTrialId] = useState<string | null>(null);
   const [selectedPublication, setSelectedPublication] = useState<PublicationSummary | null>(null);
   usePageTitle();
@@ -96,11 +95,11 @@ export default function App() {
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}
-              initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-              animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-              exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={pageTransition}
-              style={{ willChange: "opacity, transform" }}
+              style={{ willChange: "opacity" }}
             >
               <Suspense fallback={<RouteFallback />}>
                 <ErrorBoundary>
