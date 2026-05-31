@@ -7,7 +7,6 @@ import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { cn } from "../lib/cn";
 import { listPublicationsPage } from "../lib/api";
 import { catalogQueryOptions } from "../lib/queryClient";
-import { NAV_OFFSET_CLASS } from "../lib/mobile";
 import type { PublicationSummary } from "../types";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
@@ -131,12 +130,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
       </header>
 
       <div className="space-y-8 md:space-y-12">
-        <div
-          className={cn(
-            "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start",
-            NAV_OFFSET_CLASS,
-          )}
-        >
+        <div className="glass-nav flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start">
           {literatureControls}
         </div>
 

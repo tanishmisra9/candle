@@ -13,7 +13,6 @@ import {
   formatPhaseLabel,
   formatStatusLabel,
 } from "../lib/formatters";
-import { NAV_OFFSET_CLASS } from "../lib/mobile";
 import type { TrialSummary } from "../types";
 
 type ViewMode = "grid" | "timeline";
@@ -300,12 +299,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
       </header>
 
       <div className="space-y-4">
-        <div
-          className={cn(
-            "glass-nav sticky z-30 flex flex-col gap-3 rounded-[24px] px-4 py-4 md:flex-row md:items-start md:justify-between",
-            NAV_OFFSET_CLASS,
-          )}
-        >
+        <div className="glass-nav flex flex-col gap-3 rounded-[24px] px-4 py-4 md:flex-row md:items-start md:justify-between">
           {filterBar}
           <div className="flex items-center justify-start md:pt-4">{timelineToggle}</div>
         </div>
