@@ -7,7 +7,7 @@ import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { cn } from "../lib/cn";
 import { listPublicationsPage } from "../lib/api";
 import { catalogQueryOptions } from "../lib/queryClient";
-import { NAV_OFFSET_CLASS, useIsMobile, useStagedMobileControlsVisibility } from "../lib/mobile";
+import { NAV_OFFSET_CLASS } from "../lib/mobile";
 import type { PublicationSummary } from "../types";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
@@ -19,17 +19,10 @@ type LiteratureViewProps = {
 
 export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProps) {
   const publicationPageSize = 200;
-  const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
   const [linkedOnly, setLinkedOnly] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const searchFieldId = useId();
-  const { showSearch, showFullControls } = useStagedMobileControlsVisibility({
-    enabled: isMobile,
-    hideAfter: 140,
-    searchRevealWithin: 72,
-    fullControlsRevealWithin: 40,
-  });
   const normalizedSearch = search.trim();
   const publicationQueryParams = useMemo(
     () => ({
@@ -108,26 +101,24 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         </span>
       </div>
 
-      {!isMobile || showFullControls ? (
-        <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
-          <button
-            type="button"
-            onClick={() => setLinkedOnly((current) => !current)}
-            className={cn(
-              "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
-              linkedOnly ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
-            )}
-            aria-pressed={linkedOnly}
-            aria-label={
-              linkedOnly
-                ? "Showing linked publications only. Activate to show all publications."
-                : "Activate to show linked publications only."
-            }
-          >
-            Linked
-          </button>
-        </div>
-      ) : null}
+      <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
+        <button
+          type="button"
+          onClick={() => setLinkedOnly((current) => !current)}
+          className={cn(
+            "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
+            linkedOnly ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
+          )}
+          aria-pressed={linkedOnly}
+          aria-label={
+            linkedOnly
+              ? "Showing linked publications only. Activate to show all publications."
+              : "Activate to show linked publications only."
+          }
+        >
+          Linked
+        </button>
+      </div>
     </div>
   );
 
@@ -139,30 +130,15 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         </h1>
       </header>
 
-      {isMobile ? (
+      <div className="space-y-8 md:space-y-12">
         <div
-          aria-hidden={showSearch ? undefined : true}
           className={cn(
-            "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 transition-opacity duration-200",
+            "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start",
             NAV_OFFSET_CLASS,
-            showSearch ? "opacity-100" : "pointer-events-none opacity-0",
           )}
         >
           {literatureControls}
         </div>
-      ) : null}
-
-      <div className="space-y-8 md:space-y-12">
-        {!isMobile ? (
-          <div
-            className={cn(
-              "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start md:px-4",
-              NAV_OFFSET_CLASS,
-            )}
-          >
-            {literatureControls}
-          </div>
-        ) : null}
 
         <div className="space-y-8 md:space-y-12">
           {publicationsQuery.isError ? (

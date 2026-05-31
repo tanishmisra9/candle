@@ -38,7 +38,6 @@ type FilterBarProps = {
   className?: string;
   groupsClassName?: string;
   sticky?: boolean;
-  showGroups?: boolean;
 };
 
 function slugifyLabel(label: string) {
@@ -54,7 +53,6 @@ export function FilterBar({
   className,
   groupsClassName,
   sticky = true,
-  showGroups = true,
 }: FilterBarProps) {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [activeOptionIndex, setActiveOptionIndex] = useState(0);
@@ -66,12 +64,6 @@ export function FilterBar({
   useEffect(() => {
     setActiveOptionIndex(0);
   }, [openGroup]);
-
-  useEffect(() => {
-    if (!showGroups) {
-      setOpenGroup(null);
-    }
-  }, [showGroups]);
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -199,8 +191,7 @@ export function FilterBar({
         </span>
       </div>
 
-      {showGroups ? (
-        <div className={cn("flex flex-wrap items-center gap-2.5", groupsClassName)}>
+      <div className={cn("flex flex-wrap items-center gap-2.5", groupsClassName)}>
             {groups.map((group) => {
               const isOpen = openGroup === group.label;
               const menuId = `${instanceId}-${slugifyLabel(group.label)}-menu`;
@@ -313,8 +304,7 @@ export function FilterBar({
                 Clear all filters
               </Button>
             ) : null}
-        </div>
-      ) : null}
+      </div>
     </div>
   );
 }

@@ -13,7 +13,7 @@ import {
   formatPhaseLabel,
   formatStatusLabel,
 } from "../lib/formatters";
-import { NAV_OFFSET_CLASS, useIsMobile, useStagedMobileControlsVisibility } from "../lib/mobile";
+import { NAV_OFFSET_CLASS } from "../lib/mobile";
 import type { TrialSummary } from "../types";
 
 type ViewMode = "grid" | "timeline";
@@ -137,19 +137,12 @@ type DashboardViewProps = {
 };
 
 export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
-  const isMobile = useIsMobile();
   const [status, setStatus] = useState("");
   const [phase, setPhase] = useState<string[]>([]);
   const [interventionType, setInterventionType] = useState("");
   const [sponsor, setSponsor] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const { showSearch, showFullControls } = useStagedMobileControlsVisibility({
-    enabled: isMobile,
-    hideAfter: 140,
-    searchRevealWithin: 72,
-    fullControlsRevealWithin: 40,
-  });
   const normalizedSearch = search.trim();
   const trialQueryParams = useMemo(
     () => ({
@@ -271,13 +264,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
       onSearchChange={setSearch}
       searchPlaceholder="Search trial titles"
       onClearAll={hasActiveFilters ? clearFilters : undefined}
-      sticky={!isMobile}
-      showGroups={!isMobile || showFullControls}
-      className={
-        isMobile
-          ? "border-0 bg-transparent px-0 py-0 shadow-none backdrop-blur-none"
-          : undefined
-      }
+      sticky={false}
     />
   );
 
@@ -312,32 +299,16 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         </h1>
       </header>
 
-      {isMobile ? (
+      <div className="space-y-4">
         <div
-          aria-hidden={showSearch ? undefined : true}
           className={cn(
-            "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4 transition-opacity duration-200",
+            "glass-nav sticky z-30 flex flex-col gap-3 rounded-[24px] px-4 py-4 md:flex-row md:items-start md:justify-between",
             NAV_OFFSET_CLASS,
-            showSearch ? "opacity-100" : "pointer-events-none opacity-0",
           )}
         >
           {filterBar}
-          {showFullControls ? (
-            <div className="flex items-center justify-start">{timelineToggle}</div>
-          ) : null}
+          <div className="flex items-center justify-start md:pt-4">{timelineToggle}</div>
         </div>
-      ) : null}
-
-      <div className="space-y-4">
-        {!isMobile ? (
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            {filterBar}
-
-            <div className={cn("sticky z-30 self-start md:pt-4", NAV_OFFSET_CLASS)}>
-              {timelineToggle}
-            </div>
-          </div>
-        ) : null}
 
         <div className="space-y-4">
           {trialsQuery.isError ? (
