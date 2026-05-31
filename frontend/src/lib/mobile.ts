@@ -112,12 +112,26 @@ export const MOBILE_CONTROLS_FADE = {
 
 export const MOBILE_FADE_VISIBLE = {
   opacity: 1,
-  filter: "blur(0px)",
 } as const;
 
 export const MOBILE_FADE_HIDDEN = {
   opacity: 0,
-  filter: "blur(8px)",
+} as const;
+
+/** Subtle downward offset for list content when mobile tray is visible. */
+export const MOBILE_CONTENT_PUSH_OFFSET_PX = 12;
+
+export const MOBILE_CONTENT_PUSH_FADE = {
+  duration: 0.22,
+  ease: MOBILE_FADE_EASE,
+};
+
+export const MOBILE_CONTENT_PUSH_VISIBLE = {
+  y: MOBILE_CONTENT_PUSH_OFFSET_PX,
+} as const;
+
+export const MOBILE_CONTENT_PUSH_REST = {
+  y: 0,
 } as const;
 
 type UseStagedMobileControlsVisibilityOptions = {

@@ -15,6 +15,9 @@ import {
   formatStatusLabel,
 } from "../lib/formatters";
 import {
+  MOBILE_CONTENT_PUSH_FADE,
+  MOBILE_CONTENT_PUSH_REST,
+  MOBILE_CONTENT_PUSH_VISIBLE,
   MOBILE_CONTROLS_FADE,
   MOBILE_FADE_HIDDEN,
   MOBILE_FADE_VISIBLE,
@@ -255,17 +258,12 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         : [...current, phaseValue],
     );
   };
-  const stickyTrayScrollAnimate = prefersReducedMotion
-    ? undefined
-    : showSearch
-      ? MOBILE_FADE_VISIBLE
-      : MOBILE_FADE_HIDDEN;
-  const mobileStickyTrayAnimate =
+  const mobileContentPushAnimate =
     prefersReducedMotion || !isMobile
       ? undefined
-      : contentReady
-        ? stickyTrayScrollAnimate
-        : MOBILE_FADE_HIDDEN;
+      : showSearch
+        ? MOBILE_CONTENT_PUSH_VISIBLE
+        : MOBILE_CONTENT_PUSH_REST;
   const listMotion = prefersReducedMotion
     ? undefined
     : {
@@ -361,31 +359,37 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         className="space-y-4"
       >
         {isMobile ? (
-          <motion.div
-            animate={mobileStickyTrayAnimate}
-            transition={MOBILE_TRAY_FADE}
-            className={cn(
-              "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4",
-              NAV_OFFSET_CLASS,
-              contentReady && !showSearch && "pointer-events-none",
-            )}
-          >
-            {filterBar}
-            <AnimatePresence initial={false}>
-              {showFullControls ? (
-                <motion.div
-                  key="timeline-toggle"
-                  initial={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-                  animate={prefersReducedMotion ? undefined : MOBILE_FADE_VISIBLE}
-                  exit={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-                  transition={MOBILE_CONTROLS_FADE}
-                  className="flex items-center justify-start"
-                >
-                  {timelineToggle}
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </motion.div>
+          <AnimatePresence initial={false}>
+            {contentReady && showSearch ? (
+              <motion.div
+                key="mobile-tray"
+                initial={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
+                animate={prefersReducedMotion ? undefined : MOBILE_FADE_VISIBLE}
+                exit={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
+                transition={MOBILE_TRAY_FADE}
+                className={cn(
+                  "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4",
+                  NAV_OFFSET_CLASS,
+                )}
+              >
+                {filterBar}
+                <AnimatePresence initial={false}>
+                  {showFullControls ? (
+                    <motion.div
+                      key="timeline-toggle"
+                      initial={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
+                      animate={prefersReducedMotion ? undefined : MOBILE_FADE_VISIBLE}
+                      exit={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
+                      transition={MOBILE_CONTROLS_FADE}
+                      className="flex items-center justify-start"
+                    >
+                      {timelineToggle}
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         ) : (
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             {filterBar}
@@ -396,20 +400,25 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
           </div>
         )}
 
-        {trialsQuery.isError ? (
-          <div className="rounded-card border border-line bg-panel p-6 text-[15px] text-muted">
-            <p>Trials could not be loaded.</p>
-            <button
-              type="button"
-              className="focus-ring mt-4 rounded-full border border-line px-4 py-2 text-[14px] text-text"
-              onClick={() => void trialsQuery.refetch()}
-            >
-              Retry
-            </button>
-          </div>
-        ) : null}
+        <motion.div
+          animate={mobileContentPushAnimate}
+          transition={MOBILE_CONTENT_PUSH_FADE}
+          className="space-y-4"
+        >
+          {trialsQuery.isError ? (
+            <div className="rounded-card border border-line bg-panel p-6 text-[15px] text-muted">
+              <p>Trials could not be loaded.</p>
+              <button
+                type="button"
+                className="focus-ring mt-4 rounded-full border border-line px-4 py-2 text-[14px] text-text"
+                onClick={() => void trialsQuery.refetch()}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
 
-        <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence mode="wait" initial={false}>
           {showTrialSkeletons ? (
             <motion.div
               key="loading"
@@ -469,7 +478,8 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
               />
             </motion.div>
           )}
-        </AnimatePresence>
+          </AnimatePresence>
+        </motion.div>
       </motion.div>
     </div>
   );
