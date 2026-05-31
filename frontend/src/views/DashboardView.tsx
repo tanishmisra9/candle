@@ -14,7 +14,7 @@ import {
   formatPhaseLabel,
   formatStatusLabel,
 } from "../lib/formatters";
-import { NAV_OFFSET_CLASS, useIsMobile, useScrollVisibilityState } from "../lib/mobile";
+import { NAV_OFFSET_CLASS, useIsMobile, useStagedMobileControlsVisibility } from "../lib/mobile";
 import type { TrialSummary } from "../types";
 
 type ViewMode = "grid" | "timeline";
@@ -146,10 +146,11 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const [sponsor, setSponsor] = useState("");
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const isControlsVisible = useScrollVisibilityState({
+  const { showSearch, showFullControls } = useStagedMobileControlsVisibility({
     enabled: isMobile,
     hideAfter: 140,
-    revealWithin: 72,
+    searchRevealWithin: 72,
+    fullControlsRevealWithin: 40,
   });
   const normalizedSearch = search.trim();
   const trialQueryParams = useMemo(
@@ -249,10 +250,10 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const stickyTrayScrollAnimate = prefersReducedMotion
     ? undefined
     : {
-        y: isControlsVisible ? 0 : -18,
-        opacity: isControlsVisible ? 1 : 0,
-        scale: isControlsVisible ? 1 : 0.985,
-        filter: isControlsVisible ? "blur(0px)" : "blur(8px)",
+        y: showSearch ? 0 : -18,
+        opacity: showSearch ? 1 : 0,
+        scale: showSearch ? 1 : 0.985,
+        filter: showSearch ? "blur(0px)" : "blur(8px)",
       };
   const mobileStickyTrayAnimate =
     prefersReducedMotion || !isMobile
@@ -308,6 +309,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
       searchPlaceholder="Search trial titles"
       onClearAll={hasActiveFilters ? clearFilters : undefined}
       sticky={!isMobile}
+      showGroups={!isMobile || showFullControls}
       className={
         isMobile
           ? "border-0 bg-transparent px-0 py-0 shadow-none backdrop-blur-none"
@@ -368,11 +370,24 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
             className={cn(
               "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4",
               NAV_OFFSET_CLASS,
-              contentReady && !isControlsVisible && "pointer-events-none",
+              contentReady && !showSearch && "pointer-events-none",
             )}
           >
             {filterBar}
-            <div className="flex items-center justify-start">{timelineToggle}</div>
+            <AnimatePresence initial={false}>
+              {showFullControls ? (
+                <motion.div
+                  key="timeline-toggle"
+                  initial={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
+                  animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center justify-start"
+                >
+                  {timelineToggle}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </motion.div>
         ) : (
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

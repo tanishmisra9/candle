@@ -1,7 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Search } from "lucide-react";
 
 import { PublicationRow } from "../components/PublicationRow";
@@ -9,7 +8,7 @@ import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { cn } from "../lib/cn";
 import { listPublicationsPage } from "../lib/api";
 import { catalogQueryOptions } from "../lib/queryClient";
-import { NAV_OFFSET_CLASS, useIsMobile, useScrollVisibilityState } from "../lib/mobile";
+import { NAV_OFFSET_CLASS, useIsMobile, useStagedMobileControlsVisibility } from "../lib/mobile";
 import type { PublicationSummary } from "../types";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
@@ -26,12 +25,12 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const [search, setSearch] = useState("");
   const [linkedOnly, setLinkedOnly] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
   const searchFieldId = useId();
-  const isControlsVisible = useScrollVisibilityState({
+  const { showSearch, showFullControls } = useStagedMobileControlsVisibility({
     enabled: isMobile,
     hideAfter: 140,
-    revealWithin: 72,
+    searchRevealWithin: 72,
+    fullControlsRevealWithin: 40,
   });
   const normalizedSearch = search.trim();
   const publicationQueryParams = useMemo(
@@ -89,12 +88,25 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         animate: contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 },
         transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const },
       };
-  const publicationVirtualizer = useVirtualizer({
-    count: publications.length,
-    getScrollElement: () => listRef.current,
-    estimateSize: () => 132,
-    overscan: 8,
-  });
+  const stickyTrayScrollAnimate = prefersReducedMotion
+    ? undefined
+    : {
+        y: showSearch ? 0 : -18,
+        opacity: showSearch ? 1 : 0,
+        scale: showSearch ? 1 : 0.985,
+        filter: showSearch ? "blur(0px)" : "blur(8px)",
+      };
+  const mobileStickyTrayAnimate =
+    prefersReducedMotion || !isMobile
+      ? undefined
+      : contentReady
+        ? stickyTrayScrollAnimate
+        : {
+            y: -18,
+            opacity: 0,
+            scale: 0.985,
+            filter: "blur(8px)",
+          };
 
   return (
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
@@ -116,11 +128,13 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         transition={startupReveal?.transition}
         className="space-y-8 md:space-y-12"
       >
-        <div
+        <motion.div
+          animate={mobileStickyTrayAnimate}
+          transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.85 }}
           className={cn(
             "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start md:px-4",
             NAV_OFFSET_CLASS,
-            contentReady && isMobile && !isControlsVisible && "pointer-events-none",
+            contentReady && isMobile && !showSearch && "pointer-events-none",
           )}
         >
           <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center md:gap-3">
@@ -151,26 +165,37 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
               </span>
             </div>
 
-            <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
-              <button
-                type="button"
-                onClick={() => setLinkedOnly((current) => !current)}
-                className={cn(
-                  "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
-                  linkedOnly ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
-                )}
-                aria-pressed={linkedOnly}
-                aria-label={
-                  linkedOnly
-                    ? "Showing linked publications only. Activate to show all publications."
-                    : "Activate to show linked publications only."
-                }
-              >
-                Linked
-              </button>
-            </div>
+            <AnimatePresence initial={false}>
+              {!isMobile || showFullControls ? (
+                <motion.div
+                  key="linked-filter"
+                  initial={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
+                  animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                  className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setLinkedOnly((current) => !current)}
+                    className={cn(
+                      "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
+                      linkedOnly ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
+                    )}
+                    aria-pressed={linkedOnly}
+                    aria-label={
+                      linkedOnly
+                        ? "Showing linked publications only. Activate to show all publications."
+                        : "Activate to show linked publications only."
+                    }
+                  >
+                    Linked
+                  </button>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </div>
-        </div>
+        </motion.div>
 
         {publicationsQuery.isError ? (
           <div className="rounded-card border border-line bg-panel p-6 text-[15px] text-muted">
@@ -193,32 +218,14 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
             : null}
 
           {!showPublicationSkeletons ? (
-            <div ref={listRef} className="max-h-[70vh] overflow-auto">
-              <div
-                className="relative w-full"
-                style={{ height: `${publicationVirtualizer.getTotalSize()}px` }}
-              >
-                {publicationVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const publication = publications[virtualRow.index];
-                  if (!publication) {
-                    return null;
-                  }
-                  return (
-                    <div
-                      key={virtualRow.key}
-                      ref={publicationVirtualizer.measureElement}
-                      data-index={virtualRow.index}
-                      className="absolute left-0 top-0 w-full"
-                      style={{ transform: `translateY(${virtualRow.start}px)` }}
-                    >
-                      <PublicationRow
-                        publication={publication}
-                        onOpen={onOpenPublicationSnapshot}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+            <div>
+              {publications.map((publication) => (
+                <PublicationRow
+                  key={publication.pmid}
+                  publication={publication}
+                  onOpen={onOpenPublicationSnapshot}
+                />
+              ))}
             </div>
           ) : null}
 

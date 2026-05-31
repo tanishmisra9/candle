@@ -96,6 +96,75 @@ export function useScrollVisibilityState({
   return isVisible;
 }
 
+type UseStagedMobileControlsVisibilityOptions = {
+  enabled?: boolean;
+  hideAfter?: number;
+  searchRevealWithin?: number;
+  fullControlsRevealWithin?: number;
+  target?: ScrollTarget | null;
+};
+
+type StagedMobileControlsVisibilityState = {
+  showSearch: boolean;
+  showFullControls: boolean;
+};
+
+export function useStagedMobileControlsVisibility({
+  enabled = true,
+  hideAfter = 160,
+  searchRevealWithin = 72,
+  fullControlsRevealWithin = 48,
+  target = null,
+}: UseStagedMobileControlsVisibilityOptions = {}): StagedMobileControlsVisibilityState {
+  const [state, setState] = useState<StagedMobileControlsVisibilityState>({
+    showSearch: true,
+    showFullControls: true,
+  });
+
+  useEffect(() => {
+    if (!enabled) {
+      setState({ showSearch: true, showFullControls: true });
+      return;
+    }
+
+    const scrollTarget = target ?? (typeof window !== "undefined" ? window : null);
+    if (!scrollTarget) {
+      return;
+    }
+
+    let lastValue = getScrollValue(scrollTarget);
+
+    const onScroll = () => {
+      const value = getScrollValue(scrollTarget);
+      const delta = value - lastValue;
+
+      setState((current) => {
+        const nearTopForSearch = value <= searchRevealWithin;
+        const nearTopForControls = value <= fullControlsRevealWithin;
+        const showSearch =
+          nearTopForSearch || (value > hideAfter ? delta < -4 : current.showSearch);
+        const hideSearch = delta > 4 && value > hideAfter;
+
+        return {
+          showSearch: hideSearch ? false : showSearch,
+          showFullControls: nearTopForControls,
+        };
+      });
+
+      lastValue = value;
+    };
+
+    onScroll();
+    scrollTarget.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      scrollTarget.removeEventListener("scroll", onScroll);
+    };
+  }, [enabled, hideAfter, searchRevealWithin, fullControlsRevealWithin, target]);
+
+  return state;
+}
+
 type UseScrolledPastThresholdOptions = {
   enabled?: boolean;
   threshold?: number;

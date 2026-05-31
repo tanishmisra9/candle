@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { cn } from "../lib/cn";
@@ -38,6 +39,7 @@ type FilterBarProps = {
   className?: string;
   groupsClassName?: string;
   sticky?: boolean;
+  showGroups?: boolean;
 };
 
 function slugifyLabel(label: string) {
@@ -53,6 +55,7 @@ export function FilterBar({
   className,
   groupsClassName,
   sticky = true,
+  showGroups = true,
 }: FilterBarProps) {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [activeOptionIndex, setActiveOptionIndex] = useState(0);
@@ -64,6 +67,12 @@ export function FilterBar({
   useEffect(() => {
     setActiveOptionIndex(0);
   }, [openGroup]);
+
+  useEffect(() => {
+    if (!showGroups) {
+      setOpenGroup(null);
+    }
+  }, [showGroups]);
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -191,118 +200,131 @@ export function FilterBar({
         </span>
       </div>
 
-      <div className={cn("flex flex-wrap items-center gap-2.5", groupsClassName)}>
-        {groups.map((group) => {
-          const isOpen = openGroup === group.label;
-          const menuId = `${instanceId}-${slugifyLabel(group.label)}-menu`;
-          const isMultiSelect = group.selectionMode === "multiple";
-          const activeLabel = isMultiSelect
-            ? group.selectedValues.length === 0
-              ? group.label
-              : group.selectedValues.length === 1
-                ? (group.options.find((option) => option.value === group.selectedValues[0])?.label ??
-                  group.label)
-                : `${group.label} (${group.selectedValues.length})`
-            : group.value
-              ? (group.options.find((option) => option.value === group.value)?.label ??
-                group.label)
-              : group.label;
-          const isActive = isMultiSelect ? group.selectedValues.length > 0 : Boolean(group.value);
+      <AnimatePresence initial={false}>
+        {showGroups ? (
+          <motion.div
+            key="filter-groups"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className={cn("flex flex-wrap items-center gap-2.5", groupsClassName)}
+          >
+            {groups.map((group) => {
+              const isOpen = openGroup === group.label;
+              const menuId = `${instanceId}-${slugifyLabel(group.label)}-menu`;
+              const isMultiSelect = group.selectionMode === "multiple";
+              const activeLabel = isMultiSelect
+                ? group.selectedValues.length === 0
+                  ? group.label
+                  : group.selectedValues.length === 1
+                    ? (group.options.find((option) => option.value === group.selectedValues[0])?.label ??
+                      group.label)
+                    : `${group.label} (${group.selectedValues.length})`
+                : group.value
+                  ? (group.options.find((option) => option.value === group.value)?.label ??
+                    group.label)
+                  : group.label;
+              const isActive = isMultiSelect ? group.selectedValues.length > 0 : Boolean(group.value);
 
-          return (
-            <div key={group.label} className="relative">
-              <Button
-                type="button"
-                variant="secondary"
-                id={`${instanceId}-${slugifyLabel(group.label)}-trigger`}
-                aria-haspopup="menu"
-                aria-expanded={isOpen}
-                aria-controls={menuId}
-                onClick={() => setOpenGroup(isOpen ? null : group.label)}
-                onKeyDown={(event) => handleMenuKeyDown(event, group, menuId)}
-                className={cn(
-                  "justify-center px-4 py-2.5 text-[14px]",
-                  isActive &&
-                    "border-[rgba(232,163,61,0.28)] bg-[rgba(232,163,61,0.08)] text-text",
-                  isOpen && !isActive && "border-[rgba(232,163,61,0.28)]",
-                )}
-              >
-                {activeLabel}
-              </Button>
-              {isOpen ? (
-                <div
-                  id={menuId}
-                  role="menu"
-                  aria-labelledby={`${instanceId}-${slugifyLabel(group.label)}-trigger`}
-                  className="absolute left-0 top-[calc(100%+10px)] z-20 w-60 rounded-[20px] border border-line bg-panel p-2 shadow-panel backdrop-blur-2xl"
-                >
-                  {group.options.map((option, optionIndex) => {
-                    const isSelected = isMultiSelect
-                      ? group.selectedValues.includes(option.value)
-                      : option.value === group.value;
+              return (
+                <div key={group.label} className="relative">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    id={`${instanceId}-${slugifyLabel(group.label)}-trigger`}
+                    aria-haspopup="menu"
+                    aria-expanded={isOpen}
+                    aria-controls={menuId}
+                    onClick={() => setOpenGroup(isOpen ? null : group.label)}
+                    onKeyDown={(event) => handleMenuKeyDown(event, group, menuId)}
+                    className={cn(
+                      "justify-center px-4 py-2.5 text-[14px]",
+                      isActive &&
+                        "border-[rgba(232,163,61,0.28)] bg-[rgba(232,163,61,0.08)] text-text",
+                      isOpen && !isActive && "border-[rgba(232,163,61,0.28)]",
+                    )}
+                  >
+                    {activeLabel}
+                  </Button>
+                  {isOpen ? (
+                    <div
+                      id={menuId}
+                      role="menu"
+                      aria-labelledby={`${instanceId}-${slugifyLabel(group.label)}-trigger`}
+                      className="absolute left-0 top-[calc(100%+10px)] z-20 w-60 rounded-[20px] border border-line bg-panel p-2 shadow-panel backdrop-blur-2xl"
+                    >
+                      {group.options.map((option, optionIndex) => {
+                        const isSelected = isMultiSelect
+                          ? group.selectedValues.includes(option.value)
+                          : option.value === group.value;
 
-                    return (
-                      <button
-                        key={option.value || "all"}
-                        type="button"
-                        role="menuitem"
-                        tabIndex={optionIndex === activeOptionIndex ? 0 : -1}
-                        aria-checked={isMultiSelect ? isSelected : undefined}
-                        onClick={() => {
-                          if (isMultiSelect) {
-                            group.onToggle(option.value);
-                            return;
-                          }
-                          group.onSelect(option.value);
-                          setOpenGroup(null);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                            handleMenuKeyDown(event, group, menuId);
-                          }
-                        }}
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-[14px] px-3.5 py-2.5 text-left text-[14px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)]",
-                          isSelected
-                            ? "bg-[rgba(232,163,61,0.14)] text-text"
-                            : "text-muted hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.06)]",
-                          optionIndex === activeOptionIndex && "ring-1 ring-[rgba(232,163,61,0.28)]",
-                        )}
-                      >
-                        <span>{option.label}</span>
-                        {isMultiSelect ? (
-                          <span
-                            aria-hidden="true"
+                        return (
+                          <button
+                            key={option.value || "all"}
+                            type="button"
+                            role="menuitem"
+                            tabIndex={optionIndex === activeOptionIndex ? 0 : -1}
+                            aria-checked={isMultiSelect ? isSelected : undefined}
+                            onClick={() => {
+                              if (isMultiSelect) {
+                                group.onToggle(option.value);
+                                return;
+                              }
+                              group.onSelect(option.value);
+                              setOpenGroup(null);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                                handleMenuKeyDown(event, group, menuId);
+                              }
+                            }}
                             className={cn(
-                              "inline-flex h-4 w-4 items-center justify-center rounded border border-line text-[10px]",
-                              isSelected && "border-[rgba(232,163,61,0.9)] bg-[rgba(232,163,61,0.2)]",
+                              "flex w-full items-center justify-between rounded-[14px] px-3.5 py-2.5 text-left text-[14px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)]",
+                              isSelected
+                                ? "bg-[rgba(232,163,61,0.14)] text-text"
+                                : "text-muted hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.06)]",
+                              optionIndex === activeOptionIndex &&
+                                "ring-1 ring-[rgba(232,163,61,0.28)]",
                             )}
                           >
-                            {isSelected ? "✓" : ""}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
+                            <span>{option.label}</span>
+                            {isMultiSelect ? (
+                              <span
+                                aria-hidden="true"
+                                className={cn(
+                                  "inline-flex h-4 w-4 items-center justify-center rounded border border-line text-[10px]",
+                                  isSelected &&
+                                    "border-[rgba(232,163,61,0.9)] bg-[rgba(232,163,61,0.2)]",
+                                )}
+                              >
+                                {isSelected ? "✓" : ""}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </div>
-          );
-        })}
-        {onClearAll ? (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              setOpenGroup(null);
-              onClearAll();
-            }}
-            className="rounded-full px-4 py-3 text-[14px] text-muted hover:text-text"
-          >
-            Clear all filters
-          </Button>
+              );
+            })}
+            {onClearAll ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setOpenGroup(null);
+                  onClearAll();
+                }}
+                className="rounded-full px-4 py-3 text-[14px] text-muted hover:text-text"
+              >
+                Clear all filters
+              </Button>
+            ) : null}
+          </motion.div>
         ) : null}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }
