@@ -37,8 +37,7 @@ class DummyTrialCursorSession:
     def __init__(self, trials: list[object]):
         self.trials = trials
 
-    async def execute(self, stmt):
-        sql = str(stmt)
+    def _filtered_rows(self, stmt):
         params = stmt.compile().params
         rows = list(self.trials)
 
@@ -50,6 +49,10 @@ class DummyTrialCursorSession:
                 if (trial.status or "").upper() == str(status).upper()
             ]
 
+        phase_values = [str(value).upper() for key, value in params.items() if key.startswith("phase_")]
+        if phase_values:
+            rows = [trial for trial in rows if (trial.phase or "").upper() in phase_values]
+
         sponsor = params.get("sponsor_1")
         if sponsor:
             needle = sponsor.strip("%").lower()
@@ -59,6 +62,12 @@ class DummyTrialCursorSession:
         if title_query:
             needle = title_query.strip("%").lower()
             rows = [trial for trial in rows if needle in trial.title.lower()]
+
+        return rows, params
+
+    async def execute(self, stmt):
+        sql = str(stmt)
+        rows, params = self._filtered_rows(stmt)
 
         def sort_date(trial):
             return trial.start_date or trial.completion_date
@@ -103,12 +112,16 @@ class DummyTrialCursorSession:
         limit = params["param_1"]
         return DummyExecuteResult(rows[:limit])
 
+    async def scalar(self, stmt):
+        rows, _ = self._filtered_rows(stmt)
+        return len(rows)
+
 
 class DummyPublicationCursorSession:
     def __init__(self, publications: list[object]):
         self.publications = publications
 
-    async def execute(self, stmt):
+    def _filtered_rows(self, stmt):
         sql = str(stmt)
         params = stmt.compile().params
         rows = list(self.publications)
@@ -116,6 +129,9 @@ class DummyPublicationCursorSession:
         trial_id = params.get("trial_id_1")
         if trial_id:
             rows = [publication for publication in rows if publication.trial_id == trial_id]
+
+        if "publications.trial_id IS NOT NULL" in sql:
+            rows = [publication for publication in rows if publication.trial_id is not None]
 
         title_query = params.get("title_1")
         abstract_query = params.get("abstract_1")
@@ -127,6 +143,12 @@ class DummyPublicationCursorSession:
                 if needle in publication.title.lower()
                 or needle in (publication.abstract or "").lower()
             ]
+
+        return rows, params
+
+    async def execute(self, stmt):
+        sql = str(stmt)
+        rows, params = self._filtered_rows(stmt)
 
         if "ORDER BY publications.pub_date DESC NULLS LAST, publications.pmid ASC" in sql:
             cursor_date = params.get("pub_date_1")
@@ -169,6 +191,10 @@ class DummyPublicationCursorSession:
         )
         limit = params["param_1"]
         return DummyExecuteResult(rows[:limit])
+
+    async def scalar(self, stmt):
+        rows, _ = self._filtered_rows(stmt)
+        return len(rows)
 
 
 def override_session(session):
@@ -237,6 +263,7 @@ def test_trials_cursor_progression_and_filtering():
     assert response.status_code == 200
     body = response.json()
     assert [item["id"] for item in body["items"]] == ["NCT00000001", "NCT00000002"]
+    assert body["total"] == 3
     assert body["next_cursor"] == encode_trial_cursor(
         date(2024, 3, 1),
         "NCT00000002",
@@ -264,6 +291,7 @@ def test_trials_cursor_progression_and_filtering():
     )
     assert filtered.status_code == 200
     assert [item["id"] for item in filtered.json()["items"]] == ["NCT00000002"]
+    assert filtered.json()["total"] == 1
 
     app.dependency_overrides.clear()
 
@@ -360,6 +388,7 @@ def test_publications_cursor_progression_and_filtering():
     assert response.status_code == 200
     body = response.json()
     assert [item["pmid"] for item in body["items"]] == ["PMID1", "PMID2"]
+    assert body["total"] == 3
     assert body["next_cursor"] == encode_publication_cursor(
         date(2024, 3, 1),
         "PMID2",
@@ -379,6 +408,7 @@ def test_publications_cursor_progression_and_filtering():
     )
     assert filtered.status_code == 200
     assert [item["pmid"] for item in filtered.json()["items"]] == ["PMID1"]
+    assert filtered.json()["total"] == 1
 
     app.dependency_overrides.clear()
 

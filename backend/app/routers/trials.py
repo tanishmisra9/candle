@@ -109,7 +109,7 @@ async def fetch_trial_cursor_page(
     cursor: str | None,
 ) -> TrialCursorPage:
     sort_date = func.coalesce(Trial.start_date, Trial.completion_date).label("sort_date")
-    stmt = select(Trial, sort_date)
+    filtered_stmt = select(Trial, sort_date)
     current_signature = trial_filter_signature(
         status=status,
         phase=phase,
@@ -121,14 +121,18 @@ async def fetch_trial_cursor_page(
     )
 
     if status:
-        stmt = stmt.where(Trial.status == status.strip().upper())
-    stmt = _apply_phase_filter(stmt, phase, phases)
+        filtered_stmt = filtered_stmt.where(Trial.status == status.strip().upper())
+    filtered_stmt = _apply_phase_filter(filtered_stmt, phase, phases)
     if intervention_type:
-        stmt = stmt.where(Trial.intervention_type == intervention_type.strip())
+        filtered_stmt = filtered_stmt.where(Trial.intervention_type == intervention_type.strip())
     if sponsor:
-        stmt = stmt.where(Trial.sponsor.ilike(f"%{sponsor}%"))
+        filtered_stmt = filtered_stmt.where(Trial.sponsor.ilike(f"%{sponsor}%"))
     if q:
-        stmt = stmt.where(Trial.title.ilike(f"%{q}%"))
+        filtered_stmt = filtered_stmt.where(Trial.title.ilike(f"%{q}%"))
+
+    count_stmt = select(func.count()).select_from(filtered_stmt.subquery())
+    total = await session.scalar(count_stmt)
+    stmt = filtered_stmt
 
     if cursor:
         cursor_date, cursor_id, cursor_signature = decode_trial_cursor(cursor)
@@ -165,7 +169,7 @@ async def fetch_trial_cursor_page(
         last_trial, last_sort_date = rows[-1]
         next_cursor = encode_trial_cursor(last_sort_date, last_trial.id, current_signature)
 
-    return TrialCursorPage(items=items, next_cursor=next_cursor)
+    return TrialCursorPage(items=items, next_cursor=next_cursor, total=total or 0)
 
 
 @router.get("", response_model=list[TrialSummary] | TrialCursorPage)

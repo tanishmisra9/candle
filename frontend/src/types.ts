@@ -35,6 +35,7 @@ export type PublicationSummary = {
 export type CursorPage<T> = {
   items: T[];
   next_cursor: string | null;
+  total: number;
 };
 
 export type OutcomeEntry = {

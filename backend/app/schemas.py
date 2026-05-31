@@ -34,6 +34,7 @@ class PublicationOverviewResponse(BaseModel):
 class PublicationCursorPage(BaseModel):
     items: list["PublicationSummary"] = Field(default_factory=list)
     next_cursor: str | None = None
+    total: int = 0
 
 
 class TrialSummary(BaseModel):
@@ -64,6 +65,7 @@ class TrialDetail(TrialSummary):
 class TrialCursorPage(BaseModel):
     items: list[TrialSummary] = Field(default_factory=list)
     next_cursor: str | None = None
+    total: int = 0
 
 
 class SyncLogEntry(BaseModel):

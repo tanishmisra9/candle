@@ -5,7 +5,7 @@ import json
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -91,7 +91,7 @@ async def fetch_publication_cursor_page(
     limit: int,
     cursor: str | None,
 ) -> PublicationCursorPage:
-    stmt = select(Publication)
+    filtered_stmt = select(Publication)
     current_signature = publication_filter_signature(
         trial_id=trial_id,
         q=q,
@@ -99,14 +99,18 @@ async def fetch_publication_cursor_page(
         limit=limit,
     )
     if trial_id:
-        stmt = stmt.where(Publication.trial_id == trial_id)
+        filtered_stmt = filtered_stmt.where(Publication.trial_id == trial_id)
     if linked_only:
-        stmt = stmt.where(Publication.trial_id.is_not(None))
+        filtered_stmt = filtered_stmt.where(Publication.trial_id.is_not(None))
     if q:
         search = f"%{q}%"
-        stmt = stmt.where(
+        filtered_stmt = filtered_stmt.where(
             or_(Publication.title.ilike(search), Publication.abstract.ilike(search))
         )
+
+    count_stmt = select(func.count()).select_from(filtered_stmt.subquery())
+    total = await session.scalar(count_stmt)
+    stmt = filtered_stmt
 
     if cursor:
         cursor_date, cursor_pmid, cursor_signature = decode_publication_cursor(cursor)
@@ -149,6 +153,7 @@ async def fetch_publication_cursor_page(
     return PublicationCursorPage(
         items=[PublicationSummary.model_validate(publication) for publication in publications],
         next_cursor=next_cursor,
+        total=total or 0,
     )
 
 

@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { FilterBar } from "../components/FilterBar";
@@ -179,6 +178,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   });
 
   const allTrials = trialsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const trialTotal = trialsQuery.data?.pages[0]?.total ?? allTrials.length;
   const activeFilters = {
     status,
     phases: phase,
@@ -232,21 +232,6 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         animate: contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 },
         transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const },
       };
-  const trialGridRef = useRef<HTMLDivElement | null>(null);
-  const trialRows = useMemo(() => {
-    const columns = 3;
-    const rows: TrialSummary[][] = [];
-    for (let index = 0; index < trials.length; index += columns) {
-      rows.push(trials.slice(index, index + columns));
-    }
-    return rows;
-  }, [trials]);
-  const trialRowVirtualizer = useVirtualizer({
-    count: trialRows.length,
-    getScrollElement: () => trialGridRef.current,
-    estimateSize: () => 320,
-    overscan: 4,
-  });
   const clearFilters = () => {
     setStatus("");
     setPhase([]);
@@ -366,7 +351,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
           CHM Clinical Trials
         </p>
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
-          {trials.length} trials tracked
+          {trialTotal} trials tracked
         </h1>
       </motion.header>
 
@@ -435,33 +420,16 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
               transition={listMotion?.transition}
               className="space-y-6"
             >
-              <div ref={trialGridRef} className="max-h-[70vh] overflow-auto pr-1">
-                <div
-                  className="relative w-full"
-                  style={{ height: `${trialRowVirtualizer.getTotalSize()}px` }}
-                >
-                  {trialRowVirtualizer.getVirtualItems().map((virtualRow) => {
-                    const rowTrials = trialRows[virtualRow.index] ?? [];
-                    return (
-                      <div
-                        key={virtualRow.key}
-                        ref={trialRowVirtualizer.measureElement}
-                        data-index={virtualRow.index}
-                        className="absolute left-0 top-0 grid w-full gap-6 md:grid-cols-2 xl:grid-cols-3"
-                        style={{ transform: `translateY(${virtualRow.start}px)` }}
-                      >
-                        {rowTrials.map((trial) => (
-                          <TrialCard
-                            key={trial.id}
-                            trial={trial}
-                            onOpen={onOpenTrialSnapshot}
-                          />
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {trials.map((trial) => (
+                  <TrialCard key={trial.id} trial={trial} onOpen={onOpenTrialSnapshot} />
+                ))}
               </div>
+              {!trials.length ? (
+                <div className="rounded-card border border-line bg-panel px-6 py-12 text-[15px] text-muted">
+                  No trials matched this filter.
+                </div>
+              ) : null}
               {trialsQuery.hasNextPage ? (
                 <button
                   type="button"

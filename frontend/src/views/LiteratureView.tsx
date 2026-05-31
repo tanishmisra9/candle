@@ -20,6 +20,7 @@ type LiteratureViewProps = {
 };
 
 export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProps) {
+  const publicationPageSize = 200;
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
   const [search, setSearch] = useState("");
@@ -36,11 +37,11 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const publicationQueryParams = useMemo(
     () => ({
       envelope: "true" as const,
-      limit: 50,
+      limit: publicationPageSize,
       q: normalizedSearch || undefined,
       linked_only: linkedOnly,
     }),
-    [normalizedSearch, linkedOnly],
+    [linkedOnly, normalizedSearch, publicationPageSize],
   );
 
   useEffect(() => {
@@ -67,7 +68,18 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     ...catalogQueryOptions,
   });
 
+  useEffect(() => {
+    if (publicationsQuery.hasNextPage && !publicationsQuery.isFetchingNextPage) {
+      void publicationsQuery.fetchNextPage();
+    }
+  }, [
+    publicationsQuery.fetchNextPage,
+    publicationsQuery.hasNextPage,
+    publicationsQuery.isFetchingNextPage,
+  ]);
+
   const publications = publicationsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const publicationTotal = publicationsQuery.data?.pages[0]?.total ?? publications.length;
   const showPublicationSkeletons = publicationsQuery.isPending;
   const contentReady = publicationsQuery.isSuccess;
   const startupReveal = prefersReducedMotion
@@ -94,7 +106,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
       >
         <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Publications</p>
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
-          {publications.length} publications tracked
+          {publicationTotal} publications tracked
         </h1>
       </motion.header>
 
