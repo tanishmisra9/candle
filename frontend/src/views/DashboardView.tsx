@@ -14,7 +14,13 @@ import {
   formatPhaseLabel,
   formatStatusLabel,
 } from "../lib/formatters";
-import { NAV_OFFSET_CLASS, useIsMobile, useStagedMobileControlsVisibility } from "../lib/mobile";
+import {
+  MOBILE_CONTROLS_SPRING,
+  MOBILE_TRAY_SPRING,
+  NAV_OFFSET_CLASS,
+  useIsMobile,
+  useStagedMobileControlsVisibility,
+} from "../lib/mobile";
 import type { TrialSummary } from "../types";
 
 type ViewMode = "grid" | "timeline";
@@ -250,10 +256,9 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const stickyTrayScrollAnimate = prefersReducedMotion
     ? undefined
     : {
-        y: showSearch ? 0 : -18,
+        y: showSearch ? 0 : -14,
         opacity: showSearch ? 1 : 0,
-        scale: showSearch ? 1 : 0.985,
-        filter: showSearch ? "blur(0px)" : "blur(8px)",
+        scale: showSearch ? 1 : 0.99,
       };
   const mobileStickyTrayAnimate =
     prefersReducedMotion || !isMobile
@@ -261,10 +266,9 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
       : contentReady
         ? stickyTrayScrollAnimate
         : {
-            y: -18,
+            y: -14,
             opacity: 0,
-            scale: 0.985,
-            filter: "blur(8px)",
+            scale: 0.99,
           };
   const listMotion = prefersReducedMotion
     ? undefined
@@ -366,7 +370,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         {isMobile ? (
           <motion.div
             animate={mobileStickyTrayAnimate}
-            transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.85 }}
+            transition={MOBILE_TRAY_SPRING}
             className={cn(
               "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4",
               NAV_OFFSET_CLASS,
@@ -378,11 +382,15 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
               {showFullControls ? (
                 <motion.div
                   key="timeline-toggle"
-                  initial={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
-                  animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center justify-start"
+                  initial={prefersReducedMotion ? undefined : { opacity: 0, height: 0, y: -4 }}
+                  animate={
+                    prefersReducedMotion
+                      ? undefined
+                      : { opacity: 1, height: "auto", y: 0 }
+                  }
+                  exit={prefersReducedMotion ? undefined : { opacity: 0, height: 0, y: -4 }}
+                  transition={MOBILE_CONTROLS_SPRING}
+                  className="flex items-center justify-start overflow-hidden"
                 >
                   {timelineToggle}
                 </motion.div>

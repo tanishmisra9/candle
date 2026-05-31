@@ -4,9 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { FilterBar } from "./FilterBar";
 
-vi.mock("../lib/mobile", () => ({
-  NAV_OFFSET_CLASS: "top-[94px]",
-}));
+vi.mock("../lib/mobile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/mobile")>();
+  return {
+    ...actual,
+    NAV_OFFSET_CLASS: "top-[94px]",
+  };
+});
 
 describe("FilterBar multi-select phase group", () => {
   it("shows the count for multiple selected phases and keeps the dropdown open while toggling", () => {

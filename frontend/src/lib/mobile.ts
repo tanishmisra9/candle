@@ -96,11 +96,33 @@ export function useScrollVisibilityState({
   return isVisible;
 }
 
+/** Shared spring for mobile sticky tray show/hide. */
+export const MOBILE_TRAY_SPRING = {
+  type: "spring" as const,
+  stiffness: 280,
+  damping: 32,
+  mass: 0.9,
+};
+
+/** Softer spring for secondary controls (filters, timeline, linked). */
+export const MOBILE_CONTROLS_SPRING = {
+  type: "spring" as const,
+  stiffness: 320,
+  damping: 36,
+  mass: 0.75,
+};
+
 type UseStagedMobileControlsVisibilityOptions = {
   enabled?: boolean;
   hideAfter?: number;
   searchRevealWithin?: number;
   fullControlsRevealWithin?: number;
+  /** Accumulated upward px before latching search tray visible while deep in page. */
+  revealUpAccumPx?: number;
+  /** Accumulated downward px before hiding latched search tray. */
+  hideDownAccumPx?: number;
+  /** Extra px past fullControlsRevealWithin before hiding full controls (hysteresis). */
+  fullControlsHysteresisPx?: number;
   target?: ScrollTarget | null;
 };
 
@@ -114,6 +136,9 @@ export function useStagedMobileControlsVisibility({
   hideAfter = 160,
   searchRevealWithin = 72,
   fullControlsRevealWithin = 48,
+  revealUpAccumPx = 14,
+  hideDownAccumPx = 28,
+  fullControlsHysteresisPx = 18,
   target = null,
 }: UseStagedMobileControlsVisibilityOptions = {}): StagedMobileControlsVisibilityState {
   const [state, setState] = useState<StagedMobileControlsVisibilityState>({
@@ -133,22 +158,47 @@ export function useStagedMobileControlsVisibility({
     }
 
     let lastValue = getScrollValue(scrollTarget);
+    let upwardAccum = 0;
+    let downwardAccum = 0;
 
     const onScroll = () => {
       const value = getScrollValue(scrollTarget);
       const delta = value - lastValue;
 
+      if (delta < 0) {
+        upwardAccum += -delta;
+        downwardAccum = 0;
+      } else if (delta > 0) {
+        downwardAccum += delta;
+        upwardAccum = 0;
+      }
+
       setState((current) => {
         const nearTopForSearch = value <= searchRevealWithin;
-        const nearTopForControls = value <= fullControlsRevealWithin;
-        const showSearch =
-          nearTopForSearch || (value > hideAfter ? delta < -4 : current.showSearch);
-        const hideSearch = delta > 4 && value > hideAfter;
+        const showFullControls = current.showFullControls
+          ? value <= fullControlsRevealWithin + fullControlsHysteresisPx
+          : value <= fullControlsRevealWithin;
 
-        return {
-          showSearch: hideSearch ? false : showSearch,
-          showFullControls: nearTopForControls,
-        };
+        if (nearTopForSearch) {
+          upwardAccum = 0;
+          downwardAccum = 0;
+          return { showSearch: true, showFullControls };
+        }
+
+        let showSearch = current.showSearch;
+        if (value <= hideAfter) {
+          showSearch = true;
+          upwardAccum = 0;
+          downwardAccum = 0;
+        } else if (upwardAccum >= revealUpAccumPx) {
+          showSearch = true;
+        } else if (showSearch && downwardAccum >= hideDownAccumPx) {
+          showSearch = false;
+          upwardAccum = 0;
+          downwardAccum = 0;
+        }
+
+        return { showSearch, showFullControls };
       });
 
       lastValue = value;
@@ -160,7 +210,16 @@ export function useStagedMobileControlsVisibility({
     return () => {
       scrollTarget.removeEventListener("scroll", onScroll);
     };
-  }, [enabled, hideAfter, searchRevealWithin, fullControlsRevealWithin, target]);
+  }, [
+    enabled,
+    hideAfter,
+    searchRevealWithin,
+    fullControlsRevealWithin,
+    revealUpAccumPx,
+    hideDownAccumPx,
+    fullControlsHysteresisPx,
+    target,
+  ]);
 
   return state;
 }

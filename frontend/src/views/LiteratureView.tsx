@@ -8,7 +8,13 @@ import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { cn } from "../lib/cn";
 import { listPublicationsPage } from "../lib/api";
 import { catalogQueryOptions } from "../lib/queryClient";
-import { NAV_OFFSET_CLASS, useIsMobile, useStagedMobileControlsVisibility } from "../lib/mobile";
+import {
+  MOBILE_CONTROLS_SPRING,
+  MOBILE_TRAY_SPRING,
+  NAV_OFFSET_CLASS,
+  useIsMobile,
+  useStagedMobileControlsVisibility,
+} from "../lib/mobile";
 import type { PublicationSummary } from "../types";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
@@ -91,10 +97,9 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const stickyTrayScrollAnimate = prefersReducedMotion
     ? undefined
     : {
-        y: showSearch ? 0 : -18,
+        y: showSearch ? 0 : -14,
         opacity: showSearch ? 1 : 0,
-        scale: showSearch ? 1 : 0.985,
-        filter: showSearch ? "blur(0px)" : "blur(8px)",
+        scale: showSearch ? 1 : 0.99,
       };
   const mobileStickyTrayAnimate =
     prefersReducedMotion || !isMobile
@@ -102,10 +107,9 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
       : contentReady
         ? stickyTrayScrollAnimate
         : {
-            y: -18,
+            y: -14,
             opacity: 0,
-            scale: 0.985,
-            filter: "blur(8px)",
+            scale: 0.99,
           };
 
   return (
@@ -130,7 +134,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
       >
         <motion.div
           animate={mobileStickyTrayAnimate}
-          transition={{ type: "spring", stiffness: 360, damping: 34, mass: 0.85 }}
+          transition={MOBILE_TRAY_SPRING}
           className={cn(
             "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start md:px-4",
             NAV_OFFSET_CLASS,
@@ -169,11 +173,15 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
               {!isMobile || showFullControls ? (
                 <motion.div
                   key="linked-filter"
-                  initial={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
-                  animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
-                  transition={{ duration: 0.2 }}
-                  className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto"
+                  initial={prefersReducedMotion ? undefined : { opacity: 0, height: 0, y: -4 }}
+                  animate={
+                    prefersReducedMotion
+                      ? undefined
+                      : { opacity: 1, height: "auto", y: 0 }
+                  }
+                  exit={prefersReducedMotion ? undefined : { opacity: 0, height: 0, y: -4 }}
+                  transition={MOBILE_CONTROLS_SPRING}
+                  className="inline-flex self-start overflow-hidden rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto"
                 >
                   <button
                     type="button"
