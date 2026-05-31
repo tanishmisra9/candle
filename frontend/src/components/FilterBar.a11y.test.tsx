@@ -10,9 +10,13 @@ const axe = configureAxe({
   },
 });
 
-vi.mock("../lib/mobile", () => ({
-  NAV_OFFSET_CLASS: "top-[94px]",
-}));
+vi.mock("../lib/mobile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../lib/mobile")>();
+  return {
+    ...actual,
+    NAV_OFFSET_CLASS: "top-[94px]",
+  };
+});
 
 describe("FilterBar accessibility", () => {
   it("associates the search field with a label and exposes filter menu semantics", async () => {

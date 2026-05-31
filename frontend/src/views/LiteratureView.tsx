@@ -180,31 +180,34 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         </h1>
       </motion.header>
 
+      {isMobile ? (
+        <motion.div
+          animate={
+            prefersReducedMotion
+              ? undefined
+              : showSearch
+                ? MOBILE_FADE_VISIBLE
+                : MOBILE_FADE_HIDDEN
+          }
+          transition={MOBILE_TRAY_FADE}
+          aria-hidden={showSearch ? undefined : true}
+          className={cn(
+            "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4",
+            NAV_OFFSET_CLASS,
+            !showSearch && "pointer-events-none",
+          )}
+        >
+          {literatureControls}
+        </motion.div>
+      ) : null}
+
       <motion.div
         initial={startupReveal?.initial}
         animate={startupReveal?.animate}
         transition={startupReveal?.transition}
         className="space-y-8 md:space-y-12"
       >
-        {isMobile ? (
-          <AnimatePresence initial={false}>
-            {contentReady && showSearch ? (
-              <motion.div
-                key="mobile-tray"
-                initial={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-                animate={prefersReducedMotion ? undefined : MOBILE_FADE_VISIBLE}
-                exit={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-                transition={MOBILE_TRAY_FADE}
-                className={cn(
-                  "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4",
-                  NAV_OFFSET_CLASS,
-                )}
-              >
-                {literatureControls}
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        ) : (
+        {!isMobile ? (
           <div
             className={cn(
               "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start md:px-4",
@@ -213,7 +216,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           >
             {literatureControls}
           </div>
-        )}
+        ) : null}
 
         <motion.div
           animate={mobileContentPushAnimate}

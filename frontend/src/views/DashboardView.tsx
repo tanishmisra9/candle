@@ -352,45 +352,48 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         </h1>
       </motion.header>
 
+      {isMobile ? (
+        <motion.div
+          animate={
+            prefersReducedMotion
+              ? undefined
+              : showSearch
+                ? MOBILE_FADE_VISIBLE
+                : MOBILE_FADE_HIDDEN
+          }
+          transition={MOBILE_TRAY_FADE}
+          aria-hidden={showSearch ? undefined : true}
+          className={cn(
+            "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4",
+            NAV_OFFSET_CLASS,
+            !showSearch && "pointer-events-none",
+          )}
+        >
+          {filterBar}
+          <AnimatePresence initial={false}>
+            {showFullControls ? (
+              <motion.div
+                key="timeline-toggle"
+                initial={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
+                animate={prefersReducedMotion ? undefined : MOBILE_FADE_VISIBLE}
+                exit={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
+                transition={MOBILE_CONTROLS_FADE}
+                className="flex items-center justify-start"
+              >
+                {timelineToggle}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </motion.div>
+      ) : null}
+
       <motion.div
         initial={startupReveal?.initial}
         animate={startupReveal?.animate}
         transition={startupReveal?.transition}
         className="space-y-4"
       >
-        {isMobile ? (
-          <AnimatePresence initial={false}>
-            {contentReady && showSearch ? (
-              <motion.div
-                key="mobile-tray"
-                initial={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-                animate={prefersReducedMotion ? undefined : MOBILE_FADE_VISIBLE}
-                exit={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-                transition={MOBILE_TRAY_FADE}
-                className={cn(
-                  "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4",
-                  NAV_OFFSET_CLASS,
-                )}
-              >
-                {filterBar}
-                <AnimatePresence initial={false}>
-                  {showFullControls ? (
-                    <motion.div
-                      key="timeline-toggle"
-                      initial={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-                      animate={prefersReducedMotion ? undefined : MOBILE_FADE_VISIBLE}
-                      exit={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
-                      transition={MOBILE_CONTROLS_FADE}
-                      className="flex items-center justify-start"
-                    >
-                      {timelineToggle}
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        ) : (
+        {!isMobile ? (
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             {filterBar}
 
@@ -398,7 +401,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
               {timelineToggle}
             </div>
           </div>
-        )}
+        ) : null}
 
         <motion.div
           animate={mobileContentPushAnimate}
