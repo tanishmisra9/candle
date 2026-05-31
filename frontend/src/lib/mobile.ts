@@ -96,21 +96,29 @@ export function useScrollVisibilityState({
   return isVisible;
 }
 
-/** Shared spring for mobile sticky tray show/hide. */
-export const MOBILE_TRAY_SPRING = {
-  type: "spring" as const,
-  stiffness: 280,
-  damping: 32,
-  mass: 0.9,
+const MOBILE_FADE_EASE = [0.22, 1, 0.36, 1] as const;
+
+/** Fade transition for mobile sticky tray show/hide. */
+export const MOBILE_TRAY_FADE = {
+  duration: 0.22,
+  ease: MOBILE_FADE_EASE,
 };
 
-/** Softer spring for secondary controls (filters, timeline, linked). */
-export const MOBILE_CONTROLS_SPRING = {
-  type: "spring" as const,
-  stiffness: 320,
-  damping: 36,
-  mass: 0.75,
+/** Fade transition for secondary controls (filters, timeline, linked). */
+export const MOBILE_CONTROLS_FADE = {
+  duration: 0.18,
+  ease: MOBILE_FADE_EASE,
 };
+
+export const MOBILE_FADE_VISIBLE = {
+  opacity: 1,
+  filter: "blur(0px)",
+} as const;
+
+export const MOBILE_FADE_HIDDEN = {
+  opacity: 0,
+  filter: "blur(8px)",
+} as const;
 
 type UseStagedMobileControlsVisibilityOptions = {
   enabled?: boolean;

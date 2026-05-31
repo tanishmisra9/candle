@@ -15,8 +15,10 @@ import {
   formatStatusLabel,
 } from "../lib/formatters";
 import {
-  MOBILE_CONTROLS_SPRING,
-  MOBILE_TRAY_SPRING,
+  MOBILE_CONTROLS_FADE,
+  MOBILE_FADE_HIDDEN,
+  MOBILE_FADE_VISIBLE,
+  MOBILE_TRAY_FADE,
   NAV_OFFSET_CLASS,
   useIsMobile,
   useStagedMobileControlsVisibility,
@@ -255,21 +257,15 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   };
   const stickyTrayScrollAnimate = prefersReducedMotion
     ? undefined
-    : {
-        y: showSearch ? 0 : -14,
-        opacity: showSearch ? 1 : 0,
-        scale: showSearch ? 1 : 0.99,
-      };
+    : showSearch
+      ? MOBILE_FADE_VISIBLE
+      : MOBILE_FADE_HIDDEN;
   const mobileStickyTrayAnimate =
     prefersReducedMotion || !isMobile
       ? undefined
       : contentReady
         ? stickyTrayScrollAnimate
-        : {
-            y: -14,
-            opacity: 0,
-            scale: 0.99,
-          };
+        : MOBILE_FADE_HIDDEN;
   const listMotion = prefersReducedMotion
     ? undefined
     : {
@@ -370,7 +366,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         {isMobile ? (
           <motion.div
             animate={mobileStickyTrayAnimate}
-            transition={MOBILE_TRAY_SPRING}
+            transition={MOBILE_TRAY_FADE}
             className={cn(
               "glass-nav sticky z-30 space-y-3 rounded-[24px] px-4 py-4",
               NAV_OFFSET_CLASS,
@@ -382,15 +378,11 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
               {showFullControls ? (
                 <motion.div
                   key="timeline-toggle"
-                  initial={prefersReducedMotion ? undefined : { opacity: 0, height: 0, y: -4 }}
-                  animate={
-                    prefersReducedMotion
-                      ? undefined
-                      : { opacity: 1, height: "auto", y: 0 }
-                  }
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, height: 0, y: -4 }}
-                  transition={MOBILE_CONTROLS_SPRING}
-                  className="flex items-center justify-start overflow-hidden"
+                  initial={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
+                  animate={prefersReducedMotion ? undefined : MOBILE_FADE_VISIBLE}
+                  exit={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
+                  transition={MOBILE_CONTROLS_FADE}
+                  className="flex items-center justify-start"
                 >
                   {timelineToggle}
                 </motion.div>

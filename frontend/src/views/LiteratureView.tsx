@@ -9,8 +9,10 @@ import { cn } from "../lib/cn";
 import { listPublicationsPage } from "../lib/api";
 import { catalogQueryOptions } from "../lib/queryClient";
 import {
-  MOBILE_CONTROLS_SPRING,
-  MOBILE_TRAY_SPRING,
+  MOBILE_CONTROLS_FADE,
+  MOBILE_FADE_HIDDEN,
+  MOBILE_FADE_VISIBLE,
+  MOBILE_TRAY_FADE,
   NAV_OFFSET_CLASS,
   useIsMobile,
   useStagedMobileControlsVisibility,
@@ -96,21 +98,15 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
       };
   const stickyTrayScrollAnimate = prefersReducedMotion
     ? undefined
-    : {
-        y: showSearch ? 0 : -14,
-        opacity: showSearch ? 1 : 0,
-        scale: showSearch ? 1 : 0.99,
-      };
+    : showSearch
+      ? MOBILE_FADE_VISIBLE
+      : MOBILE_FADE_HIDDEN;
   const mobileStickyTrayAnimate =
     prefersReducedMotion || !isMobile
       ? undefined
       : contentReady
         ? stickyTrayScrollAnimate
-        : {
-            y: -14,
-            opacity: 0,
-            scale: 0.99,
-          };
+        : MOBILE_FADE_HIDDEN;
 
   return (
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
@@ -134,7 +130,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
       >
         <motion.div
           animate={mobileStickyTrayAnimate}
-          transition={MOBILE_TRAY_SPRING}
+          transition={MOBILE_TRAY_FADE}
           className={cn(
             "glass-nav sticky z-30 flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start md:px-4",
             NAV_OFFSET_CLASS,
@@ -173,15 +169,11 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
               {!isMobile || showFullControls ? (
                 <motion.div
                   key="linked-filter"
-                  initial={prefersReducedMotion ? undefined : { opacity: 0, height: 0, y: -4 }}
-                  animate={
-                    prefersReducedMotion
-                      ? undefined
-                      : { opacity: 1, height: "auto", y: 0 }
-                  }
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, height: 0, y: -4 }}
-                  transition={MOBILE_CONTROLS_SPRING}
-                  className="inline-flex self-start overflow-hidden rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto"
+                  initial={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
+                  animate={prefersReducedMotion ? undefined : MOBILE_FADE_VISIBLE}
+                  exit={prefersReducedMotion ? undefined : MOBILE_FADE_HIDDEN}
+                  transition={MOBILE_CONTROLS_FADE}
+                  className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto"
                 >
                   <button
                     type="button"

@@ -3,7 +3,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { cn } from "../lib/cn";
-import { MOBILE_CONTROLS_SPRING, NAV_OFFSET_CLASS } from "../lib/mobile";
+import {
+  MOBILE_CONTROLS_FADE,
+  MOBILE_FADE_HIDDEN,
+  MOBILE_FADE_VISIBLE,
+  NAV_OFFSET_CLASS,
+} from "../lib/mobile";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 
@@ -204,11 +209,11 @@ export function FilterBar({
         {showGroups ? (
           <motion.div
             key="filter-groups"
-            initial={{ opacity: 0, height: 0, y: -4 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -4 }}
-            transition={MOBILE_CONTROLS_SPRING}
-            className={cn("flex flex-wrap items-center gap-2.5 overflow-hidden", groupsClassName)}
+            initial={MOBILE_FADE_HIDDEN}
+            animate={MOBILE_FADE_VISIBLE}
+            exit={MOBILE_FADE_HIDDEN}
+            transition={MOBILE_CONTROLS_FADE}
+            className={cn("flex flex-wrap items-center gap-2.5", groupsClassName)}
           >
             {groups.map((group) => {
               const isOpen = openGroup === group.label;
