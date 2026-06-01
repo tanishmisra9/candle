@@ -155,7 +155,7 @@ export function AskPanel({
   }, [messages, isPending, prefersReducedMotion, hasConversation]);
 
   return (
-    <section className="mx-auto flex min-h-[calc(100vh-148px)] max-w-[920px] flex-col justify-center pb-16 pt-28">
+    <section className="flex min-h-[calc(100vh-148px)] flex-col pb-16 pt-28">
       <header className={cn("space-y-2 transition-all", emptyState ? "pb-8" : "pb-4")}>
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           Ask
