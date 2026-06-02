@@ -2,7 +2,6 @@ import { useReducedMotion } from "framer-motion";
 import { SendHorizonal } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
-import { cn } from "../lib/cn";
 import { askQuestion, askQuestionStream } from "../lib/api";
 import type { AskMessage } from "../types";
 import { ChatMessage } from "./ChatMessage";
@@ -155,8 +154,8 @@ export function AskPanel({
   }, [messages, isPending, prefersReducedMotion, hasConversation]);
 
   return (
-    <section className="flex min-h-[calc(100vh-148px)] flex-col pb-16 pt-28">
-      <header className={cn("space-y-2 transition-all", emptyState ? "pb-8" : "pb-4")}>
+    <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
+      <header className="space-y-2">
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           Ask
         </h1>
@@ -167,7 +166,7 @@ export function AskPanel({
         ) : null}
       </header>
       <div
-        className="min-h-[280px] flex-1 space-y-10"
+        className="min-h-[280px] space-y-10"
         role="log"
         aria-live="polite"
         aria-relevant="additions"
@@ -175,7 +174,7 @@ export function AskPanel({
       >
         {emptyState ? (
           <div className="pb-32 pt-12">
-            <div className="mx-auto grid max-w-[760px] grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {exampleQuestions.map((question) => (
                 <button
                   key={question}
@@ -222,9 +221,9 @@ export function AskPanel({
           event.preventDefault();
           sendQuestion(draft);
         }}
-        className="fixed bottom-6 left-1/2 z-40 w-full max-w-[860px] -translate-x-1/2 px-4"
+        className="fixed inset-x-0 bottom-6 z-40 px-4 sm:px-5 md:px-10"
       >
-        <div className="rounded-[32px] border border-line bg-glass p-4 shadow-panel backdrop-blur-2xl">
+        <div className="mx-auto w-full max-w-[1360px] rounded-[32px] border border-line bg-glass p-4 shadow-panel backdrop-blur-2xl">
           <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
             {statusMessage}
           </span>
@@ -251,6 +250,6 @@ export function AskPanel({
           </div>
         </div>
       </form>
-    </section>
+    </div>
   );
 }
