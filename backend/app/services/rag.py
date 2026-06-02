@@ -15,6 +15,8 @@ from app.services.embeddings import embed_query, get_openai_client
 from app.services.openai_executor import run_openai_operation
 from app.services.retrieval import RetrievedChunk, retrieve_similar_chunks
 
+_NCT_CITATION_RE = re.compile(r"\[NCT\d{8}\]")
+_PMID_CITATION_RE = re.compile(r"\[PMID(\d+)\]")
 
 SYSTEM_PROMPT = """You are Candle, a read-only research index for Choroideremia (CHM) clinical trials and publications. Your sole function is to report factual information from the provided context - trial registration metadata, publication abstracts, and study statistics. You are not a clinician, advisor, or decision-support system of any kind.
 
@@ -60,6 +62,7 @@ ANSWER FORMAT FOR IN-SCOPE QUESTIONS. When a question is within scope:
 - For questions using superlatives ('most', 'best', 'most advanced'), report the relevant factual data from the sources without characterizing which option is superior.
 - Never characterize results with evaluative adjectives
 - End every factual answer with: "For the most current information, verify at clinicaltrials.gov or pubmed.ncbi.nlm.nih.gov."
+- Each context section is labeled with its type and ID, for example trial:NCT02435940 or publication:37234567. When you draw on a source, cite it inline immediately after the reference using [NCT02435940] for trials or [PMID37234567] for publications. Only cite sources you directly used. Do not cite every source in the context.
 """
 
 ACTIVE_TRIAL_STATUSES = {
@@ -513,7 +516,7 @@ async def _prepare_question_context(
 
     for publication in explicit_publications.values():
         context_lines.append(
-            f"[Explicit Publication — publication: {publication.title}]\n"
+            f"[Explicit Publication — publication:{publication.pmid}: {publication.title}]\n"
             f"{publication_context_block(publication)}"
         )
         sources.setdefault(
@@ -530,7 +533,7 @@ async def _prepare_question_context(
             trial = explicit_trials.get(publication.trial_id)
             if trial:
                 context_lines.append(
-                    f"[Linked Trial for PMID {publication.pmid} — trial: {trial.title}]\n"
+                    f"[Linked Trial for PMID {publication.pmid} — trial:{trial.id}: {trial.title}]\n"
                     f"{trial_context_block(trial)}"
                 )
                 sources.setdefault(
@@ -550,7 +553,7 @@ async def _prepare_question_context(
         if f"trial:{trial.id}" in sources:
             continue
         context_lines.append(
-            f"[Explicit Trial — trial: {trial.title}]\n{trial_context_block(trial)}"
+            f"[Explicit Trial — trial:{trial.id}: {trial.title}]\n{trial_context_block(trial)}"
         )
         sources.setdefault(
             f"trial:{trial.id}",
@@ -566,7 +569,7 @@ async def _prepare_question_context(
         current_trials = await fetch_current_trials(session, limit=4)
         for index, trial in enumerate(current_trials, start=1):
             context_lines.append(
-                f"[Current Trial {index} — trial: {trial.title}]\n{trial_context_block(trial)}"
+                f"[Current Trial {index} — trial:{trial.id}: {trial.title}]\n{trial_context_block(trial)}"
             )
             dedupe_key = f"trial:{trial.id}"
             sources.setdefault(
@@ -590,7 +593,7 @@ async def _prepare_question_context(
 
     for index, chunk in enumerate(chunks, start=1):
         context_lines.append(
-            f"[Source {index} — {chunk.source_type}: {chunk.title}]\n{chunk.content}"
+            f"[Source {index} — {chunk.source_type}:{chunk.source_id}: {chunk.title}]\n{chunk.content}"
         )
         dedupe_key = f"{chunk.source_type}:{chunk.source_id}"
         sources.setdefault(
@@ -605,6 +608,13 @@ async def _prepare_question_context(
 
     context_block = "\n\n".join(context_lines)
     return "ready", chunks, context_lines, sources, context_block
+
+
+def _extract_cited_ids(answer: str) -> tuple[set[str], set[str]]:
+    """Return (cited_nct_ids, cited_pmids) parsed from inline citations in answer."""
+    nct_ids = {match.group(0)[1:-1] for match in _NCT_CITATION_RE.finditer(answer)}
+    pmids = {match.group(1) for match in _PMID_CITATION_RE.finditer(answer)}
+    return nct_ids, pmids
 
 
 async def answer_question(question: str, session) -> AskResponse:
@@ -632,13 +642,27 @@ async def answer_question(question: str, session) -> AskResponse:
         retry_backoff_seconds=settings.background_openai_retry_backoff_seconds,
     )
     answer = response.choices[0].message.content or ""
-    answer = answer.strip()
 
-    if contains_advice_language(answer):
+    # Filter sources to only those the model cited
+    cited_nct, cited_pmids = _extract_cited_ids(answer)
+    if cited_nct or cited_pmids:
+        filtered = {
+            key: value
+            for key, value in sources.items()
+            if (value.source_type == "trial" and value.source_id in cited_nct)
+            or (value.source_type == "publication" and value.source_id in cited_pmids)
+        }
+        if filtered:
+            sources = filtered
+
+    # Strip citation markers from display text
+    clean_answer = re.sub(r"\s*\[(?:NCT\d{8}|PMID\d+)\]", "", answer).strip()
+
+    if contains_advice_language(clean_answer):
         return AskResponse(answer=ADVICE_REFUSAL, sources=[])
 
     enriched_sources = await enrich_sources(session, list(sources.values()))
-    return AskResponse(answer=answer, sources=enriched_sources[:5])
+    return AskResponse(answer=clean_answer, sources=enriched_sources[:5])
 
 
 async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
