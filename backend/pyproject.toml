@@ -32,3 +32,6 @@ packages = ["app"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 asyncio_mode = "auto"
+markers = [
+    "live: requires OPENAI_API_KEY, makes real API calls -- run with pytest -m live",
+]
