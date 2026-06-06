@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 import { PublicationRow } from "../components/PublicationRow";
 import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
@@ -11,6 +11,7 @@ import type { PublicationSummary } from "../types";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 const kbdShortcut = isMac ? "⌘K" : "Ctrl+K";
+const PAGE_SIZE = 50;
 
 type LiteratureViewProps = {
   onOpenPublicationSnapshot: (publication: PublicationSummary) => void;
@@ -20,6 +21,8 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const publicationPageSize = 200;
   const [search, setSearch] = useState("");
   const [linkedOnly, setLinkedOnly] = useState(false);
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [page, setPage] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const searchFieldId = useId();
   const normalizedSearch = search.trim();
@@ -64,6 +67,10 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   });
 
   useEffect(() => {
+    setPage(0);
+  }, [normalizedSearch, linkedOnly, sortOrder]);
+
+  useEffect(() => {
     if (publicationsQuery.hasNextPage && !publicationsQuery.isFetchingNextPage) {
       void publicationsQuery.fetchNextPage();
     }
@@ -79,6 +86,31 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     unfilteredPublicationsQuery.data?.total ?? publicationTotal;
   const hasFilters = Boolean(normalizedSearch || linkedOnly);
   const showPublicationSkeletons = publicationsQuery.isPending;
+
+  const sortedPublications = useMemo(() => {
+    const copy = [...publications];
+    copy.sort((a, b) => {
+      if (a.pub_date === b.pub_date) {
+        return a.pmid < b.pmid ? -1 : 1;
+      }
+      if (!a.pub_date) {
+        return 1;
+      }
+      if (!b.pub_date) {
+        return -1;
+      }
+      const asc = a.pub_date < b.pub_date ? -1 : 1;
+      return sortOrder === "newest" ? -asc : asc;
+    });
+    return copy;
+  }, [publications, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedPublications.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages - 1);
+  const pageItems = sortedPublications.slice(
+    currentPage * PAGE_SIZE,
+    currentPage * PAGE_SIZE + PAGE_SIZE,
+  );
 
   const literatureControls = (
     <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center md:gap-3">
@@ -107,6 +139,31 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
           {kbdShortcut}
         </span>
+      </div>
+
+      <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
+        <button
+          type="button"
+          onClick={() => setSortOrder("newest")}
+          className={cn(
+            "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
+            sortOrder === "newest" ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
+          )}
+          aria-pressed={sortOrder === "newest"}
+        >
+          Newest
+        </button>
+        <button
+          type="button"
+          onClick={() => setSortOrder("oldest")}
+          className={cn(
+            "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
+            sortOrder === "oldest" ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
+          )}
+          aria-pressed={sortOrder === "oldest"}
+        >
+          Oldest
+        </button>
       </div>
 
       <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
@@ -168,7 +225,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
 
             {!showPublicationSkeletons ? (
               <div>
-                {publications.map((publication) => (
+                {pageItems.map((publication) => (
                   <PublicationRow
                     key={publication.pmid}
                     publication={publication}
@@ -179,24 +236,35 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
               </div>
             ) : null}
 
-            {!showPublicationSkeletons && !publications.length ? (
+            {!showPublicationSkeletons && !sortedPublications.length ? (
               <div className="px-2 py-12 text-[15px] text-muted">
                 No publications matched this filter.
               </div>
             ) : null}
           </div>
 
-          {publicationsQuery.hasNextPage ? (
-            <div className="flex justify-center">
+          {!showPublicationSkeletons && sortedPublications.length > PAGE_SIZE ? (
+            <div className="flex items-center justify-center gap-4 pt-2">
               <button
                 type="button"
-                className="focus-ring rounded-full border border-line px-5 py-2.5 text-[14px] text-text"
-                disabled={publicationsQuery.isFetchingNextPage}
-                onClick={() => void publicationsQuery.fetchNextPage()}
+                aria-label="Previous page"
+                disabled={currentPage === 0}
+                onClick={() => setPage((current) => Math.max(0, current - 1))}
+                className="focus-ring rounded-full border border-line p-2.5 text-text disabled:opacity-40"
               >
-                {publicationsQuery.isFetchingNextPage
-                  ? "Loading more publications…"
-                  : "Load more publications"}
+                <ChevronLeft size={18} strokeWidth={1.75} />
+              </button>
+              <span className="text-[14px] text-muted tabular-nums">
+                Page {currentPage + 1} of {totalPages}
+              </span>
+              <button
+                type="button"
+                aria-label="Next page"
+                disabled={currentPage >= totalPages - 1}
+                onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}
+                className="focus-ring rounded-full border border-line p-2.5 text-text disabled:opacity-40"
+              >
+                <ChevronRight size={18} strokeWidth={1.75} />
               </button>
             </div>
           ) : null}
