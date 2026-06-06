@@ -271,6 +271,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
       searchPlaceholder="Search trial titles"
       onClearAll={hasActiveFilters ? clearFilters : undefined}
       sticky={false}
+      className="relative z-20"
     />
   );
 
