@@ -8,7 +8,7 @@ from typing import Iterable
 from xml.etree import ElementTree as ET
 
 import httpx
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.services.http_retry import run_http_request
 from sqlalchemy.dialects.postgresql import insert
@@ -149,18 +149,28 @@ async def ingest_publications(session: AsyncSession) -> int:
         return 0
 
     stmt = insert(Publication).values(all_rows)
+    set_ = {
+        "title": stmt.excluded.title,
+        "authors": stmt.excluded.authors,
+        "journal": stmt.excluded.journal,
+        "pub_date": stmt.excluded.pub_date,
+        "abstract": stmt.excluded.abstract,
+        "doi": stmt.excluded.doi,
+        "url": stmt.excluded.url,
+        "updated_at": func.now(),
+    }
+    _DISTINCT_EXCLUDE = {"updated_at"}
+    changed = or_(
+        *(
+            getattr(Publication, col).is_distinct_from(getattr(stmt.excluded, col))
+            for col in set_
+            if col not in _DISTINCT_EXCLUDE
+        )
+    )
     upsert = stmt.on_conflict_do_update(
         index_elements=[Publication.pmid],
-        set_={
-            "title": stmt.excluded.title,
-            "authors": stmt.excluded.authors,
-            "journal": stmt.excluded.journal,
-            "pub_date": stmt.excluded.pub_date,
-            "abstract": stmt.excluded.abstract,
-            "doi": stmt.excluded.doi,
-            "url": stmt.excluded.url,
-            "updated_at": func.now(),
-        },
+        set_=set_,
+        where=changed,
     )
     await session.execute(upsert)
     await session.commit()

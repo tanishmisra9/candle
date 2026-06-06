@@ -4,7 +4,7 @@ from datetime import date
 from typing import Any
 
 import httpx
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.services.http_retry import run_http_request
 from sqlalchemy.dialects.postgresql import insert
@@ -183,25 +183,35 @@ async def ingest_trials(session: AsyncSession) -> int:
         return 0
 
     stmt = insert(Trial).values(rows)
+    set_ = {
+        "title": stmt.excluded.title,
+        "status": stmt.excluded.status,
+        "phase": stmt.excluded.phase,
+        "start_date": stmt.excluded.start_date,
+        "completion_date": stmt.excluded.completion_date,
+        "sponsor": stmt.excluded.sponsor,
+        "intervention": stmt.excluded.intervention,
+        "intervention_type": stmt.excluded.intervention_type,
+        "enrollment": stmt.excluded.enrollment,
+        "primary_endpoint": stmt.excluded.primary_endpoint,
+        "locations": stmt.excluded.locations,
+        "contact_email": stmt.excluded.contact_email,
+        "url": stmt.excluded.url,
+        "raw_json": stmt.excluded.raw_json,
+        "updated_at": func.now(),
+    }
+    _DISTINCT_EXCLUDE = {"raw_json", "updated_at"}
+    changed = or_(
+        *(
+            getattr(Trial, col).is_distinct_from(getattr(stmt.excluded, col))
+            for col in set_
+            if col not in _DISTINCT_EXCLUDE
+        )
+    )
     upsert = stmt.on_conflict_do_update(
         index_elements=[Trial.id],
-        set_={
-            "title": stmt.excluded.title,
-            "status": stmt.excluded.status,
-            "phase": stmt.excluded.phase,
-            "start_date": stmt.excluded.start_date,
-            "completion_date": stmt.excluded.completion_date,
-            "sponsor": stmt.excluded.sponsor,
-            "intervention": stmt.excluded.intervention,
-            "intervention_type": stmt.excluded.intervention_type,
-            "enrollment": stmt.excluded.enrollment,
-            "primary_endpoint": stmt.excluded.primary_endpoint,
-            "locations": stmt.excluded.locations,
-            "contact_email": stmt.excluded.contact_email,
-            "url": stmt.excluded.url,
-            "raw_json": stmt.excluded.raw_json,
-            "updated_at": func.now(),
-        },
+        set_=set_,
+        where=changed,
     )
     await session.execute(upsert)
     await session.commit()
