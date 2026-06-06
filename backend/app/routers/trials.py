@@ -6,13 +6,14 @@ import hashlib
 import json
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.models import Publication, Trial
 from app.schemas import TrialCursorPage, TrialDetail, TrialSummary
+from app.services.llm_guardrails import TRIALS_READ_ROUTE, enforce_rate_limit
 from app.services.trials import derive_outcomes
 
 
@@ -174,6 +175,7 @@ async def fetch_trial_cursor_page(
 
 @router.get("", response_model=list[TrialSummary] | TrialCursorPage)
 async def list_trials(
+    request: Request,
     status: str | None = None,
     phase: str | None = None,
     phases: list[str] | None = Query(default=None),
@@ -185,6 +187,8 @@ async def list_trials(
     limit: int = Query(default=100, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
 ) -> list[TrialSummary] | TrialCursorPage:
+    await enforce_rate_limit(request, TRIALS_READ_ROUTE)
+
     if cursor or envelope:
         return await fetch_trial_cursor_page(
             session,
@@ -219,8 +223,12 @@ async def list_trials(
 
 @router.get("/{trial_id}", response_model=TrialDetail)
 async def get_trial(
-    trial_id: str, session: AsyncSession = Depends(get_session)
+    request: Request,
+    trial_id: str,
+    session: AsyncSession = Depends(get_session),
 ) -> TrialDetail:
+    await enforce_rate_limit(request, TRIALS_READ_ROUTE)
+
     trial = await session.scalar(select(Trial).where(Trial.id == trial_id))
     if not trial:
         raise HTTPException(status_code=404, detail="Trial not found")

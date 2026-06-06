@@ -113,15 +113,17 @@ export function AskPanel({
                 ),
               );
             })
-            .catch(() => {
+            .catch((error) => {
+              const isRateLimited = /rate limit|too many/i.test(String(error?.message ?? ""));
               setStatusMessage("Answer could not be completed.");
               setMessages((current) =>
                 current.map((message) =>
                   message.id === assistantId
                     ? {
                         ...message,
-                        content:
-                          "I couldn't complete that answer just now. Please check that the backend is running and the OpenAI key is configured.",
+                        content: isRateLimited
+                          ? "Too many requests. Please wait a moment and try again."
+                          : "I couldn't complete that answer just now. Please check that the backend is running and the OpenAI key is configured.",
                       }
                     : message,
                 ),

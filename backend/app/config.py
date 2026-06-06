@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     ask_rate_limit_burst: int = 2
     publication_overview_rate_limit_per_minute: int = 20
     publication_overview_rate_limit_burst: int = 5
+    read_rate_limit_per_minute: int = 60
+    read_rate_limit_burst: int = 0
     llm_concurrency_limit: int = 8
     llm_request_body_max_bytes: int = 8 * 1024
     ask_question_max_chars: int = 2000

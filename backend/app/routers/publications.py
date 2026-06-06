@@ -16,8 +16,10 @@ from app.schemas import (
     PublicationSummary,
 )
 from app.services.llm_guardrails import (
+    PUBLICATIONS_READ_ROUTE,
     PUBLICATION_OVERVIEW_ROUTE,
     enforce_llm_rate_limit,
+    enforce_rate_limit,
     llm_concurrency_slot,
 )
 from app.services.openai_executor import (
@@ -159,6 +161,7 @@ async def fetch_publication_cursor_page(
 
 @router.get("", response_model=list[PublicationSummary] | PublicationCursorPage)
 async def list_publications(
+    request: Request,
     trial_id: str | None = None,
     q: str | None = None,
     linked_only: bool = False,
@@ -167,6 +170,8 @@ async def list_publications(
     limit: int = Query(default=200, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
 ) -> list[PublicationSummary] | PublicationCursorPage:
+    await enforce_rate_limit(request, PUBLICATIONS_READ_ROUTE)
+
     if cursor or envelope:
         return await fetch_publication_cursor_page(
             session,

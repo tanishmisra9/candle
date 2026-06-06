@@ -14,6 +14,8 @@ from app.config import get_settings
 
 ASK_ROUTE = "ask"
 PUBLICATION_OVERVIEW_ROUTE = "publication_overview"
+TRIALS_READ_ROUTE = "trials_read"
+PUBLICATIONS_READ_ROUTE = "publications_read"
 
 
 @dataclass(frozen=True)
@@ -85,7 +87,12 @@ def route_limit(route_name: str) -> RouteLimit:
             limit_per_minute=settings.publication_overview_rate_limit_per_minute,
             burst=settings.publication_overview_rate_limit_burst,
         )
-    raise ValueError(f"Unknown LLM route: {route_name}")
+    if route_name in {TRIALS_READ_ROUTE, PUBLICATIONS_READ_ROUTE}:
+        return RouteLimit(
+            limit_per_minute=settings.read_rate_limit_per_minute,
+            burst=settings.read_rate_limit_burst,
+        )
+    raise ValueError(f"Unknown rate-limited route: {route_name}")
 
 
 def request_body_limit_bytes() -> int:
@@ -109,7 +116,7 @@ def client_ip_from_request(request: Request) -> str:
     return "unknown"
 
 
-async def enforce_llm_rate_limit(request: Request, route_name: str) -> None:
+async def enforce_rate_limit(request: Request, route_name: str) -> None:
     limit = route_limit(route_name)
     key = f"{route_name}:{client_ip_from_request(request)}"
     retry_after = await _rate_limiter.check(key, limit)
@@ -119,6 +126,9 @@ async def enforce_llm_rate_limit(request: Request, route_name: str) -> None:
             detail="Rate limit exceeded for this endpoint.",
             headers={"Retry-After": str(retry_after)},
         )
+
+
+enforce_llm_rate_limit = enforce_rate_limit
 
 
 @asynccontextmanager
