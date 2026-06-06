@@ -234,7 +234,7 @@ export function FilterBar({
                       id={menuId}
                       role="menu"
                       aria-labelledby={`${instanceId}-${slugifyLabel(group.label)}-trigger`}
-                      className="absolute left-0 top-[calc(100%+10px)] z-20 w-60 rounded-[20px] border border-line bg-panel p-2 shadow-panel backdrop-blur-2xl"
+                      className="absolute left-0 top-[calc(100%+10px)] z-50 w-60 rounded-[20px] border border-line bg-panel p-2 shadow-panel backdrop-blur-2xl"
                     >
                       {group.options.map((option, optionIndex) => {
                         const isSelected = isMultiSelect

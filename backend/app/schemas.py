@@ -83,6 +83,10 @@ class SyncLogEntry(BaseModel):
     error_message: str | None = None
 
 
+class SyncStatusResponse(BaseModel):
+    last_synced: datetime | None = None
+
+
 class AskRequest(BaseModel):
     question: str
 

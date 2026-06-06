@@ -2,6 +2,7 @@ import type {
   AskResponse,
   CursorPage,
   PublicationSummary,
+  SyncStatus,
   TrialDetail,
   TrialSummary,
 } from "../types";
@@ -68,6 +69,10 @@ export async function listPublicationsPage(params: Record<string, QueryParamValu
   return request<CursorPage<PublicationSummary>>(
     `/publications?${buildSearchParams(params).toString()}`,
   );
+}
+
+export async function getSyncLastSynced() {
+  return request<SyncStatus>("/sync/last-synced");
 }
 
 export async function getPublicationOverview(pmid: string) {

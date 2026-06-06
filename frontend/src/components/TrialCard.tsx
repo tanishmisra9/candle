@@ -1,16 +1,18 @@
 import { memo } from "react";
 import { Building2, MapPin, Users } from "lucide-react";
 
+import { highlightText } from "../lib/highlight";
 import type { TrialSummary } from "../types";
 import { PhasePill } from "./PhasePill";
 import { StatusBadge } from "./StatusBadge";
 
 type TrialCardProps = {
   trial: TrialSummary;
+  query?: string;
   onOpen: (trialId: string) => void;
 };
 
-export const TrialCard = memo(function TrialCard({ trial, onOpen }: TrialCardProps) {
+export const TrialCard = memo(function TrialCard({ trial, query = "", onOpen }: TrialCardProps) {
   const enrollmentLabel =
     trial.enrollment === null ? "Participant count unavailable" : `${trial.enrollment} participants`;
   const locationCount = trial.locations.length;
@@ -28,7 +30,7 @@ export const TrialCard = memo(function TrialCard({ trial, onOpen }: TrialCardPro
       </div>
 
       <h3 className="mt-6 line-clamp-2 text-[20px] font-medium leading-7 tracking-[-0.015em] text-text">
-        {trial.title}
+        {highlightText(trial.title, query)}
       </h3>
       <p className="mt-3.5 line-clamp-2 text-[15px] leading-[1.6] text-muted">
         {trial.intervention || "Intervention details not reported."}

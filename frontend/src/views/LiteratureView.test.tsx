@@ -27,6 +27,10 @@ describe("LiteratureView", () => {
   it("auto-fetches all pages and shows total count", async () => {
     vi.mocked(listPublicationsPage).mockImplementation(
       async (params: Record<string, string | number | boolean | string[] | undefined>) => {
+        if (params.limit === 1 && params.envelope === "true" && !params.cursor) {
+          return { items: [], next_cursor: null, total: 2 };
+        }
+
         if (params.cursor === "cursor-2") {
           return {
             items: [
@@ -72,7 +76,7 @@ describe("LiteratureView", () => {
     expect(await screen.findByText("2 publications tracked")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(listPublicationsPage).toHaveBeenCalledTimes(2);
+      expect(listPublicationsPage).toHaveBeenCalledTimes(3);
     });
   });
 });

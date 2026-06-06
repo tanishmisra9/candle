@@ -1,5 +1,6 @@
-import { memo, type ReactNode } from "react";
+import { memo, useEffect, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { Check, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -47,6 +48,29 @@ export const ChatMessage = memo(function ChatMessage({
   const isUser = message.role === "user";
   const prefersReducedMotion = useReducedMotion();
   const entranceMotion = messageEntranceMotion(prefersReducedMotion);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setCopied(false), 1500);
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
+
+  async function handleCopy() {
+    if (!message.content.trim()) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+    } catch {
+      // Clipboard access can fail in unsupported contexts; fail silently.
+    }
+  }
 
   return (
     <motion.div
@@ -60,9 +84,19 @@ export const ChatMessage = memo(function ChatMessage({
           className={`rounded-[24px] shadow-panel ${
             isUser
               ? "border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.05)] px-5 py-3.5 text-[15px] leading-[1.6] text-text backdrop-blur-xl"
-              : "border border-line bg-glass px-6 py-5 text-[16px] leading-[1.6] text-text backdrop-blur-2xl"
+              : "group relative border border-line bg-glass px-6 py-5 pr-14 text-[16px] leading-[1.6] text-text backdrop-blur-2xl"
           }`}
         >
+          {!isUser ? (
+            <button
+              type="button"
+              onClick={() => void handleCopy()}
+              className="focus-ring absolute right-3 top-3 rounded-full p-2 text-muted opacity-0 transition hover:text-text focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
+              aria-label={copied ? "Copied" : "Copy response"}
+            >
+              {copied ? <Check size={16} strokeWidth={1.75} /> : <Copy size={16} strokeWidth={1.75} />}
+            </button>
+          ) : null}
           {isUser ? (
             message.content
           ) : (

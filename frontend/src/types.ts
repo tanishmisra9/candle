@@ -38,6 +38,10 @@ export type CursorPage<T> = {
   total: number;
 };
 
+export type SyncStatus = {
+  last_synced: string | null;
+};
+
 export type OutcomeEntry = {
   outcome_type: string;
   measure: string;

@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Footer } from "./components/Footer";
 import { GlassNav } from "./components/GlassNav";
 import { PublicationSnapshot } from "./components/PublicationSnapshot";
 import { TrialSnapshot } from "./components/TrialSnapshot";
@@ -113,6 +114,7 @@ export default function App() {
             </ErrorBoundary>
           </Suspense>
         </main>
+        <Footer />
       </div>
       <TrialSnapshot
         trialId={selectedTrialId}

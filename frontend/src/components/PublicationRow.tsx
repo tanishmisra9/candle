@@ -1,9 +1,11 @@
 import { memo } from "react";
 
+import { highlightText } from "../lib/highlight";
 import type { PublicationSummary } from "../types";
 
 type PublicationRowProps = {
   publication: PublicationSummary;
+  query?: string;
   onOpen: (publication: PublicationSummary) => void;
 };
 
@@ -13,10 +15,24 @@ function formatAuthors(publication: PublicationSummary) {
   return `${leadAuthor} et al., ${year}`;
 }
 
+function abstractPreview(abstract: string | null) {
+  if (!abstract?.trim()) {
+    return null;
+  }
+  const trimmed = abstract.trim();
+  if (trimmed.length <= 200) {
+    return trimmed;
+  }
+  return `${trimmed.slice(0, 200).trimEnd()}…`;
+}
+
 export const PublicationRow = memo(function PublicationRow({
   publication,
+  query = "",
   onOpen,
 }: PublicationRowProps) {
+  const preview = abstractPreview(publication.abstract);
+
   return (
     <button
       type="button"
@@ -27,12 +43,17 @@ export const PublicationRow = memo(function PublicationRow({
         <div className="flex items-start gap-3">
           <div className="min-w-0">
             <h3 className="text-[19px] font-medium leading-7 tracking-[-0.015em] text-text">
-              {publication.title}
+              {highlightText(publication.title, query)}
             </h3>
             <p className="mt-2 text-[15px] text-muted">{formatAuthors(publication)}</p>
             <p className="mt-1.5 text-[15px] italic text-muted">
               {publication.journal || "Journal not listed"}
             </p>
+            {preview ? (
+              <p className="mt-3 line-clamp-3 text-[14px] leading-[1.6] text-muted">
+                {highlightText(preview, query)}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

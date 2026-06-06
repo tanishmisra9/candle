@@ -26,13 +26,18 @@ class DummyExecuteResult:
 
 
 class DummySyncSession:
-    def __init__(self, rows):
+    def __init__(self, rows, scalar_value=None):
         self.rows = rows
+        self.scalar_value = scalar_value
         self.statement = None
 
     async def execute(self, stmt):
         self.statement = stmt
         return DummyExecuteResult(self.rows[:5])
+
+    async def scalar(self, stmt):
+        self.statement = stmt
+        return self.scalar_value
 
 
 def override_session(session):
@@ -88,5 +93,25 @@ def test_sync_status_returns_recent_sync_rows():
     assert "FROM sync_log" in sql
     assert "ORDER BY sync_log.started_at DESC" in sql
     assert "LIMIT" in sql
+
+    app.dependency_overrides.clear()
+
+
+def test_sync_last_synced_returns_most_recent_successful_run():
+    last_synced = datetime(2026, 6, 3, 14, 22, tzinfo=timezone.utc)
+    session = DummySyncSession([], scalar_value=last_synced)
+    app.dependency_overrides[get_session] = override_session(session)
+    client = TestClient(app)
+
+    response = client.get("/sync/last-synced")
+
+    assert response.status_code == 200
+    assert response.json()["last_synced"] == "2026-06-03T14:22:00Z"
+
+    sql = str(session.statement)
+    assert "FROM sync_log" in sql
+    assert "max" in sql.lower()
+    assert "sync_log.finished_at" in sql
+    assert "sync_log.status" in sql
 
     app.dependency_overrides.clear()

@@ -25,7 +25,7 @@ function renderWithQueryClient(node: React.ReactNode) {
 
 describe("DashboardView", () => {
   it("renders trial cards when the cursor API returns items", async () => {
-    vi.mocked(listTrialsPage).mockResolvedValueOnce({
+    const page = {
       items: [
         {
           id: "NCT123",
@@ -46,7 +46,17 @@ describe("DashboardView", () => {
       ],
       next_cursor: null,
       total: 1,
-    });
+    };
+
+    vi.mocked(listTrialsPage).mockImplementation(
+      async (params: Record<string, string | number | boolean | string[] | undefined>) => {
+        if (params.limit === 1 && params.envelope === "true" && !params.cursor) {
+          return { items: [], next_cursor: null, total: 1 };
+        }
+
+        return page;
+      },
+    );
 
     renderWithQueryClient(<DashboardView onOpenTrialSnapshot={vi.fn()} />);
 

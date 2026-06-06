@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 
 import { PublicationRow } from "../components/PublicationRow";
@@ -57,6 +57,12 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     ...catalogQueryOptions,
   });
 
+  const unfilteredPublicationsQuery = useQuery({
+    queryKey: ["publications", "total"],
+    queryFn: () => listPublicationsPage({ envelope: "true", limit: 1 }),
+    ...catalogQueryOptions,
+  });
+
   useEffect(() => {
     if (publicationsQuery.hasNextPage && !publicationsQuery.isFetchingNextPage) {
       void publicationsQuery.fetchNextPage();
@@ -69,6 +75,9 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
 
   const publications = publicationsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const publicationTotal = publicationsQuery.data?.pages[0]?.total ?? publications.length;
+  const unfilteredPublicationTotal =
+    unfilteredPublicationsQuery.data?.total ?? publicationTotal;
+  const hasFilters = Boolean(normalizedSearch || linkedOnly);
   const showPublicationSkeletons = publicationsQuery.isPending;
 
   const literatureControls = (
@@ -125,7 +134,9 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
       <header className="space-y-2">
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
-          {publicationTotal} publications tracked
+          {hasFilters
+            ? `Showing ${publicationTotal} of ${unfilteredPublicationTotal} publications`
+            : `${publicationTotal} publications tracked`}
         </h1>
       </header>
 
@@ -161,6 +172,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                   <PublicationRow
                     key={publication.pmid}
                     publication={publication}
+                    query={normalizedSearch}
                     onOpen={onOpenPublicationSnapshot}
                   />
                 ))}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { FilterBar } from "../components/FilterBar";
 import { Timeline } from "../components/Timeline";
@@ -168,8 +168,15 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     ...catalogQueryOptions,
   });
 
+  const unfilteredTrialsQuery = useQuery({
+    queryKey: ["trials", "total"],
+    queryFn: () => listTrialsPage({ envelope: "true", limit: 1 }),
+    ...catalogQueryOptions,
+  });
+
   const allTrials = trialsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const trialTotal = trialsQuery.data?.pages[0]?.total ?? allTrials.length;
+  const unfilteredTrialTotal = unfilteredTrialsQuery.data?.total ?? trialTotal;
   const activeFilters = {
     status,
     phases: phase,
@@ -294,14 +301,18 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
       <header className="space-y-2">
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
-          {trialTotal} trials tracked
+          {hasActiveFilters
+            ? `Showing ${trialTotal} of ${unfilteredTrialTotal} trials`
+            : `${trialTotal} trials tracked`}
         </h1>
       </header>
 
       <div className="space-y-4">
         <div className="glass-nav flex flex-col gap-3 rounded-[24px] px-4 py-4 md:flex-row md:items-start md:justify-between">
           {filterBar}
-          <div className="flex items-center justify-start md:pt-4">{timelineToggle}</div>
+          <div className="relative z-10 flex items-center justify-start md:pt-4">
+            {timelineToggle}
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -328,7 +339,12 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
             <div className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {trials.map((trial) => (
-                  <TrialCard key={trial.id} trial={trial} onOpen={onOpenTrialSnapshot} />
+                  <TrialCard
+                    key={trial.id}
+                    trial={trial}
+                    query={normalizedSearch}
+                    onOpen={onOpenTrialSnapshot}
+                  />
                 ))}
               </div>
               {!trials.length ? (
