@@ -190,14 +190,16 @@ class FakeInsertStatement:
         self.excluded = FakeExcluded()
         self.index_elements = None
         self.set_values = None
+        self.where_clause = None
 
     def values(self, rows):
         self.rows = list(rows)
         return self
 
-    def on_conflict_do_update(self, *, index_elements, set_):
+    def on_conflict_do_update(self, *, index_elements, set_, where=None):
         self.index_elements = index_elements
         self.set_values = set_
+        self.where_clause = where
         return self
 
 
@@ -230,3 +232,47 @@ async def test_ingest_trials_skips_irrelevant_raw_studies(monkeypatch):
     assert session.commit_calls == 1
     assert len(session.statements) == 1
     assert [row["id"] for row in fake_stmt.rows] == ["NCT20000001"]
+
+
+@pytest.mark.asyncio
+async def test_ingest_trials_upsert_only_updates_when_content_differs(monkeypatch):
+    relevant_study = make_study(
+        "NCT20000001",
+        brief_title="Gene therapy for choroideremia",
+    )
+    session = DummySession()
+    fake_client = FakeAsyncClient([{"studies": [relevant_study]}])
+    fake_stmt = FakeInsertStatement()
+
+    monkeypatch.setattr(
+        "app.ingest.clinicaltrials.httpx.AsyncClient",
+        lambda timeout: fake_client,
+    )
+    monkeypatch.setattr("app.ingest.clinicaltrials.insert", lambda model: fake_stmt)
+
+    await ingest_trials(session)
+
+    assert fake_stmt.where_clause is not None
+    sql = str(fake_stmt.where_clause)
+    assert "IS DISTINCT FROM" in sql
+    for column in (
+        "title",
+        "status",
+        "phase",
+        "start_date",
+        "completion_date",
+        "sponsor",
+        "intervention",
+        "intervention_type",
+        "enrollment",
+        "primary_endpoint",
+        "locations",
+        "contact_email",
+        "url",
+    ):
+        assert f"trials.{column}" in sql
+    assert "raw_json" not in sql
+    assert "updated_at" not in sql
+    assert "trials.id" not in sql
+    assert "raw_json" in fake_stmt.set_values
+    assert "updated_at" in fake_stmt.set_values
