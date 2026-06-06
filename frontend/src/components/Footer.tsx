@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { differenceInDays, format, formatDistanceToNow, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 
 import { getSyncLastSynced } from "../lib/api";
 
@@ -9,11 +9,7 @@ function formatLastSynced(value: string) {
     return null;
   }
 
-  if (differenceInDays(new Date(), parsed) > 30) {
-    return format(parsed, "MMM d, yyyy");
-  }
-
-  return formatDistanceToNow(parsed, { addSuffix: true });
+  return format(parsed, "MMM d, yyyy");
 }
 
 export function Footer() {
@@ -34,7 +30,7 @@ export function Footer() {
   }
 
   return (
-    <footer className="mx-auto max-w-[1360px] px-4 pb-10 pt-2 text-xs text-muted/70 sm:px-5 md:px-10">
+    <footer className="mx-auto max-w-[1360px] px-4 pb-10 pt-2 text-center text-xs text-muted/70 sm:px-5 md:px-10">
       Data last synced: {formatted}
     </footer>
   );
