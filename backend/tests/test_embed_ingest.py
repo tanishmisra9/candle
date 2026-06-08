@@ -8,6 +8,7 @@ import pytest
 from app.ingest.embed import (
     ChunkRecord,
     build_publication_records,
+    build_trial_chunk,
     changed_publication_page,
     changed_trial_page,
     store_chunk_records,
@@ -145,6 +146,65 @@ async def test_changed_publication_page_skips_unchanged_publications():
 
     assert [publication.pmid for publication in changed_publications] == ["PMID2"]
     assert next_last_pmid == "PMID2"
+
+
+def test_build_trial_chunk_uses_human_readable_labels():
+    trial = SimpleNamespace(
+        id="NCT99999999",
+        title="BIIB111 Gene Therapy for Choroideremia",
+        status="COMPLETED",
+        phase="PHASE3",
+        intervention="timrepigene emparvovec",
+        intervention_type="Genetic",
+        primary_endpoint="Change in BCVA at 12 months",
+        sponsor="Biogen",
+        enrollment=170,
+        raw_json={
+            "protocolSection": {
+                "designModule": {"studyType": "INTERVENTIONAL"},
+                "armsInterventionsModule": {
+                    "interventions": [
+                        {"type": "GENETIC", "name": "timrepigene emparvovec"},
+                        {"type": "BIOLOGICAL", "name": "AAV2-REP1"},
+                    ]
+                },
+            }
+        },
+    )
+
+    chunk = build_trial_chunk(trial)
+
+    assert "NCT ID: NCT99999999" in chunk
+    assert "Status: Completed" in chunk
+    assert "Phase: Phase 3" in chunk
+    assert "Study Type: Interventional" in chunk
+    assert "Intervention Type: Genetic, Biological" in chunk
+    assert "Enrollment: 170 participants" in chunk
+    assert "Unknown" not in chunk
+
+
+def test_build_trial_chunk_combined_phase_and_missing_fields():
+    trial = SimpleNamespace(
+        id="NCT00000001",
+        title="Phase 1/2 CHM Study",
+        status="ENROLLING_BY_INVITATION",
+        phase="PHASE1/PHASE2",
+        intervention=None,
+        intervention_type=None,
+        primary_endpoint=None,
+        sponsor=None,
+        enrollment=None,
+        raw_json={},
+    )
+
+    chunk = build_trial_chunk(trial)
+
+    assert "Status: Enrolling by invitation" in chunk
+    assert "Phase: Phase 1/Phase 2" in chunk
+    assert "Study Type:" not in chunk
+    assert "Intervention:" not in chunk
+    assert "Enrollment:" not in chunk
+    assert "Sponsor:" not in chunk
 
 
 def test_build_publication_records_produces_single_chunk_per_publication():

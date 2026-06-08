@@ -24,12 +24,7 @@ export const TrialCard = memo(function TrialCard({ trial, query = "", onOpen }: 
       onClick={() => onOpen(trial.id)}
       className="focus-ring group flex h-full flex-col rounded-card border border-line bg-panel p-7 text-left shadow-panel transition-all hover:-translate-y-0.5 hover:border-[rgba(232,163,61,0.22)] hover:shadow-panel-hover"
     >
-      <div className="flex items-center justify-between gap-3">
-        <StatusBadge status={trial.status} />
-        <PhasePill phase={trial.phase} />
-      </div>
-
-      <h3 className="mt-6 line-clamp-2 text-[20px] font-medium leading-7 tracking-[-0.015em] text-text">
+      <h3 className="line-clamp-2 text-[20px] font-medium leading-7 tracking-[-0.015em] text-text">
         {highlightText(trial.title, query)}
       </h3>
       <p className="mt-3.5 line-clamp-2 text-[15px] leading-[1.6] text-muted">
@@ -51,6 +46,11 @@ export const TrialCard = memo(function TrialCard({ trial, query = "", onOpen }: 
           <span aria-hidden="true">{locationCount}</span>
           <span className="sr-only">{locationLabel}</span>
         </span>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <StatusBadge status={trial.status} />
+        <PhasePill phase={trial.phase} />
       </div>
     </button>
   );

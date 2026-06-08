@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { askQuestion, askQuestionStream } from "../lib/api";
 import type { AskMessage } from "../types";
 import { ChatMessage } from "./ChatMessage";
+import { LastSyncedLabel } from "./LastSyncedLabel";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 
@@ -250,6 +251,7 @@ export function AskPanel({
               <SendHorizonal size={17} strokeWidth={1.5} aria-hidden="true" />
             </Button>
           </div>
+          <LastSyncedLabel className="mt-2.5" />
         </div>
       </form>
     </div>

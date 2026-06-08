@@ -1,37 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { format, parseISO } from "date-fns";
+import { useLocation } from "react-router-dom";
 
-import { getSyncLastSynced } from "../lib/api";
-
-function formatLastSynced(value: string) {
-  const parsed = parseISO(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return format(parsed, "MMM d, yyyy");
-}
+import { LastSyncedLabel } from "./LastSyncedLabel";
 
 export function Footer() {
-  const syncQuery = useQuery({
-    queryKey: ["sync", "last-synced"],
-    queryFn: getSyncLastSynced,
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-  });
+  const location = useLocation();
 
-  if (syncQuery.isPending || syncQuery.isError || !syncQuery.data?.last_synced) {
-    return null;
-  }
-
-  const formatted = formatLastSynced(syncQuery.data.last_synced);
-  if (!formatted) {
+  // On the Ask page the sync label is rendered below the fixed input bar instead.
+  if (location.pathname === "/ask") {
     return null;
   }
 
   return (
-    <footer className="mx-auto max-w-[1360px] px-4 pb-10 pt-2 text-center text-xs text-muted/70 sm:px-5 md:px-10">
-      Data last synced: {formatted}
+    <footer className="mx-auto max-w-[1360px] px-4 pb-10 pt-2 sm:px-5 md:px-10">
+      <LastSyncedLabel />
     </footer>
   );
 }

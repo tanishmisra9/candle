@@ -168,8 +168,11 @@ def mock_rag_dependencies(monkeypatch):
     async def _fake_embed(_question: str) -> list[float]:
         return [0.0] * 3072
 
-    async def _fake_retrieve(_session, _embedding, limit=8, source_type=None):
+    async def _fake_hybrid(_session, _query, _embedding, limit=50, source_type=None):
         return _FAKE_CHUNKS
+
+    async def _fake_rerank(_query, chunks, top_n):
+        return chunks[:top_n]
 
     async def _fake_filter(_session, chunks):
         return chunks
@@ -181,7 +184,8 @@ def mock_rag_dependencies(monkeypatch):
         return []
 
     monkeypatch.setattr("app.services.rag.embed_query", _fake_embed)
-    monkeypatch.setattr("app.services.rag.retrieve_similar_chunks", _fake_retrieve)
+    monkeypatch.setattr("app.services.rag.retrieve_hybrid_chunks", _fake_hybrid)
+    monkeypatch.setattr("app.services.rag.rerank_chunks", _fake_rerank)
     monkeypatch.setattr("app.services.rag.filter_non_chm_trial_chunks", _fake_filter)
     monkeypatch.setattr("app.services.rag.enrich_sources", _fake_enrich)
     monkeypatch.setattr("app.services.rag.fetch_current_trials", _fake_fetch_current)

@@ -50,16 +50,113 @@ def build_publication_chunk(publication: Publication) -> str:
     )
 
 
+STATUS_LABELS = {
+    "RECRUITING": "Recruiting",
+    "NOT_YET_RECRUITING": "Not yet recruiting",
+    "ENROLLING_BY_INVITATION": "Enrolling by invitation",
+    "ACTIVE_NOT_RECRUITING": "Active, not recruiting",
+    "COMPLETED": "Completed",
+    "TERMINATED": "Terminated",
+    "WITHDRAWN": "Withdrawn",
+    "SUSPENDED": "Suspended",
+}
+
+PHASE_LABELS = {
+    "PHASE1": "Phase 1",
+    "PHASE2": "Phase 2",
+    "PHASE3": "Phase 3",
+    "PHASE4": "Phase 4",
+    "EARLY_PHASE1": "Early Phase 1",
+    "NA": "Not Applicable",
+}
+
+
+def prettify_status(status: str | None) -> str | None:
+    if not status:
+        return None
+    normalized = status.strip().upper()
+    return STATUS_LABELS.get(normalized) or status.strip().replace("_", " ").capitalize()
+
+
+def prettify_phase(phase: str | None) -> str | None:
+    if not phase:
+        return None
+    parts = [part.strip().upper() for part in phase.split("/") if part.strip()]
+    if not parts:
+        return None
+    return "/".join(PHASE_LABELS.get(part, part.replace("_", " ").title()) for part in parts)
+
+
+def extract_study_type(trial: Trial) -> str | None:
+    raw = trial.raw_json or {}
+    protocol = raw.get("protocolSection") or {}
+    design_module = protocol.get("designModule") or {}
+    study_type = design_module.get("studyType")
+    if not isinstance(study_type, str) or not study_type.strip():
+        return None
+    return study_type.strip().capitalize()
+
+
+def format_intervention_types(trial: Trial) -> str | None:
+    raw = trial.raw_json or {}
+    protocol = raw.get("protocolSection") or {}
+    arms_module = protocol.get("armsInterventionsModule") or {}
+    interventions = arms_module.get("interventions") or []
+    types: list[str] = []
+    for item in interventions:
+        if not isinstance(item, dict):
+            continue
+        value = item.get("type")
+        if isinstance(value, str) and value.strip():
+            label = value.strip().capitalize()
+            if label not in types:
+                types.append(label)
+    if types:
+        return ", ".join(types)
+
+    if trial.intervention_type:
+        fallback = [
+            part.strip().capitalize()
+            for part in trial.intervention_type.split("/")
+            if part.strip()
+        ]
+        if fallback:
+            return ", ".join(dict.fromkeys(fallback))
+    return None
+
+
 def build_trial_chunk(trial: Trial) -> str:
-    enrollment = f"{trial.enrollment} patients" if trial.enrollment is not None else "Unknown"
-    return (
-        f"Title: {trial.title}\n"
-        f"Status: {trial.status or 'Unknown'} | Phase: {trial.phase or 'Unknown'} | "
-        f"Intervention: {trial.intervention or 'Unknown'}\n"
-        f"Primary Endpoint: {trial.primary_endpoint or 'Unknown'}\n"
-        f"Enrollment: {enrollment}\n"
-        f"Sponsor: {trial.sponsor or 'Unknown'}"
-    )
+    lines = [f"Title: {trial.title}", f"NCT ID: {trial.id}"]
+
+    status = prettify_status(trial.status)
+    if status:
+        lines.append(f"Status: {status}")
+
+    phase = prettify_phase(trial.phase)
+    if phase:
+        lines.append(f"Phase: {phase}")
+
+    study_type = extract_study_type(trial)
+    if study_type:
+        lines.append(f"Study Type: {study_type}")
+
+    intervention_types = format_intervention_types(trial)
+    if intervention_types:
+        lines.append(f"Intervention Type: {intervention_types}")
+
+    if trial.intervention:
+        lines.append(f"Intervention: {trial.intervention}")
+
+    if trial.primary_endpoint:
+        lines.append(f"Primary Endpoint: {trial.primary_endpoint}")
+
+    if trial.enrollment is not None:
+        lines.append(f"Enrollment: {trial.enrollment} participants")
+
+    if trial.sponsor:
+        lines.append(f"Sponsor: {trial.sponsor}")
+
+    return "\n".join(lines)
 
 
 def needs_embedding_refresh(updated_at, embedded_at) -> bool:

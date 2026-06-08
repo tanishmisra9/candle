@@ -113,6 +113,15 @@ SCHEMA_RECONCILIATION_STATEMENTS = (
             USING hnsw (embedding halfvec_cosine_ops);
     END $$;
     """,
+    """
+    ALTER TABLE embeddings
+        ADD COLUMN IF NOT EXISTS content_tsv tsvector
+        GENERATED ALWAYS AS (to_tsvector('english', coalesce(content, ''))) STORED
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_embeddings_content_tsv
+    ON embeddings USING GIN (content_tsv)
+    """,
 )
 
 

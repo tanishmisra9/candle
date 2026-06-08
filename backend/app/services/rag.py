@@ -14,7 +14,8 @@ from app.schemas import AskResponse, AskSource
 from app.services.embeddings import embed_query, get_openai_client
 from app.services.glossary import expand_query
 from app.services.openai_executor import run_openai_operation
-from app.services.retrieval import RetrievedChunk, retrieve_similar_chunks
+from app.services.rerank import rerank_chunks
+from app.services.retrieval import RetrievedChunk, retrieve_hybrid_chunks
 
 _NCT_CITATION_RE = re.compile(r"\[NCT\d{8}\]")
 _PMID_CITATION_RE = re.compile(r"\[PMID(\d+)\]")
@@ -460,13 +461,16 @@ async def _prepare_question_context(
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for /ask.")
 
-    question_embedding = await embed_query(expand_query(question))
+    expanded = expand_query(question)
+    question_embedding = await embed_query(expanded)
     prioritize_trials = should_prioritize_trials(question)
-    retrieved = await retrieve_similar_chunks(
+    retrieved = await retrieve_hybrid_chunks(
         session,
+        expanded,
         question_embedding,
-        limit=12 if prioritize_trials else 8,
+        limit=50,
     )
+    retrieved = await rerank_chunks(question, retrieved, top_n=settings.rerank_top_n)
     filtered_chunks = await filter_non_chm_trial_chunks(session, retrieved)
     if prioritize_trials:
         trial_chunks = [chunk for chunk in filtered_chunks if chunk.source_type == "trial"]

@@ -1,9 +1,10 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 import { PublicationRow } from "../components/PublicationRow";
 import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
+import { ScrollToTopButton } from "../components/ScrollToTopButton";
 import { cn } from "../lib/cn";
 import { listPublicationsPage } from "../lib/api";
 import { catalogQueryOptions } from "../lib/queryClient";
@@ -24,6 +25,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [page, setPage] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const restoreScrollRef = useRef<number | null>(null);
   const searchFieldId = useId();
   const normalizedSearch = search.trim();
   const publicationQueryParams = useMemo(
@@ -111,6 +113,21 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     currentPage * PAGE_SIZE,
     currentPage * PAGE_SIZE + PAGE_SIZE,
   );
+
+  const goToPage = (updater: (current: number) => number) => {
+    // Capture the offset before the slice swaps so the layout-height change on
+    // the new page does not clamp the window scroll toward the top.
+    restoreScrollRef.current = window.scrollY;
+    setPage(updater);
+  };
+
+  useLayoutEffect(() => {
+    if (restoreScrollRef.current === null) {
+      return;
+    }
+    window.scrollTo(0, restoreScrollRef.current);
+    restoreScrollRef.current = null;
+  }, [currentPage]);
 
   const literatureControls = (
     <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row md:items-center md:gap-3">
@@ -249,7 +266,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                 type="button"
                 aria-label="Previous page"
                 disabled={currentPage === 0}
-                onClick={() => setPage((current) => Math.max(0, current - 1))}
+                onClick={() => goToPage((current) => Math.max(0, current - 1))}
                 className="focus-ring rounded-full border border-line p-2.5 text-text disabled:opacity-40"
               >
                 <ChevronLeft size={18} strokeWidth={1.75} />
@@ -261,7 +278,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                 type="button"
                 aria-label="Next page"
                 disabled={currentPage >= totalPages - 1}
-                onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}
+                onClick={() => goToPage((current) => Math.min(totalPages - 1, current + 1))}
                 className="focus-ring rounded-full border border-line p-2.5 text-text disabled:opacity-40"
               >
                 <ChevronRight size={18} strokeWidth={1.75} />
@@ -270,6 +287,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           ) : null}
         </div>
       </div>
+      <ScrollToTopButton />
     </div>
   );
 }

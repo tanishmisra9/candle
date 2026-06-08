@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-large"
     embedding_dimensions: int = 3072
     chat_model: str = "gpt-4.1-mini"
+    cohere_api_key: str = ""
+    rerank_enabled: bool = True
+    rerank_model: str = "rerank-v3.5"
+    rerank_top_n: int = 6
+    rerank_timeout_seconds: int = 10
     frontend_origin: str = "http://localhost:5173"
     trust_proxy_headers: bool = False
     ask_rate_limit_per_minute: int = 6

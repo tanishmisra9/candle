@@ -15,6 +15,11 @@ vi.mock("@tanstack/react-query", () => ({
     mutate: vi.fn(),
     isPending: false,
   }),
+  useQuery: () => ({
+    data: undefined,
+    isPending: true,
+    isError: false,
+  }),
 }));
 
 describe("AskPanel accessibility", () => {

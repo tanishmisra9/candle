@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS embeddings (
     content TEXT NOT NULL,
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
     embedding HALFVEC(3072) NOT NULL,
+    content_tsv tsvector GENERATED ALWAYS AS (to_tsvector('english', coalesce(content, ''))) STORED,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -107,3 +108,5 @@ CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_type, sour
 CREATE INDEX IF NOT EXISTS idx_embeddings_embedding_hnsw
     ON embeddings
     USING hnsw (embedding halfvec_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_embeddings_content_tsv
+    ON embeddings USING GIN (content_tsv);

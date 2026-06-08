@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -77,6 +77,50 @@ describe("LiteratureView", () => {
 
     await waitFor(() => {
       expect(listPublicationsPage).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  it("preserves scroll position when paginating", async () => {
+    const items = Array.from({ length: 60 }, (_, index) => ({
+      pmid: `PMID${index}`,
+      trial_id: null,
+      title: `Publication ${index}`,
+      authors: ["Author A"],
+      journal: "Journal",
+      pub_date: `2025-01-${String((index % 28) + 1).padStart(2, "0")}`,
+      abstract: "Abstract",
+      doi: null,
+      url: `https://example.com/${index}`,
+    }));
+
+    vi.mocked(listPublicationsPage).mockImplementation(
+      async (params: Record<string, string | number | boolean | string[] | undefined>) => {
+        if (params.limit === 1 && params.envelope === "true" && !params.cursor) {
+          return { items: [], next_cursor: null, total: 60 };
+        }
+        return { items, next_cursor: null, total: 60 };
+      },
+    );
+
+    const scrollToSpy = vi.fn();
+    Object.defineProperty(window, "scrollTo", {
+      writable: true,
+      configurable: true,
+      value: scrollToSpy,
+    });
+    Object.defineProperty(window, "scrollY", {
+      writable: true,
+      configurable: true,
+      value: 480,
+    });
+
+    renderWithQueryClient(<LiteratureView onOpenPublicationSnapshot={vi.fn()} />);
+
+    const nextButton = await screen.findByLabelText("Next page");
+    fireEvent.click(nextButton);
+
+    await waitFor(() => {
+      expect(scrollToSpy).toHaveBeenCalledWith(0, 480);
     });
   });
 });
