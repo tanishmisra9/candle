@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections import OrderedDict
 from collections.abc import AsyncIterator
 import re
@@ -16,6 +17,8 @@ from app.services.glossary import expand_query
 from app.services.openai_executor import run_openai_operation
 from app.services.rerank import rerank_chunks
 from app.services.retrieval import RetrievedChunk, retrieve_hybrid_chunks
+
+logger = logging.getLogger("candle.api")
 
 _NCT_CITATION_RE = re.compile(r"\[NCT\d{8}\]")
 _PMID_CITATION_RE = re.compile(r"\[PMID(\d+)\]")
@@ -466,14 +469,26 @@ async def _prepare_question_context(
     expanded = expand_query(question)
     question_embedding = await embed_query(expanded)
     prioritize_trials = should_prioritize_trials(question)
-    retrieved = await retrieve_hybrid_chunks(
+    after_hybrid = await retrieve_hybrid_chunks(
         session,
         expanded,
         question_embedding,
         limit=50,
     )
-    retrieved = await rerank_chunks(question, retrieved, top_n=settings.rerank_top_n)
-    filtered_chunks = await filter_non_chm_trial_chunks(session, retrieved)
+    logger.info(
+        "ASK_PIPELINE: after_hybrid=%s",
+        [f"{c.source_type}:{c.source_id}" for c in after_hybrid],
+    )
+    after_rerank = await rerank_chunks(question, after_hybrid, top_n=settings.rerank_top_n)
+    logger.info(
+        "ASK_PIPELINE: after_rerank=%s",
+        [f"{c.source_type}:{c.source_id}" for c in after_rerank],
+    )
+    filtered_chunks = await filter_non_chm_trial_chunks(session, after_rerank)
+    logger.info(
+        "ASK_PIPELINE: after_filter=%s",
+        [f"{c.source_type}:{c.source_id}" for c in filtered_chunks],
+    )
     if prioritize_trials:
         trial_chunks = [chunk for chunk in filtered_chunks if chunk.source_type == "trial"]
         other_chunks = [chunk for chunk in filtered_chunks if chunk.source_type != "trial"]
@@ -483,6 +498,10 @@ async def _prepare_question_context(
         chunks = rank_chunks(question, list(merged.values()))[:6]
     else:
         chunks = rank_chunks(question, filtered_chunks)[:6]
+    logger.info(
+        "ASK_PIPELINE: final_chunks=%s",
+        [f"{c.source_type}:{c.source_id}" for c in chunks],
+    )
 
     context_lines: list[str] = []
     sources: OrderedDict[str, AskSource] = OrderedDict()
@@ -625,7 +644,7 @@ def _extract_cited_ids(answer: str) -> tuple[set[str], set[str]]:
 
 
 async def answer_question(question: str, session) -> AskResponse:
-    state, _chunks, _context_lines, sources, payload = await _prepare_question_context(
+    state, chunks_used, _context_lines, sources, payload = await _prepare_question_context(
         question, session
     )
     if state in {"distress", "advice", "empty"}:
@@ -633,6 +652,11 @@ async def answer_question(question: str, session) -> AskResponse:
 
     settings = get_settings()
     context_block = payload or ""
+    logger.info(
+        "ASK_CONTEXT: source_ids in context = %s",
+        [c.source_id for c in chunks_used],
+    )
+    logger.info("ASK_CONTEXT: all sources in prompt = %s", list(sources.keys()))
     response = await run_openai_operation(
         lambda: get_openai_client().chat.completions.create(
             model=settings.chat_model,
@@ -673,7 +697,7 @@ async def answer_question(question: str, session) -> AskResponse:
 
 
 async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
-    state, _chunks, _context_lines, sources, payload = await _prepare_question_context(
+    state, chunks_used, _context_lines, sources, payload = await _prepare_question_context(
         question, session
     )
     if state in {"distress", "advice", "empty"}:
@@ -682,6 +706,11 @@ async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
 
     settings = get_settings()
     context_block = payload or ""
+    logger.info(
+        "ASK_CONTEXT: source_ids in context = %s",
+        [c.source_id for c in chunks_used],
+    )
+    logger.info("ASK_CONTEXT: all sources in prompt = %s", list(sources.keys()))
     stream = await asyncio.wait_for(
         get_openai_client().chat.completions.create(
             model=settings.chat_model,
