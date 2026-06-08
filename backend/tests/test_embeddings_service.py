@@ -24,7 +24,8 @@ async def test_embed_texts_raises_timeout_when_openai_times_out(monkeypatch):
         "app.services.embeddings.get_settings",
         lambda: SimpleNamespace(
             openai_api_key="test-key",
-            embedding_model="text-embedding-3-small",
+            embedding_model="text-embedding-3-large",
+            embedding_dimensions=3072,
             embedding_timeout_seconds=20,
             background_openai_max_retries=2,
             background_openai_retry_backoff_seconds=0.5,
@@ -49,7 +50,8 @@ async def test_embed_texts_retries_transient_failures(monkeypatch):
         "app.services.embeddings.get_settings",
         lambda: SimpleNamespace(
             openai_api_key="test-key",
-            embedding_model="text-embedding-3-small",
+            embedding_model="text-embedding-3-large",
+            embedding_dimensions=3072,
             embedding_timeout_seconds=20,
             background_openai_max_retries=2,
             background_openai_retry_backoff_seconds=0,
@@ -59,7 +61,7 @@ async def test_embed_texts_retries_transient_failures(monkeypatch):
     calls = {"count": 0}
 
     class FakeEmbeddingsClient:
-        async def create(self, *, model, input):
+        async def create(self, *, model, input, dimensions=None):
             calls["count"] += 1
             if calls["count"] == 1:
                 raise RuntimeError("temporary failure")
@@ -78,7 +80,8 @@ async def test_embed_texts_retries_transient_failures(monkeypatch):
 
     settings = SimpleNamespace(
         openai_api_key="test-key",
-        embedding_model="text-embedding-3-small",
+        embedding_model="text-embedding-3-large",
+        embedding_dimensions=3072,
         embedding_timeout_seconds=20,
         background_openai_max_retries=2,
         background_openai_retry_backoff_seconds=0,
@@ -101,7 +104,8 @@ async def test_embed_query_does_not_retry_transient_failures(monkeypatch):
         "app.services.embeddings.get_settings",
         lambda: SimpleNamespace(
             openai_api_key="test-key",
-            embedding_model="text-embedding-3-small",
+            embedding_model="text-embedding-3-large",
+            embedding_dimensions=3072,
             embedding_timeout_seconds=20,
             background_openai_max_retries=2,
             background_openai_retry_backoff_seconds=0,
@@ -111,7 +115,7 @@ async def test_embed_query_does_not_retry_transient_failures(monkeypatch):
     calls = {"count": 0}
 
     class FakeEmbeddingsClient:
-        async def create(self, *, model, input):
+        async def create(self, *, model, input, dimensions=None):
             calls["count"] += 1
             raise RuntimeError("temporary failure")
 

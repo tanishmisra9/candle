@@ -55,7 +55,7 @@ async def generate_trial_summary_text(trial: Trial) -> str | None:
 
     response = await run_openai_operation(
         lambda: get_openai_client().chat.completions.create(
-            model="gpt-4o-mini",
+            model=settings.chat_model,
             temperature=0.2,
             messages=[
                 {"role": "system", "content": TRIAL_SUMMARY_SYSTEM_PROMPT},

@@ -96,7 +96,7 @@ async def generate_publication_overview_text(abstract: str) -> str | None:
 
     response = await run_openai_operation(
         lambda: get_openai_client().chat.completions.create(
-            model="gpt-4o-mini",
+            model=settings.chat_model,
             temperature=0.2,
             messages=[
                 {"role": "system", "content": PUBLICATION_OVERVIEW_SYSTEM_PROMPT},

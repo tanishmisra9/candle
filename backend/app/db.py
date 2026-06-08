@@ -67,6 +67,52 @@ SCHEMA_RECONCILIATION_STATEMENTS = (
     CREATE INDEX IF NOT EXISTS idx_publications_cursor_sort
     ON publications (pub_date DESC NULLS LAST, pmid ASC)
     """,
+    """
+    DO $$
+    DECLARE
+        pgvector_version TEXT;
+        embedding_type TEXT;
+    BEGIN
+        SELECT extversion INTO pgvector_version
+        FROM pg_extension
+        WHERE extname = 'vector';
+
+        IF pgvector_version IS NULL THEN
+            RAISE EXCEPTION 'pgvector extension is not installed';
+        END IF;
+
+        IF pgvector_version::numeric < 0.7 THEN
+            RAISE EXCEPTION
+                'pgvector >= 0.7.0 is required for halfvec(3072) embeddings (found %)',
+                pgvector_version;
+        END IF;
+
+        SELECT atttypid::regtype::text INTO embedding_type
+        FROM pg_attribute
+        WHERE attrelid = 'embeddings'::regclass
+          AND attname = 'embedding'
+          AND NOT attisdropped;
+
+        IF embedding_type IS NULL THEN
+            RETURN;
+        END IF;
+
+        IF embedding_type = 'halfvec' THEN
+            RETURN;
+        END IF;
+
+        DROP INDEX IF EXISTS idx_embeddings_embedding_ivfflat;
+        DROP INDEX IF EXISTS idx_embeddings_embedding_hnsw;
+        TRUNCATE embeddings;
+        ALTER TABLE embeddings
+            ALTER COLUMN embedding TYPE halfvec(3072)
+            USING embedding::halfvec(3072);
+
+        CREATE INDEX IF NOT EXISTS idx_embeddings_embedding_hnsw
+            ON embeddings
+            USING hnsw (embedding halfvec_cosine_ops);
+    END $$;
+    """,
 )
 
 

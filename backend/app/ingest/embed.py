@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-import tiktoken
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,9 +13,6 @@ from app.services.embeddings import embed_texts
 
 
 MAX_BATCH_SIZE = 512
-MAX_TOKENS = 500
-MIN_TOKENS = 300
-CHARS_PER_TOKEN = 4
 SOURCE_PAGE_SIZE = 100
 
 
@@ -29,68 +24,30 @@ class ChunkRecord:
     metadata: dict[str, Any]
 
 
-def get_encoding(model_name: str):
-    try:
-        return tiktoken.encoding_for_model(model_name)
-    except KeyError:
-        return tiktoken.get_encoding("cl100k_base")
-
-
-def token_count(encoding, text: str) -> int:
-    return len(encoding.encode(text))
-
-
-def split_long_paragraph(paragraph: str) -> list[str]:
-    chunk_chars = MAX_TOKENS * CHARS_PER_TOKEN
-    return [
-        paragraph[index : index + chunk_chars].strip()
-        for index in range(0, len(paragraph), chunk_chars)
-        if paragraph[index : index + chunk_chars].strip()
-    ]
-
-
-def chunk_publication_text(title: str, abstract: str | None, encoding) -> list[str]:
-    if not abstract:
-        return [title]
-
-    combined = f"{title}\n\n{abstract}".strip()
-    if token_count(encoding, combined) <= MAX_TOKENS:
-        return [combined]
-
-    paragraphs = [part.strip() for part in re.split(r"\n\s*\n", abstract) if part.strip()]
-    prepared: list[str] = []
-    for paragraph in paragraphs:
-        if token_count(encoding, paragraph) > MAX_TOKENS:
-            prepared.extend(split_long_paragraph(paragraph))
-        else:
-            prepared.append(paragraph)
-
-    chunks: list[str] = []
-    current: list[str] = []
-    current_tokens = 0
-    for paragraph in prepared:
-        paragraph_tokens = token_count(encoding, paragraph)
-        if current and current_tokens + paragraph_tokens > MAX_TOKENS:
-            chunks.append(f"{title}\n\n" + "\n\n".join(current))
-            current = [paragraph]
-            current_tokens = paragraph_tokens
-            continue
-
-        current.append(paragraph)
-        current_tokens += paragraph_tokens
-        if current_tokens >= MIN_TOKENS:
-            chunks.append(f"{title}\n\n" + "\n\n".join(current))
-            current = []
-            current_tokens = 0
-
-    if current:
-        chunks.append(f"{title}\n\n" + "\n\n".join(current))
-
-    return chunks or [combined]
-
-
 def format_date(value: date | None) -> str | None:
     return value.isoformat() if value else None
+
+
+def format_authors(authors: list[str]) -> str:
+    if not authors:
+        return "Unknown"
+    lead_authors = [author.split(",")[0].strip() for author in authors[:3] if author.strip()]
+    if len(authors) > 3:
+        return ", ".join(lead_authors) + " et al."
+    return ", ".join(lead_authors)
+
+
+def build_publication_chunk(publication: Publication) -> str:
+    year = str(publication.pub_date.year) if publication.pub_date else "Unknown"
+    abstract = publication.abstract or "No abstract available."
+    return (
+        f"Title: {publication.title}\n"
+        f"Abstract: {abstract}\n"
+        f"Journal: {publication.journal or 'Unknown'}\n"
+        f"Year: {year}\n"
+        f"Authors: {format_authors(publication.authors)}\n"
+        f"PMID: {publication.pmid}"
+    )
 
 
 def build_trial_chunk(trial: Trial) -> str:
@@ -141,25 +98,22 @@ def build_trial_records(trials: list[Trial]) -> list[ChunkRecord]:
     return records
 
 
-def build_publication_records(
-    publications: list[Publication], encoding
-) -> list[ChunkRecord]:
+def build_publication_records(publications: list[Publication]) -> list[ChunkRecord]:
     records: list[ChunkRecord] = []
     for publication in publications:
-        for content in chunk_publication_text(publication.title, publication.abstract, encoding):
-            records.append(
-                ChunkRecord(
-                    source_type="publication",
-                    source_id=publication.pmid,
-                    content=content,
-                    metadata={
-                        "title": publication.title,
-                        "url": publication.url,
-                        "pub_date": format_date(publication.pub_date),
-                        "journal": publication.journal,
-                    },
-                )
+        records.append(
+            ChunkRecord(
+                source_type="publication",
+                source_id=publication.pmid,
+                content=build_publication_chunk(publication),
+                metadata={
+                    "title": publication.title,
+                    "url": publication.url,
+                    "pub_date": format_date(publication.pub_date),
+                    "journal": publication.journal,
+                },
             )
+        )
     return records
 
 
@@ -257,8 +211,6 @@ async def changed_publication_page(
 
 
 async def store_embeddings(session: AsyncSession) -> int:
-    settings_model_name = get_settings().embedding_model
-    encoding = get_encoding(settings_model_name)
     stored_count = 0
 
     last_trial_id: str | None = None
@@ -284,7 +236,7 @@ async def store_embeddings(session: AsyncSession) -> int:
             break
         stored_count += await store_chunk_records(
             session,
-            build_publication_records(changed_publications, encoding),
+            build_publication_records(changed_publications),
         )
 
     return stored_count

@@ -166,7 +166,7 @@ def mock_rag_dependencies(monkeypatch):
     """Patch all DB and embedding calls so live tests make only one real API call."""
 
     async def _fake_embed(_question: str) -> list[float]:
-        return [0.0] * 1536
+        return [0.0] * 3072
 
     async def _fake_retrieve(_session, _embedding, limit=8, source_type=None):
         return _FAKE_CHUNKS

@@ -39,6 +39,7 @@ async def embed_texts(
         lambda: get_openai_client(settings.openai_api_key).embeddings.create(
             model=settings.embedding_model,
             input=list(texts),
+            dimensions=settings.embedding_dimensions,
         ),
         timeout_seconds=settings.embedding_timeout_seconds,
         retries=retries,

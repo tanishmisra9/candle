@@ -100,7 +100,8 @@ def make_publication(pmid: str, updated_at: datetime, abstract: str | None = "Ab
         updated_at=updated_at,
         title=f"Publication {pmid}",
         abstract=abstract,
-        journal="Journal",
+        authors=["Smith, J", "Jones, A", "Brown, B", "White, C"],
+        journal="Journal of Ophthalmology",
         pub_date=None,
         url=f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
     )
@@ -146,15 +147,17 @@ async def test_changed_publication_page_skips_unchanged_publications():
     assert next_last_pmid == "PMID2"
 
 
-def test_build_publication_records_splits_multi_chunk_sources():
-    encoding = SimpleNamespace(encode=lambda text: list(range(len(text) // 4 + 1)))
+def test_build_publication_records_produces_single_chunk_per_publication():
     long_abstract = "\n\n".join(["A" * 2400, "B" * 2400, "C" * 2400])
     publication = make_publication("PMID-LONG", datetime.now(timezone.utc), abstract=long_abstract)
 
-    records = build_publication_records([publication], encoding)
+    records = build_publication_records([publication])
 
-    assert len(records) > 1
-    assert {record.source_id for record in records} == {"PMID-LONG"}
+    assert len(records) == 1
+    assert records[0].source_id == "PMID-LONG"
+    assert "PMID: PMID-LONG" in records[0].content
+    assert "Journal of Ophthalmology" in records[0].content
+    assert long_abstract in records[0].content
 
 
 @pytest.mark.asyncio

@@ -12,6 +12,7 @@ from app.models import Publication, Trial
 from app.config import get_settings
 from app.schemas import AskResponse, AskSource
 from app.services.embeddings import embed_query, get_openai_client
+from app.services.glossary import expand_query
 from app.services.openai_executor import run_openai_operation
 from app.services.retrieval import RetrievedChunk, retrieve_similar_chunks
 
@@ -459,7 +460,7 @@ async def _prepare_question_context(
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for /ask.")
 
-    question_embedding = await embed_query(question)
+    question_embedding = await embed_query(expand_query(question))
     prioritize_trials = should_prioritize_trials(question)
     retrieved = await retrieve_similar_chunks(
         session,

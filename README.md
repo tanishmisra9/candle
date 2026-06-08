@@ -76,8 +76,8 @@ Copy [`.env.example`](.env.example) to `.env` at the repo root. The backend read
 | --- | --- |
 | `DATABASE_URL` | Async SQLAlchemy URL (default: local Docker Postgres) |
 | `OPENAI_API_KEY` | Required for `/ask`, publication overviews, embeddings, trial summaries |
-| `EMBEDDING_MODEL` | OpenAI embedding model (default: `text-embedding-3-small`) |
-| `CHAT_MODEL` | OpenAI chat model for Ask (default: `gpt-4o-mini`) |
+| `EMBEDDING_MODEL` | OpenAI embedding model (default: `text-embedding-3-large`) |
+| `CHAT_MODEL` | OpenAI chat model for Ask (default: `gpt-4.1-mini`) |
 | `FRONTEND_ORIGIN` | CORS allowlist for the API (default: `http://localhost:5173`) |
 | `VITE_API_BASE_URL` | Frontend → backend base URL (default: `http://localhost:8000`) |
 | `DEPLOYMENT_ENV` | `development` or `production` — enforces production DB URL and `pg_trgm` behavior |

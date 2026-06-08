@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS embeddings (
     source_id TEXT NOT NULL,
     content TEXT NOT NULL,
     metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-    embedding VECTOR(1536) NOT NULL,
+    embedding HALFVEC(3072) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -104,7 +104,6 @@ CREATE INDEX IF NOT EXISTS idx_publications_abstract_trgm
 CREATE INDEX IF NOT EXISTS idx_publication_overviews_prompt_lookup
     ON publication_overviews(pmid, abstract_hash, prompt_version);
 CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_type, source_id);
-CREATE INDEX IF NOT EXISTS idx_embeddings_embedding_ivfflat
+CREATE INDEX IF NOT EXISTS idx_embeddings_embedding_hnsw
     ON embeddings
-    USING ivfflat (embedding vector_cosine_ops)
-    WITH (lists = 100);
+    USING hnsw (embedding halfvec_cosine_ops);

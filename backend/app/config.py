@@ -28,8 +28,9 @@ class Settings(BaseSettings):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         return url
     openai_api_key: str = ""
-    embedding_model: str = "text-embedding-3-small"
-    chat_model: str = "gpt-4o-mini"
+    embedding_model: str = "text-embedding-3-large"
+    embedding_dimensions: int = 3072
+    chat_model: str = "gpt-4.1-mini"
     frontend_origin: str = "http://localhost:5173"
     trust_proxy_headers: bool = False
     ask_rate_limit_per_minute: int = 6
