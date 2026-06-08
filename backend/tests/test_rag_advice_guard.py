@@ -69,3 +69,12 @@ def test_system_prompt_requires_answers_to_follow_retrieved_sources():
     )
     assert "Speak as if you simply know this." not in SYSTEM_PROMPT
     assert "strongest alternative" not in SYSTEM_PROMPT
+
+
+def test_system_prompt_trial_records_authoritative_for_metadata():
+    assert "TRIAL RECORDS ARE AUTHORITATIVE FOR TRIAL METADATA" in SYSTEM_PROMPT
+    assert '"Status:", "Phase:", "Study Type:", "Intervention Type:"' in SYSTEM_PROMPT
+    assert (
+        "do not hedge based on what publications say about the same trial"
+        in SYSTEM_PROMPT
+    )
