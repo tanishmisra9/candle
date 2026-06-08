@@ -81,7 +81,7 @@ SCHEMA_RECONCILIATION_STATEMENTS = (
             RAISE EXCEPTION 'pgvector extension is not installed';
         END IF;
 
-        IF pgvector_version::numeric < 0.7 THEN
+        IF string_to_array(pgvector_version, '.')::int[] < ARRAY[0,7,0] THEN
             RAISE EXCEPTION
                 'pgvector >= 0.7.0 is required for halfvec(3072) embeddings (found %)',
                 pgvector_version;
