@@ -100,6 +100,12 @@ class AskSource(BaseModel):
     detail: str | None = None
 
 
+class StructuredAskOutput(BaseModel):
+    response_type: Literal["answer", "refusal", "insufficient_context"]
+    answer_text: str
+    cited_ids: list[str]
+
+
 class AskResponse(BaseModel):
     answer: str
     sources: list[AskSource]

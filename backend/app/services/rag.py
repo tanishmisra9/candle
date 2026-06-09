@@ -1,27 +1,25 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from collections import OrderedDict
 from collections.abc import AsyncIterator
 import re
 
+from pydantic import ValidationError
 from sqlalchemy import case, select
 
 from app.models import Publication, Trial
 from app.config import get_settings
-from app.schemas import AskResponse, AskSource
+from app.schemas import AskResponse, AskSource, StructuredAskOutput
 from app.services.embeddings import embed_query, get_openai_client
 from app.services.glossary import expand_query
+from app.services.intent import classify_intent
 from app.services.openai_executor import run_openai_operation
 from app.services.rerank import rerank_chunks
 from app.services.retrieval import RetrievedChunk, retrieve_hybrid_chunks
 
 logger = logging.getLogger("candle.api")
-
-_NCT_CITATION_RE = re.compile(r"\[NCT\d{8}\]")
-_PMID_CITATION_RE = re.compile(r"\[PMID(\d+)\]")
 
 SYSTEM_PROMPT = """You are Candle, a read-only research index for Choroideremia (CHM) clinical trials and publications. Your sole function is to report factual information from the provided context - trial registration metadata, publication abstracts, and study statistics. You are not a clinician, advisor, or decision-support system of any kind.
 
@@ -64,12 +62,27 @@ WHEN TO USE THE REFUSAL TEXT - use it whenever a question:
 - Requests any form of clinical decision support, even indirectly or hypothetically
 
 ANSWER FORMAT FOR IN-SCOPE QUESTIONS. When a question is within scope:
-- Attribute every claim to its source: "According to [NCT ID]..." or "The abstract for PMID [X] reports..."
+- Attribute every claim to its source: "According to NCT02435940..." or "The abstract for PMID 37234567 reports..."
 - Describe only: status, phase, sponsor, intervention name, primary endpoint, enrollment figure, and reported outcomes with their population and timeframe
 - For questions using superlatives ('most', 'best', 'most advanced'), report the relevant factual data from the sources without characterizing which option is superior.
 - Never characterize results with evaluative adjectives
 - End every factual answer with: "For the most current information, verify at clinicaltrials.gov or pubmed.ncbi.nlm.nih.gov."
-- Each context section is labeled with its type and ID, for example trial:NCT02435940 or publication:37234567. When you draw on a source, cite it inline immediately after the reference using [NCT02435940] for trials or [PMID37234567] for publications. Only cite sources you directly used. Do not cite every source in the context.
+- Do not embed [NCT...] or [PMID...] markers in answer_text. List source IDs only in cited_ids.
+
+STRUCTURED OUTPUT. You MUST respond with a JSON object containing:
+- "response_type": one of "answer", "refusal", "insufficient_context"
+- "answer_text": the response shown to the user
+- "cited_ids": a list of NCT or PMID strings you drew from, or [] for refusal/insufficient_context
+
+response_type rules:
+- "answer": you have a sourced, factual response grounded in the provided context
+- "refusal": the user is seeking clinical advice, treatment recommendations, eligibility evaluation, prognosis, or any other form of personal medical guidance. Use the REFUSAL TEXT verbatim in answer_text.
+- "insufficient_context": the question is in-scope but you don't have the indexed records to answer it
+
+For refusal, answer_text MUST be exactly:
+"I can only report what is documented in indexed CHM trials and publications. For clinical decisions, trial eligibility, or advice about your care, please speak with your ophthalmologist or a CHM specialist. You can also reach the CureCHM patient community at curechm.org."
+
+For insufficient_context, answer_text should briefly say you don't have indexed records on that specific topic and suggest the user check clinicaltrials.gov or pubmed.ncbi.nlm.nih.gov.
 """
 
 ACTIVE_TRIAL_STATUSES = {
@@ -81,85 +94,16 @@ ACTIVE_TRIAL_STATUSES = {
 
 TRIAL_ID_PATTERN = re.compile(r"\bNCT\d{8}\b", re.IGNORECASE)
 PMID_PATTERN = re.compile(r"\bPMID\s*:?\s*(\d+)\b", re.IGNORECASE)
-ADVICE_PATTERNS = [
-    r"\bshould i\b",
-    r"\bshould we\b",
-    r"\bwould you recommend\b",
-    r"\bdo you recommend\b",
-    r"\bcan you recommend\b",
-    r"\bi need a recommendation\b",
-    r"\brecommendation for me\b",
-    r"\bany suggestions\b",
-    r"\bwhat do you suggest\b",
-    r"\bwhat would you suggest\b",
-    r"\bwhat would you advise\b",
-    r"\badvise me\b",
-    r"\bgive me advice\b",
-    r"\bis it worth\b",
-    r"\bworth (it|enrolling|joining|waiting|trying|pursuing)\b",
-    r"\bbetter (option|trial|choice|treatment|therapy)\b",
-    r"\bbest (option|trial|choice|treatment|therapy|for me|for my)\b",
-    r"\bmost (promising|effective|advanced|suitable|appropriate)\b",
-    r"\bmost likely to\b",
-    r"\bwhich trial (is|would|should|might)\b",
-    r"\bwhich (treatment|therapy|option|study) (is|would|should|might)\b",
-    r"\bwhat would you do\b",
-    r"\bwhat should i do\b",
-    r"\bwhat to do\b",
-    r"\bwait for\b",
-    r"\benroll or\b",
-    r"\bshould i enroll\b",
-    r"\bshould i join\b",
-    r"\bshould i try\b",
-    r"\bis .{0,40} right for me\b",
-    r"\bam i (eligible|a candidate|a good fit|suitable)\b",
-    r"\bwould i (qualify|be eligible|be a candidate)\b",
-    r"\bdo i qualify\b",
-    r"\bwhat's my prognosis\b",
-    r"\bhow long do i have\b",
-    r"\bwill i (go blind|lose my (sight|vision)|keep my (sight|vision))\b",
-    r"\bwhat are my (chances|options)\b",
-    r"\bis there (hope|a cure|a treatment) for me\b",
-    r"\bwill it work (for me)?\b",
-    r"\bdoes it work for\b",
-    r"\bis .{0,40} effective for me\b",
-    r"\bsafest (option|trial|treatment|therapy|choice)\b",
-    r"\bhelp me decide\b",
-    r"\bhelp me choose\b",
-    r"\bwhich one should\b",
-    r"\bappropriate for (me|my|us)\b",
-    r"\bsuitable for (me|my|us)\b",
-    r"\bright (treatment|trial|therapy|option|choice) for me\b",
-    r"\bpoint me (to|toward)\b",
-    r"\bguide me\b",
-    r"\bmy (best|only) option\b",
-    r"\bpromising (trial|treatment|therapy|option|for me)\b",
-    r"\bshows promise\b",
-    r"\blooks promising\b",
-    r"\bencouraging (results|data|trial)\b",
-    r"\bshould (he|she|they) (enroll|join|be in)\b",
-    r"\bwhat trial should (he|she|they)\b",
-    r"\bwhat should (he|she|they) do\b",
-    r"\badvising\b",
-    r"\bpoint (me|us)\b",
-    r"\bmost potential\b",
-    r"\bthe priority\b",
-    r"\bquickest\b",
-    r"\bfastest\b",
-    r"\btoo old\b",
-    r"\bfits me\b",
-    r"\bcan .{0,30} enroll\b",
-    r"\brank (these|the)\b",
-    r"\bbest .{0,20} record\b",
-    r"\bmore improvement\b",
-    r"\bbetter vector\b",
-    r"\bstrongest\b",
-    r"\bwill .{0,40} stop\b",
-    r"\bexpect to recover\b",
-    r"\bodds that\b",
-    r"\bchance of a cure\b",
-    r"\bcure in the next\b",
-]
+
+GREETING_RESPONSE = (
+    "Hi — I'm Candle, a research index for CHM clinical trials and publications. "
+    "Ask me about trial status, phases, sponsors, interventions, or publication findings."
+)
+
+OUT_OF_SCOPE_RESPONSE = (
+    "I'm focused on indexed CHM clinical trials and publications. "
+    "For other topics, I won't be able to help — try a general search engine or a topic-specific resource."
+)
 
 ADVICE_REFUSAL = (
     "I can only report what is documented in indexed CHM trials and publications. "
@@ -328,11 +272,6 @@ def extract_pmids(question: str) -> list[str]:
     return list(OrderedDict.fromkeys(PMID_PATTERN.findall(question)))
 
 
-def is_advice_request(question: str) -> bool:
-    lowered = question.lower()
-    return any(re.search(pattern, lowered) for pattern in ADVICE_PATTERNS)
-
-
 def is_chm_related_text(value: str | None) -> bool:
     return "choroideremia" in (value or "").lower()
 
@@ -453,15 +392,90 @@ async def enrich_sources(session, sources: list[AskSource]) -> list[AskSource]:
     return enriched
 
 
+async def _route_by_intent(question: str) -> AskResponse | None:
+    if is_distress_message(question):
+        return AskResponse(answer=DISTRESS_RESPONSE, sources=[])
+
+    intent = await classify_intent(question)
+    match intent.intent:
+        case "greeting":
+            return AskResponse(answer=GREETING_RESPONSE, sources=[])
+        case "distress":
+            return AskResponse(answer=DISTRESS_RESPONSE, sources=[])
+        case "advice_seeking":
+            return AskResponse(answer=ADVICE_REFUSAL, sources=[])
+        case "out_of_scope":
+            return AskResponse(answer=OUT_OF_SCOPE_RESPONSE, sources=[])
+        case _:
+            return None
+
+
+def _structured_ask_json_schema() -> dict:
+    schema = StructuredAskOutput.model_json_schema()
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "structured_ask_output",
+            "schema": schema,
+            "strict": True,
+        },
+    }
+
+
+async def _generate_structured_answer(
+    question: str,
+    context_block: str,
+) -> StructuredAskOutput | None:
+    settings = get_settings()
+    try:
+        response = await run_openai_operation(
+            lambda: get_openai_client().chat.completions.create(
+                model=settings.chat_model,
+                temperature=0.2,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Context:\n\n{context_block}"},
+                    {"role": "user", "content": source_reasoning_instruction(question)},
+                    {"role": "user", "content": question},
+                ],
+                response_format=_structured_ask_json_schema(),
+            ),
+            timeout_seconds=settings.ask_openai_timeout_seconds,
+            retries=settings.background_openai_max_retries,
+            retry_backoff_seconds=settings.background_openai_retry_backoff_seconds,
+        )
+        content = response.choices[0].message.content or ""
+        parsed = StructuredAskOutput.model_validate_json(content)
+        logger.info("ASK_RESPONSE: response_type=%s", parsed.response_type)
+        return parsed
+    except (ValidationError, Exception) as exc:
+        logger.warning("Structured ask output parse failed, failing closed: %s", exc)
+        return None
+
+
+async def _render_structured_response(
+    parsed: StructuredAskOutput,
+    sources: OrderedDict[str, AskSource],
+    session,
+) -> AskResponse:
+    if parsed.response_type in ("refusal", "insufficient_context"):
+        return AskResponse(answer=parsed.answer_text, sources=[])
+
+    cited_set = set(parsed.cited_ids)
+    filtered_sources = {
+        key: value for key, value in sources.items() if value.source_id in cited_set
+    }
+
+    if contains_advice_language(parsed.answer_text):
+        return AskResponse(answer=ADVICE_REFUSAL, sources=[])
+
+    enriched_sources = await enrich_sources(session, list(filtered_sources.values()))
+    return AskResponse(answer=parsed.answer_text, sources=enriched_sources[:5])
+
+
 async def _prepare_question_context(
     question: str, session
 ) -> tuple[str, list[RetrievedChunk], list[str], OrderedDict[str, AskSource], str | None]:
-    if is_distress_message(question):
-        return "distress", [], [], OrderedDict(), DISTRESS_RESPONSE
-
-    if is_advice_request(question):
-        return "advice", [], [], OrderedDict(), ADVICE_REFUSAL
-
     settings = get_settings()
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for /ask.")
@@ -636,114 +650,67 @@ async def _prepare_question_context(
     return "ready", chunks, context_lines, sources, context_block
 
 
-def _extract_cited_ids(answer: str) -> tuple[set[str], set[str]]:
-    """Return (cited_nct_ids, cited_pmids) parsed from inline citations in answer."""
-    nct_ids = {match.group(0)[1:-1] for match in _NCT_CITATION_RE.finditer(answer)}
-    pmids = {match.group(1) for match in _PMID_CITATION_RE.finditer(answer)}
-    return nct_ids, pmids
-
-
 async def answer_question(question: str, session) -> AskResponse:
+    routed = await _route_by_intent(question)
+    if routed is not None:
+        return routed
+
     state, chunks_used, _context_lines, sources, payload = await _prepare_question_context(
         question, session
     )
-    if state in {"distress", "advice", "empty"}:
+    if state == "empty":
         return AskResponse(answer=payload or "", sources=[])
 
-    settings = get_settings()
     context_block = payload or ""
     logger.info(
         "ASK_CONTEXT: source_ids in context = %s",
         [c.source_id for c in chunks_used],
     )
     logger.info("ASK_CONTEXT: all sources in prompt = %s", list(sources.keys()))
-    response = await run_openai_operation(
-        lambda: get_openai_client().chat.completions.create(
-            model=settings.chat_model,
-            temperature=0.2,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Context:\n\n{context_block}"},
-                {"role": "user", "content": source_reasoning_instruction(question)},
-                {"role": "user", "content": question},
-            ],
-        ),
-        timeout_seconds=settings.ask_openai_timeout_seconds,
-        retries=settings.background_openai_max_retries,
-        retry_backoff_seconds=settings.background_openai_retry_backoff_seconds,
-    )
-    answer = response.choices[0].message.content or ""
 
-    # Filter sources to only those the model cited
-    cited_nct, cited_pmids = _extract_cited_ids(answer)
-    if cited_nct or cited_pmids:
-        filtered = {
-            key: value
-            for key, value in sources.items()
-            if (value.source_type == "trial" and value.source_id in cited_nct)
-            or (value.source_type == "publication" and value.source_id in cited_pmids)
-        }
-        if filtered:
-            sources = filtered
-
-    # Strip citation markers from display text
-    clean_answer = re.sub(r"\s*\[(?:NCT\d{8}|PMID\d+)\]", "", answer).strip()
-
-    if contains_advice_language(clean_answer):
+    parsed = await _generate_structured_answer(question, context_block)
+    if parsed is None:
         return AskResponse(answer=ADVICE_REFUSAL, sources=[])
 
-    enriched_sources = await enrich_sources(session, list(sources.values()))
-    return AskResponse(answer=clean_answer, sources=enriched_sources[:5])
+    return await _render_structured_response(parsed, sources, session)
 
 
 async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
+    routed = await _route_by_intent(question)
+    if routed is not None:
+        yield json.dumps(
+            {
+                "type": "done",
+                "answer": routed.answer,
+                "sources": [],
+            }
+        )
+        return
+
     state, chunks_used, _context_lines, sources, payload = await _prepare_question_context(
         question, session
     )
-    if state in {"distress", "advice", "empty"}:
+    if state == "empty":
         yield json.dumps({"type": "done", "answer": payload or "", "sources": []})
         return
 
-    settings = get_settings()
     context_block = payload or ""
     logger.info(
         "ASK_CONTEXT: source_ids in context = %s",
         [c.source_id for c in chunks_used],
     )
     logger.info("ASK_CONTEXT: all sources in prompt = %s", list(sources.keys()))
-    stream = await asyncio.wait_for(
-        get_openai_client().chat.completions.create(
-            model=settings.chat_model,
-            temperature=0.2,
-            stream=True,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Context:\n\n{context_block}"},
-                {"role": "user", "content": source_reasoning_instruction(question)},
-                {"role": "user", "content": question},
-            ],
-        ),
-        timeout=settings.ask_openai_timeout_seconds,
-    )
 
-    answer_parts: list[str] = []
-    async for event in stream:
-        delta = event.choices[0].delta.content if event.choices else None
-        if not delta:
-            continue
-        answer_parts.append(delta)
-        yield json.dumps({"type": "delta", "delta": delta})
-
-    answer = "".join(answer_parts).strip()
-    if contains_advice_language(answer):
+    parsed = await _generate_structured_answer(question, context_block)
+    if parsed is None:
         yield json.dumps({"type": "done", "answer": ADVICE_REFUSAL, "sources": []})
         return
 
-    enriched_sources = await enrich_sources(session, list(sources.values()))
+    result = await _render_structured_response(parsed, sources, session)
     yield json.dumps(
         {
             "type": "done",
-            "answer": answer,
-            "sources": [source.model_dump() for source in enriched_sources[:5]],
+            "answer": result.answer,
+            "sources": [source.model_dump() for source in result.sources],
         }
     )

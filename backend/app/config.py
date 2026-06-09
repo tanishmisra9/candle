@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-large"
     embedding_dimensions: int = 3072
     chat_model: str = "gpt-4.1-mini"
+    intent_classifier_model: str = "gpt-4.1-nano"
+    intent_classifier_timeout_seconds: int = 5
     cohere_api_key: str = ""
     rerank_enabled: bool = True
     rerank_model: str = "rerank-v3.5"
