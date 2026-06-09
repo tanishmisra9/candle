@@ -8,6 +8,7 @@ from pydantic import BaseModel, ValidationError
 from app.config import get_settings
 from app.services.embeddings import get_openai_client
 from app.services.openai_executor import run_openai_operation
+from app.services.openai_schema import strict_json_schema
 
 logger = logging.getLogger("candle.api")
 
@@ -32,18 +33,6 @@ class IntentClassification(BaseModel):
     ]
 
 
-def _intent_json_schema() -> dict:
-    schema = IntentClassification.model_json_schema()
-    return {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "intent_classification",
-            "schema": schema,
-            "strict": True,
-        },
-    }
-
-
 async def classify_intent(question: str) -> IntentClassification:
     settings = get_settings()
     if not settings.openai_api_key:
@@ -59,7 +48,9 @@ async def classify_intent(question: str) -> IntentClassification:
                     {"role": "system", "content": INTENT_SYSTEM_PROMPT},
                     {"role": "user", "content": question},
                 ],
-                response_format=_intent_json_schema(),
+                response_format=strict_json_schema(
+                    IntentClassification, name="intent_classification"
+                ),
             ),
             timeout_seconds=settings.intent_classifier_timeout_seconds,
             retries=0,

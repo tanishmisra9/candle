@@ -16,6 +16,7 @@ from app.services.embeddings import embed_query, get_openai_client
 from app.services.glossary import expand_query
 from app.services.intent import classify_intent
 from app.services.openai_executor import run_openai_operation
+from app.services.openai_schema import strict_json_schema
 from app.services.rerank import rerank_chunks
 from app.services.retrieval import RetrievedChunk, retrieve_hybrid_chunks
 
@@ -410,18 +411,6 @@ async def _route_by_intent(question: str) -> AskResponse | None:
             return None
 
 
-def _structured_ask_json_schema() -> dict:
-    schema = StructuredAskOutput.model_json_schema()
-    return {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "structured_ask_output",
-            "schema": schema,
-            "strict": True,
-        },
-    }
-
-
 async def _generate_structured_answer(
     question: str,
     context_block: str,
@@ -438,7 +427,9 @@ async def _generate_structured_answer(
                     {"role": "user", "content": source_reasoning_instruction(question)},
                     {"role": "user", "content": question},
                 ],
-                response_format=_structured_ask_json_schema(),
+                response_format=strict_json_schema(
+                    StructuredAskOutput, name="structured_ask_output"
+                ),
             ),
             timeout_seconds=settings.ask_openai_timeout_seconds,
             retries=settings.background_openai_max_retries,
