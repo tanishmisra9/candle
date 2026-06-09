@@ -11,7 +11,7 @@ vi.mock("@tanstack/react-query", () => ({
   }),
 }));
 
-let releaseStream: (() => void) | undefined;
+const streamGate: { release: (() => void) | null } = { release: null };
 
 vi.mock("../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/api")>();
@@ -27,7 +27,7 @@ vi.mock("../lib/api", async (importOriginal) => {
         },
       ) => {
         await new Promise<void>((resolve) => {
-          releaseStream = resolve;
+          streamGate.release = () => resolve();
         });
         handlers.onDelta("Recruiting ");
         handlers.onDelta("trials found.");
@@ -39,7 +39,7 @@ vi.mock("../lib/api", async (importOriginal) => {
 
 describe("AskPanel streaming UI", () => {
   it("hides the loading dots after the first streamed delta arrives", async () => {
-    releaseStream = undefined;
+    streamGate.release = null;
     render(<AskPanel />);
 
     fireEvent.change(screen.getByLabelText(/ask a question about chm trials/i), {
@@ -54,7 +54,7 @@ describe("AskPanel streaming UI", () => {
     });
     expect(within(conversation).queryByLabelText("Copy response")).not.toBeInTheDocument();
 
-    releaseStream?.();
+    streamGate.release?.();
 
     await waitFor(() => {
       expect(screen.getByText(/Recruiting trials found\./)).toBeInTheDocument();
