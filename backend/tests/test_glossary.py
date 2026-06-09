@@ -15,6 +15,19 @@ def test_expand_query_is_noop_for_unknown_terms():
     assert expand_query(question) == question
 
 
+def test_expand_query_is_noop_for_completed_phase_3_trials():
+    question = "completed phase 3 trials"
+    assert expand_query(question) == question
+
+
+def test_expand_query_adds_chm_synonyms():
+    question = "CHM gene therapy"
+    expanded = expand_query(question)
+
+    assert expanded.startswith(question)
+    assert "choroideremia" in expanded
+
+
 def test_expand_query_does_not_mutate_input():
     question = "CHM patients"
     original = question

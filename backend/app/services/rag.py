@@ -467,7 +467,7 @@ async def _prepare_question_context(
         raise RuntimeError("OPENAI_API_KEY is required for /ask.")
 
     expanded = expand_query(question)
-    question_embedding = await embed_query(expanded)
+    question_embedding = await embed_query(question)
     prioritize_trials = should_prioritize_trials(question)
     after_hybrid = await retrieve_hybrid_chunks(
         session,

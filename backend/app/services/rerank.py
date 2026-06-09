@@ -34,8 +34,10 @@ async def rerank_chunks(
 ) -> list[RetrievedChunk]:
     """Rerank chunks via Cohere Rerank, returning the top_n by relevance.
 
-    Returns chunks[:top_n] unchanged when reranking is disabled, no API key is
-    configured, or the API call fails. Reranking failures never break the request.
+    Callers must pass chunks already sorted by relevance (best first). When
+    reranking is disabled, no API key is configured, or the API call fails,
+    this returns chunks[:top_n] unchanged, preserving that input order.
+    Reranking failures never break the request.
     """
     settings = get_settings()
     if not settings.rerank_enabled or not settings.cohere_api_key or not chunks:

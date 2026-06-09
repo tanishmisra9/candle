@@ -116,6 +116,26 @@ async def test_rerank_reorders_by_relevance(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_rerank_passthrough_preserves_input_order(monkeypatch):
+    monkeypatch.setattr(
+        "app.services.rerank.get_settings",
+        lambda: SimpleNamespace(rerank_enabled=False, cohere_api_key="key"),
+    )
+    chunks = [make_chunk(f"NCT{i:02d}", f"content {i}") for i in range(10)]
+
+    result = await rerank_chunks("query", chunks, top_n=6)
+
+    assert [chunk.source_id for chunk in result] == [
+        "NCT00",
+        "NCT01",
+        "NCT02",
+        "NCT03",
+        "NCT04",
+        "NCT05",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_rerank_empty_input_returns_empty(monkeypatch):
     monkeypatch.setattr(
         "app.services.rerank.get_settings",

@@ -57,3 +57,33 @@ def test_rrf_single_candidate_distance_zero():
 
 def test_rrf_empty_returns_empty():
     assert _fuse_rankings([[], []], limit=5) == []
+
+
+def test_rrf_cross_ranked_lists_beat_mid_ranked_in_both():
+    x = make_chunk("X")
+    y = make_chunk("Y")
+    m = make_chunk("M")
+    dense_fillers = [make_chunk(f"D{i}") for i in range(48)]
+    bm25_fillers = [make_chunk(f"B{i}") for i in range(48)]
+
+    dense = [y, *dense_fillers[:24], m, *dense_fillers[24:], x]
+    bm25 = [x, *bm25_fillers[:24], m, *bm25_fillers[24:], y]
+
+    fused = _fuse_rankings([dense, bm25], limit=10)
+
+    top_ids = [chunk.source_id for chunk in fused]
+    assert "X" in top_ids
+    assert "Y" in top_ids
+    assert top_ids.index("X") < top_ids.index("M")
+    assert top_ids.index("Y") < top_ids.index("M")
+
+
+def test_rrf_returns_non_decreasing_distance():
+    chunks = [make_chunk(f"C{i}") for i in range(10)]
+    dense = list(chunks)
+    bm25 = list(reversed(chunks))
+
+    fused = _fuse_rankings([dense, bm25], limit=10)
+
+    distances = [chunk.distance for chunk in fused]
+    assert distances == sorted(distances)
