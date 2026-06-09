@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections import OrderedDict
@@ -21,6 +22,21 @@ from app.services.rerank import rerank_chunks
 from app.services.retrieval import RetrievedChunk, retrieve_hybrid_chunks
 
 logger = logging.getLogger("candle.api")
+
+_ANSWER_TEXT_RE = re.compile(r'"answer_text"\s*:\s*"((?:[^"\\]|\\.)*)', re.DOTALL)
+
+
+def extract_partial_answer_text(buffer: str) -> str:
+    """Extract the current value of answer_text from a partial JSON buffer."""
+    match = _ANSWER_TEXT_RE.search(buffer)
+    if not match:
+        return ""
+    raw = match.group(1)
+    try:
+        return json.loads(f'"{raw}"')
+    except json.JSONDecodeError:
+        return raw
+
 
 SYSTEM_PROMPT = """You are Candle, a read-only research index for Choroideremia (CHM) clinical trials and publications. Your sole function is to report factual information from the provided context - trial registration metadata, publication abstracts, and study statistics. You are not a clinician, advisor, or decision-support system of any kind.
 
@@ -692,9 +708,60 @@ async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
     )
     logger.info("ASK_CONTEXT: all sources in prompt = %s", list(sources.keys()))
 
-    parsed = await _generate_structured_answer(question, context_block)
-    if parsed is None:
+    settings = get_settings()
+    buffer = ""
+    emitted = ""
+    parsed: StructuredAskOutput | None = None
+
+    try:
+        stream = await asyncio.wait_for(
+            get_openai_client().chat.completions.create(
+                model=settings.chat_model,
+                temperature=0.2,
+                stream=True,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Context:\n\n{context_block}"},
+                    {"role": "user", "content": source_reasoning_instruction(question)},
+                    {"role": "user", "content": question},
+                ],
+                response_format=strict_json_schema(
+                    StructuredAskOutput, name="structured_ask_output"
+                ),
+            ),
+            timeout=settings.ask_openai_timeout_seconds,
+        )
+
+        async for event in stream:
+            delta = event.choices[0].delta.content if event.choices else None
+            if not delta:
+                continue
+            buffer += delta
+            current = extract_partial_answer_text(buffer)
+            if len(current) > len(emitted):
+                new_text = current[len(emitted) :]
+                emitted = current
+                yield json.dumps({"type": "delta", "delta": new_text})
+
+        parsed = StructuredAskOutput.model_validate_json(buffer)
+        logger.info("ASK_RESPONSE: response_type=%s", parsed.response_type)
+    except asyncio.TimeoutError:
+        logger.warning("Structured ask stream timed out, failing closed")
         yield json.dumps({"type": "done", "answer": ADVICE_REFUSAL, "sources": []})
+        return
+    except (ValidationError, Exception) as exc:
+        logger.warning("Structured ask stream failed, failing closed: %s", exc)
+        yield json.dumps({"type": "done", "answer": ADVICE_REFUSAL, "sources": []})
+        return
+
+    if parsed.response_type in ("refusal", "insufficient_context"):
+        yield json.dumps(
+            {
+                "type": "done",
+                "answer": parsed.answer_text,
+                "sources": [],
+            }
+        )
         return
 
     result = await _render_structured_response(parsed, sources, session)

@@ -74,4 +74,5 @@ export type AskMessage = {
   role: "user" | "assistant";
   content: string;
   sources?: AskSource[];
+  isStreaming?: boolean;
 };

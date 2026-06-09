@@ -1,4 +1,3 @@
-import { useReducedMotion } from "framer-motion";
 import { SendHorizonal } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -41,7 +40,7 @@ export function AskPanel({
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [statusMessage, setStatusMessage] = useState("");
   const [isPending, setIsPending] = useState(false);
-  const prefersReducedMotion = useReducedMotion();
+  const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
   const questionFieldId = useId();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -65,7 +64,7 @@ export function AskPanel({
     setMessages((current) => [
       ...current,
       { id: `user-${Date.now()}`, role: "user", content: trimmed },
-      { id: assistantId, role: "assistant", content: "" },
+      { id: assistantId, role: "assistant", content: "", isStreaming: true },
     ]);
     setStatusMessage("Generating answer.");
     setDraft("");
@@ -92,6 +91,7 @@ export function AskPanel({
                     ...message,
                     content: data.answer,
                     sources: data.sources,
+                    isStreaming: false,
                   }
                 : message,
             ),
@@ -109,6 +109,7 @@ export function AskPanel({
                         ...message,
                         content: data.answer,
                         sources: data.sources,
+                        isStreaming: false,
                       }
                     : message,
                 ),
@@ -125,6 +126,7 @@ export function AskPanel({
                         content: isRateLimited
                           ? "Too many requests. Please wait a moment and try again."
                           : "I couldn't complete that answer just now. Please check that the backend is running and the OpenAI key is configured.",
+                        isStreaming: false,
                       }
                     : message,
                 ),
@@ -145,16 +147,36 @@ export function AskPanel({
 
   const emptyState = messages.length === 0 && !isPending;
   const hasConversation = messages.length > 0 || isPending;
+  const inFlightAssistant = messages.find(
+    (message) => message.role === "assistant" && message.isStreaming,
+  );
+  const showLoadingDots =
+    isPending && !(inFlightAssistant && inFlightAssistant.content.length > 0);
 
   useEffect(() => {
-    if (!hasConversation) {
+    const handleScroll = () => {
+      const distanceFromBottom =
+        document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
+      setIsUserScrolledUp(distanceFromBottom > 100);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!hasConversation || isUserScrolledUp) {
       return;
     }
-    messagesEndRef.current?.scrollIntoView({
-      block: "end",
-      behavior: prefersReducedMotion ? "auto" : "smooth",
-    });
-  }, [messages, isPending, prefersReducedMotion, hasConversation]);
+    const anchor = messagesEndRef.current;
+    if (typeof anchor?.scrollIntoView === "function") {
+      anchor.scrollIntoView({
+        block: "end",
+        behavior: "auto",
+      });
+    }
+  }, [messages, isPending, hasConversation, isUserScrolledUp]);
 
   return (
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
@@ -192,14 +214,24 @@ export function AskPanel({
           </div>
         ) : (
           <div className="space-y-5 pb-32">
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                onOpenTrialSnapshot={onOpenTrialSnapshot}
-              />
-            ))}
-            {isPending ? (
+            {messages.map((message) => {
+              if (
+                message.role === "assistant" &&
+                message.isStreaming &&
+                message.content.length === 0
+              ) {
+                return null;
+              }
+
+              return (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  onOpenTrialSnapshot={onOpenTrialSnapshot}
+                />
+              );
+            })}
+            {showLoadingDots ? (
               <div className="flex justify-start" role="status" aria-live="polite">
                 <div className="inline-flex items-center gap-2 rounded-[22px] border border-line bg-glass px-5 py-4 backdrop-blur-2xl">
                   <span className="sr-only">Generating answer</span>
