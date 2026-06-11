@@ -309,7 +309,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
       </header>
 
       <div className="space-y-4">
-        <div className="glass-nav flex flex-col gap-3 rounded-[24px] px-4 py-4 md:flex-row md:items-start md:justify-between">
+        <div className="glass-nav relative z-30 flex flex-col gap-3 rounded-[24px] px-4 py-4 md:flex-row md:items-start md:justify-between">
           {filterBar}
           <div className="relative z-10 flex items-center justify-start md:pt-4">
             {timelineToggle}
