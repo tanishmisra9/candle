@@ -113,13 +113,13 @@ TRIAL_ID_PATTERN = re.compile(r"\bNCT\d{8}\b", re.IGNORECASE)
 PMID_PATTERN = re.compile(r"\bPMID\s*:?\s*(\d+)\b", re.IGNORECASE)
 
 GREETING_RESPONSE = (
-    "Hi — I'm Candle, a research index for CHM clinical trials and publications. "
+    "Hi, I'm Candle, a research index for CHM clinical trials and publications. "
     "Ask me about trial status, phases, sponsors, interventions, or publication findings."
 )
 
 OUT_OF_SCOPE_RESPONSE = (
     "I'm focused on indexed CHM clinical trials and publications. "
-    "For other topics, I won't be able to help — try a general search engine or a topic-specific resource."
+    "For other topics, I won't be able to help. Try a general search engine or a topic-specific resource."
 )
 
 ADVICE_REFUSAL = (
