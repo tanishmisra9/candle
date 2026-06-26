@@ -188,28 +188,15 @@ def is_distress_message(question: str) -> bool:
     return any(re.search(pattern, lowered) for pattern in DISTRESS_PATTERNS)
 
 
-def should_prioritize_trials(question: str) -> bool:
-    normalized = question.lower()
-    return any(
-        phrase in normalized
-        for phrase in (
-            "trial",
-            "recruit",
-            "ongoing",
-            "active",
-            "current",
-            "right now",
-            "going on",
-        )
-    )
+_CURRENT_TRIAL_PHRASES = frozenset({"current", "recruit", "ongoing", "active", "right now", "going on"})
 
 
 def asks_about_current_trials(question: str) -> bool:
-    normalized = question.lower()
-    return any(
-        phrase in normalized
-        for phrase in ("current", "recruit", "ongoing", "active", "right now", "going on")
-    )
+    return any(p in question.lower() for p in _CURRENT_TRIAL_PHRASES)
+
+
+def should_prioritize_trials(question: str) -> bool:
+    return asks_about_current_trials(question) or "trial" in question.lower()
 
 
 def rank_chunks(question: str, chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:

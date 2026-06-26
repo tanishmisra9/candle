@@ -6,7 +6,7 @@ import { Timeline } from "../components/Timeline";
 import { TrialCard } from "../components/TrialCard";
 import { TrialCardSkeleton } from "../components/TrialCardSkeleton";
 import { listTrialsPage } from "../lib/api";
-import { cn } from "../lib/cn";
+import clsx from "clsx";
 import { catalogQueryOptions } from "../lib/queryClient";
 import {
   formatInterventionTypeLabel,
@@ -282,7 +282,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         onClick={() =>
           setViewMode((current) => (current === "timeline" ? "grid" : "timeline"))
         }
-        className={cn(
+        className={clsx(
           "rounded-full px-5 py-2.5 text-[14px] font-medium transition",
           viewMode === "timeline" ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
         )}

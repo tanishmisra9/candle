@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { getPublicationOverview } from "../lib/api";
 import { useFocusTrap } from "../lib/a11y";
 import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
-import { cn } from "../lib/cn";
+import clsx from "clsx";
 import { useIsMobile, useScrolledPastThreshold } from "../lib/mobile";
 import type { PublicationSummary } from "../types";
 import { Button } from "./ui/Button";
@@ -274,7 +274,7 @@ export function PublicationSnapshot({
                   </motion.p>
                   <h2
                     id={titleId}
-                    className={cn(
+                    className={clsx(
                       "mt-2 font-medium tracking-[-0.03em] text-text transition-all duration-200 md:text-[32px]",
                       isMobile
                         ? isHeaderCondensed

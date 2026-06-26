@@ -128,9 +128,6 @@ async def enforce_rate_limit(request: Request, route_name: str) -> None:
         )
 
 
-enforce_llm_rate_limit = enforce_rate_limit
-
-
 @asynccontextmanager
 async def llm_concurrency_slot():
     settings = get_settings()

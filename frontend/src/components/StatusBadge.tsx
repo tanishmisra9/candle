@@ -1,5 +1,5 @@
 import { formatStatusLabel } from "../lib/formatters";
-import { cn } from "../lib/cn";
+import clsx from "clsx";
 
 function statusTier(status: string | null): "active" | "completed" | "terminated" | "unknown" {
   const normalized = (status ?? "")
@@ -40,7 +40,7 @@ const tierStyles = {
 export function StatusBadge({ status }: { status: string | null }) {
   return (
     <span
-      className={cn(
+      className={clsx(
         "inline-flex items-center rounded-full border px-3 py-1.5 text-[12px] font-medium backdrop-blur-2xl",
         tierStyles[statusTier(status)],
       )}

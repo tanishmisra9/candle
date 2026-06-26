@@ -5,7 +5,7 @@ import { Link, NavLink, useLocation } from "react-router-dom";
 
 import { useIsMobile } from "../lib/mobile";
 import { primaryDestinations } from "../lib/navigation";
-import { cn } from "../lib/cn";
+import clsx from "clsx";
 
 export function GlassNav() {
   const { scrollY } = useScroll();
@@ -103,7 +103,7 @@ export function GlassNav() {
                 key={item.to}
                 to={item.to}
                 aria-current={isActive ? "page" : undefined}
-                className={cn(
+                className={clsx(
                   "relative rounded-full px-3 py-2.5 text-[14px] font-medium text-text transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-canvas md:px-4 md:py-3 md:text-[16px]",
                   isActive ? "opacity-100" : "opacity-90 hover:opacity-100",
                   compact && (isMobile ? "px-2.5 py-2" : "px-3.5 py-2.5"),

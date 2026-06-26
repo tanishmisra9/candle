@@ -1,4 +1,4 @@
-import { cn } from "../lib/cn";
+import clsx from "clsx";
 import { formatLastSynced, useLastSynced } from "../hooks/useLastSynced";
 
 type LastSyncedLabelProps = {
@@ -18,7 +18,7 @@ export function LastSyncedLabel({ className }: LastSyncedLabelProps) {
   }
 
   return (
-    <p className={cn("text-center text-xs text-muted/70", className)}>
+    <p className={clsx("text-center text-xs text-muted/70", className)}>
       Data last synced: {formatted}
     </p>
   );

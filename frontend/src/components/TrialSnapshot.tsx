@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { getTrial } from "../lib/api";
 import { useFocusTrap } from "../lib/a11y";
 import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
-import { cn } from "../lib/cn";
+import clsx from "clsx";
 import type { PublicationSummary } from "../types";
 import { formatStatusLabel } from "../lib/formatters";
 import { useIsMobile, useScrolledPastThreshold } from "../lib/mobile";
@@ -227,7 +227,7 @@ export function TrialSnapshot({
                       </motion.p>
                       <h2
                         id={titleId}
-                        className={cn(
+                        className={clsx(
                           "mt-2 font-medium tracking-[-0.03em] text-text transition-all duration-200 md:text-[32px]",
                           isMobile
                             ? isHeaderCondensed

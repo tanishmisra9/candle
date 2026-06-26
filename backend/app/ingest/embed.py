@@ -251,14 +251,6 @@ async def store_chunk_records(session: AsyncSession, chunks: list[ChunkRecord]) 
     return len(rows)
 
 
-def _needs_refresh_clause(embedded_at_column):
-    return or_(
-        embedded_at_column.is_(None),
-        Trial.updated_at.is_(None),
-        Trial.updated_at > embedded_at_column,
-    )
-
-
 async def changed_trial_page(
     session: AsyncSession,
     *,
@@ -268,7 +260,11 @@ async def changed_trial_page(
     stmt = (
         select(Trial)
         .outerjoin(latest, Trial.id == latest.c.source_id)
-        .where(_needs_refresh_clause(latest.c.embedded_at))
+        .where(or_(
+            latest.c.embedded_at.is_(None),
+            Trial.updated_at.is_(None),
+            Trial.updated_at > latest.c.embedded_at,
+        ))
         .order_by(Trial.id.asc())
         .limit(SOURCE_PAGE_SIZE)
     )

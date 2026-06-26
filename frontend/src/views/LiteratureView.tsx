@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { PublicationRow } from "../components/PublicationRow";
 import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
-import { cn } from "../lib/cn";
+import clsx from "clsx";
 import { listPublicationsPage } from "../lib/api";
 import { catalogQueryOptions } from "../lib/queryClient";
 import type { PublicationSummary } from "../types";
@@ -147,7 +147,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search title or abstract"
-          className={cn(
+          className={clsx(
             "w-full rounded-full border border-line bg-glass pl-11 pr-14 text-[14px] text-text shadow-panel outline-none backdrop-blur-2xl placeholder:text-muted transition-all focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
             "text-[16px]",
             "py-3.5",
@@ -162,7 +162,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         <button
           type="button"
           onClick={() => setSortOrder("newest")}
-          className={cn(
+          className={clsx(
             "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
             sortOrder === "newest" ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
           )}
@@ -173,7 +173,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         <button
           type="button"
           onClick={() => setSortOrder("oldest")}
-          className={cn(
+          className={clsx(
             "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
             sortOrder === "oldest" ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
           )}
@@ -187,7 +187,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         <button
           type="button"
           onClick={() => setLinkedOnly((current) => !current)}
-          className={cn(
+          className={clsx(
             "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
             linkedOnly ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
           )}

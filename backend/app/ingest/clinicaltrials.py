@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 from sqlalchemy import func, or_
 
-from app.services.http_retry import run_http_request
+from app.services.openai_executor import run_http_request
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 

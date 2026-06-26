@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import { cn } from "../lib/cn";
+import clsx from "clsx";
 import { NAV_OFFSET_CLASS } from "../lib/mobile";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
@@ -162,7 +162,7 @@ export function FilterBar({
   return (
     <div
       ref={rootRef}
-      className={cn(
+      className={clsx(
         "glass-nav flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-auto md:flex-row md:items-center md:gap-3",
         sticky && ["sticky", NAV_OFFSET_CLASS, "z-30"],
         className,
@@ -191,7 +191,7 @@ export function FilterBar({
         </span>
       </div>
 
-      <div className={cn("flex flex-wrap items-center gap-2.5", groupsClassName)}>
+      <div className={clsx("flex flex-wrap items-center gap-2.5", groupsClassName)}>
             {groups.map((group) => {
               const isOpen = openGroup === group.label;
               const menuId = `${instanceId}-${slugifyLabel(group.label)}-menu`;
@@ -220,7 +220,7 @@ export function FilterBar({
                     aria-controls={menuId}
                     onClick={() => setOpenGroup(isOpen ? null : group.label)}
                     onKeyDown={(event) => handleMenuKeyDown(event, group, menuId)}
-                    className={cn(
+                    className={clsx(
                       "justify-center px-4 py-2.5 text-[14px]",
                       isActive &&
                         "border-[rgba(232,163,61,0.28)] bg-[rgba(232,163,61,0.08)] text-text",
@@ -261,7 +261,7 @@ export function FilterBar({
                                 handleMenuKeyDown(event, group, menuId);
                               }
                             }}
-                            className={cn(
+                            className={clsx(
                               "flex w-full items-center justify-between rounded-[14px] px-3.5 py-2.5 text-left text-[14px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)]",
                               isSelected
                                 ? "bg-[rgba(232,163,61,0.14)] text-text"
@@ -274,7 +274,7 @@ export function FilterBar({
                             {isMultiSelect ? (
                               <span
                                 aria-hidden="true"
-                                className={cn(
+                                className={clsx(
                                   "inline-flex h-4 w-4 items-center justify-center rounded border border-line text-[10px]",
                                   isSelected &&
                                     "border-[rgba(232,163,61,0.9)] bg-[rgba(232,163,61,0.2)]",

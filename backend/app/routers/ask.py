@@ -9,7 +9,7 @@ from app.schemas import AskRequest, AskResponse
 from app.services.llm_guardrails import (
     ASK_ROUTE,
     ask_question_max_chars,
-    enforce_llm_rate_limit,
+    enforce_rate_limit,
     llm_concurrency_slot,
 )
 from app.services.openai_executor import (
@@ -28,7 +28,7 @@ async def ask(
     payload: AskRequest,
     session: AsyncSession = Depends(get_session),
 ) -> AskResponse:
-    await enforce_llm_rate_limit(request, ASK_ROUTE)
+    await enforce_rate_limit(request, ASK_ROUTE)
 
     question = payload.question.strip()
     if not question:
@@ -56,7 +56,7 @@ async def ask_stream(
     payload: AskRequest,
     session: AsyncSession = Depends(get_session),
 ) -> StreamingResponse:
-    await enforce_llm_rate_limit(request, ASK_ROUTE)
+    await enforce_rate_limit(request, ASK_ROUTE)
 
     question = payload.question.strip()
     if not question:
