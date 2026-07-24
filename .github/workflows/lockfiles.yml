@@ -1,0 +1,27 @@
+name: Lockfiles
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv lock --check
+        working-directory: backend
+
+  frontend-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
