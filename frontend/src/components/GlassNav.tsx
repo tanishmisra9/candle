@@ -66,7 +66,8 @@ export function GlassNav() {
         />
       )}
       <motion.header
-        animate={prefersReducedMotion ? false : { y: headerOffset }}
+        initial={prefersReducedMotion ? false : { opacity: 0, y: -8 }}
+        animate={prefersReducedMotion ? false : { opacity: 1, y: headerOffset }}
         transition={{ type: "spring", stiffness: 400, damping: 32 }}
         className="pointer-events-auto mx-auto flex max-w-[1360px] items-center justify-between gap-3 md:gap-5"
       >

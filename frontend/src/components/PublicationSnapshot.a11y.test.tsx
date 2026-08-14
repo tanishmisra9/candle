@@ -50,9 +50,23 @@ vi.mock("framer-motion", async () => {
       </p>
     ),
   );
+  type MockMotionButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    animate?: unknown;
+    exit?: unknown;
+    initial?: unknown;
+    transition?: unknown;
+    whileTap?: unknown;
+  };
+  const MotionButton = ReactModule.forwardRef<HTMLButtonElement, MockMotionButtonProps>(
+    ({ animate: _animate, exit: _exit, initial: _initial, transition: _transition, whileTap: _whileTap, children, ...props }, ref) => (
+      <button ref={ref} {...props}>
+        {children}
+      </button>
+    ),
+  );
   return {
     AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    motion: { div: MotionDiv, p: MotionP },
+    motion: { div: MotionDiv, p: MotionP, button: MotionButton },
     useReducedMotion: () => false,
   };
 });

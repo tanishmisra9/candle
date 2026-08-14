@@ -254,7 +254,6 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
         <div
           ref={scrollRef}
           className="relative overflow-x-auto px-7 pb-7 pt-9"
-          style={{ minWidth: `${width}px` }}
         >
           <motion.svg
             initial={prefersReducedMotion ? undefined : { opacity: 0 }}

@@ -1,7 +1,9 @@
 import { Search } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import clsx from "clsx";
+import { dropdownMenuMotion } from "../lib/motion";
 import { NAV_OFFSET_CLASS } from "../lib/mobile";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
@@ -56,6 +58,8 @@ export function FilterBar({
 }: FilterBarProps) {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [activeOptionIndex, setActiveOptionIndex] = useState(0);
+  const prefersReducedMotion = useReducedMotion();
+  const menuMotion = dropdownMenuMotion(prefersReducedMotion);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const searchFieldId = useId();
@@ -229,11 +233,15 @@ export function FilterBar({
                   >
                     {activeLabel}
                   </Button>
-                  {isOpen ? (
-                    <div
+                  <AnimatePresence>
+                    {isOpen ? (
+                    <motion.div
                       id={menuId}
                       role="menu"
                       aria-labelledby={`${instanceId}-${slugifyLabel(group.label)}-trigger`}
+                      initial={menuMotion.initial}
+                      animate={menuMotion.animate}
+                      exit={menuMotion.exit}
                       className="absolute left-0 top-[calc(100%+10px)] z-50 w-60 rounded-[20px] border border-line bg-panel p-2 shadow-panel backdrop-blur-2xl"
                     >
                       {group.options.map((option, optionIndex) => {
@@ -286,8 +294,9 @@ export function FilterBar({
                           </button>
                         );
                       })}
-                    </div>
-                  ) : null}
+                    </motion.div>
+                    ) : null}
+                  </AnimatePresence>
                 </div>
               );
             })}

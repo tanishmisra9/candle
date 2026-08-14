@@ -1,9 +1,11 @@
+import { AnimatePresence } from "framer-motion";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Footer } from "./components/Footer";
 import { GlassNav } from "./components/GlassNav";
+import { PageTransition } from "./components/PageTransition";
 import { PublicationSnapshot } from "./components/PublicationSnapshot";
 import { TrialSnapshot } from "./components/TrialSnapshot";
 import { usePageTitle } from "./hooks/usePageTitle";
@@ -76,6 +78,10 @@ export default function App() {
     }
   }, [isOverlayOpen]);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   return (
     <div className="min-h-screen">
       <a href="#main-content" className="skip-link">
@@ -88,31 +94,50 @@ export default function App() {
           tabIndex={-1}
           className="mx-auto max-w-[1360px] px-4 pb-20 sm:px-5 md:px-10 outline-none"
         >
-          <Suspense fallback={<RouteFallback />}>
-            <ErrorBoundary>
-              <Routes location={location}>
-                <Route path="/" element={<HomeView />} />
-                <Route
-                  path="/trials"
-                  element={<DashboardView onOpenTrialSnapshot={openTrialSnapshot} />}
-                />
-                <Route
-                  path="/literature"
-                  element={
-                    <LiteratureView
-                      onOpenPublicationSnapshot={(publication) =>
-                        openPublicationSnapshot(publication, "below-trial")
-                      }
-                    />
-                  }
-                />
-                <Route
-                  path="/ask"
-                  element={<AskView onOpenTrialSnapshot={openTrialSnapshot} />}
-                />
-              </Routes>
-            </ErrorBoundary>
-          </Suspense>
+          <AnimatePresence mode="wait" initial>
+            <Suspense fallback={<RouteFallback />}>
+              <ErrorBoundary>
+                <Routes location={location} key={location.pathname}>
+                  <Route
+                    path="/"
+                    element={
+                      <PageTransition>
+                        <HomeView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/trials"
+                    element={
+                      <PageTransition>
+                        <DashboardView onOpenTrialSnapshot={openTrialSnapshot} />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/literature"
+                    element={
+                      <PageTransition>
+                        <LiteratureView
+                          onOpenPublicationSnapshot={(publication) =>
+                            openPublicationSnapshot(publication, "below-trial")
+                          }
+                        />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/ask"
+                    element={
+                      <PageTransition>
+                        <AskView onOpenTrialSnapshot={openTrialSnapshot} />
+                      </PageTransition>
+                    }
+                  />
+                </Routes>
+              </ErrorBoundary>
+            </Suspense>
+          </AnimatePresence>
         </main>
         <Footer />
       </div>

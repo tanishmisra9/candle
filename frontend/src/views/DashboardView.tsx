@@ -1,13 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { FilterBar } from "../components/FilterBar";
+import { ScrollToTopButton } from "../components/ScrollToTopButton";
 import { Timeline } from "../components/Timeline";
 import { TrialCard } from "../components/TrialCard";
 import { TrialCardSkeleton } from "../components/TrialCardSkeleton";
 import { listTrialsPage } from "../lib/api";
 import clsx from "clsx";
 import { catalogQueryOptions } from "../lib/queryClient";
+import { cardScrollRevealMotion, listContentSwapMotion } from "../lib/motion";
 import {
   formatInterventionTypeLabel,
   formatPhaseLabel,
@@ -222,6 +225,28 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     status || phase.length || interventionType || sponsor || search.trim(),
   );
   const showTrialSkeletons = trialsQuery.isPending;
+  const prefersReducedMotion = useReducedMotion();
+  const swapMotion = listContentSwapMotion(prefersReducedMotion);
+  const cardMotion = cardScrollRevealMotion(prefersReducedMotion);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+    if (!node || !trialsQuery.hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && trialsQuery.hasNextPage && !trialsQuery.isFetchingNextPage) {
+          void trialsQuery.fetchNextPage();
+        }
+      },
+      { rootMargin: "400px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [trialsQuery.hasNextPage, trialsQuery.isFetchingNextPage, trialsQuery.fetchNextPage]);
+
   const clearFilters = () => {
     setStatus("");
     setPhase([]);
@@ -277,8 +302,9 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
 
   const timelineToggle = (
     <div className="inline-flex rounded-full border border-line bg-glass p-1 backdrop-blur-2xl">
-      <button
+      <motion.button
         type="button"
+        whileTap={{ scale: 0.97 }}
         onClick={() =>
           setViewMode((current) => (current === "timeline" ? "grid" : "timeline"))
         }
@@ -294,7 +320,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         }
       >
         Timeline
-      </button>
+      </motion.button>
     </div>
   );
 
@@ -330,51 +356,86 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
             </div>
           ) : null}
 
-          {showTrialSkeletons ? (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <TrialCardSkeleton key={`trial-skeleton-${index}`} />
-              ))}
-            </div>
-          ) : viewMode === "grid" ? (
-            <div className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {trials.map((trial) => (
-                  <TrialCard
-                    key={trial.id}
-                    trial={trial}
-                    query={normalizedSearch}
-                    onOpen={onOpenTrialSnapshot}
-                  />
+          <AnimatePresence mode="wait" initial={false}>
+            {showTrialSkeletons ? (
+              <motion.div
+                key="skeleton"
+                initial={swapMotion.initial}
+                animate={swapMotion.animate}
+                exit={swapMotion.exit}
+                className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
+              >
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <TrialCardSkeleton key={`trial-skeleton-${index}`} />
                 ))}
-              </div>
-              {!trials.length ? (
-                <div className="rounded-card border border-line bg-panel px-6 py-12 text-[15px] text-muted">
-                  No trials matched this filter.
+              </motion.div>
+            ) : viewMode === "grid" ? (
+              <motion.div
+                key="grid"
+                initial={swapMotion.initial}
+                animate={swapMotion.animate}
+                exit={swapMotion.exit}
+                className="space-y-6"
+              >
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {trials.map((trial, index) => (
+                    <motion.div
+                      key={trial.id}
+                      layout="position"
+                      initial={cardMotion.initial}
+                      whileInView={cardMotion.whileInView}
+                      viewport={{ once: true, margin: "0px" }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 120,
+                        damping: 20,
+                        delay: prefersReducedMotion ? 0 : index < 6 ? index * 0.04 : 0,
+                      }}
+                    >
+                      <TrialCard
+                        trial={trial}
+                        query={normalizedSearch}
+                        onOpen={onOpenTrialSnapshot}
+                      />
+                    </motion.div>
+                  ))}
                 </div>
-              ) : null}
-              {trialsQuery.hasNextPage ? (
-                <button
-                  type="button"
-                  className="focus-ring rounded-full border border-line px-5 py-2.5 text-[14px] text-text"
-                  disabled={trialsQuery.isFetchingNextPage}
-                  onClick={() => void trialsQuery.fetchNextPage()}
-                >
-                  {trialsQuery.isFetchingNextPage ? "Loading more trials…" : "Load more trials"}
-                </button>
-              ) : null}
-            </div>
-          ) : (
-            <div className="pt-4">
-              <Timeline
-                trials={trials}
-                axisTrials={allTrials}
-                onOpen={onOpenTrialSnapshot}
-              />
-            </div>
-          )}
+                {!trials.length ? (
+                  <div className="rounded-card border border-line bg-panel px-6 py-12 text-[15px] text-muted">
+                    No trials matched this filter.
+                  </div>
+                ) : null}
+                {trialsQuery.hasNextPage ? (
+                  <div ref={loadMoreRef}>
+                    {trialsQuery.isFetchingNextPage ? (
+                      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                        <TrialCardSkeleton />
+                        <TrialCardSkeleton />
+                        <TrialCardSkeleton />
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="timeline"
+                initial={swapMotion.initial}
+                animate={swapMotion.animate}
+                exit={swapMotion.exit}
+                className="pt-4"
+              >
+                <Timeline
+                  trials={trials}
+                  axisTrials={allTrials}
+                  onOpen={onOpenTrialSnapshot}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
+      <ScrollToTopButton />
     </div>
   );
 }

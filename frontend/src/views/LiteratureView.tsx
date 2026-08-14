@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 import { PublicationRow } from "../components/PublicationRow";
@@ -8,6 +9,7 @@ import { ScrollToTopButton } from "../components/ScrollToTopButton";
 import clsx from "clsx";
 import { listPublicationsPage } from "../lib/api";
 import { catalogQueryOptions } from "../lib/queryClient";
+import { cardScrollRevealMotion, listContentSwapMotion } from "../lib/motion";
 import type { PublicationSummary } from "../types";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
@@ -87,7 +89,10 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const unfilteredPublicationTotal =
     unfilteredPublicationsQuery.data?.total ?? publicationTotal;
   const hasFilters = Boolean(normalizedSearch || linkedOnly);
-  const showPublicationSkeletons = publicationsQuery.isPending;
+  const showPublicationSkeletons = publicationsQuery.isPending || publicationsQuery.hasNextPage;
+  const prefersReducedMotion = useReducedMotion();
+  const swapMotion = listContentSwapMotion(prefersReducedMotion);
+  const cardMotion = cardScrollRevealMotion(prefersReducedMotion);
 
   const sortedPublications = useMemo(() => {
     const copy = [...publications];
@@ -159,8 +164,9 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
       </div>
 
       <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
-        <button
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.97 }}
           onClick={() => setSortOrder("newest")}
           className={clsx(
             "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
@@ -169,9 +175,10 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           aria-pressed={sortOrder === "newest"}
         >
           Newest
-        </button>
-        <button
+        </motion.button>
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.97 }}
           onClick={() => setSortOrder("oldest")}
           className={clsx(
             "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
@@ -180,12 +187,13 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           aria-pressed={sortOrder === "oldest"}
         >
           Oldest
-        </button>
+        </motion.button>
       </div>
 
       <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
-        <button
+        <motion.button
           type="button"
+          whileTap={{ scale: 0.97 }}
           onClick={() => setLinkedOnly((current) => !current)}
           className={clsx(
             "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
@@ -199,7 +207,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           }
         >
           Linked
-        </button>
+        </motion.button>
       </div>
     </div>
   );
@@ -234,30 +242,54 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           ) : null}
 
           <div className="rounded-card border border-line bg-panel px-4 shadow-panel md:px-8">
-            {showPublicationSkeletons
-              ? Array.from({ length: 8 }).map((_, index) => (
-                  <PublicationRowSkeleton key={`publication-skeleton-${index}`} />
-                ))
-              : null}
-
-            {!showPublicationSkeletons ? (
-              <div>
-                {pageItems.map((publication) => (
-                  <PublicationRow
-                    key={publication.pmid}
-                    publication={publication}
-                    query={normalizedSearch}
-                    onOpen={onOpenPublicationSnapshot}
-                  />
-                ))}
-              </div>
-            ) : null}
-
-            {!showPublicationSkeletons && !sortedPublications.length ? (
-              <div className="px-2 py-12 text-[15px] text-muted">
-                No publications matched this filter.
-              </div>
-            ) : null}
+            <AnimatePresence mode="wait" initial={false}>
+              {showPublicationSkeletons ? (
+                <motion.div
+                  key="skeleton"
+                  initial={swapMotion.initial}
+                  animate={swapMotion.animate}
+                  exit={swapMotion.exit}
+                >
+                  {Array.from({ length: 8 }).map((_, index) => (
+                    <PublicationRowSkeleton key={`publication-skeleton-${index}`} />
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="content"
+                  initial={swapMotion.initial}
+                  animate={swapMotion.animate}
+                  exit={swapMotion.exit}
+                >
+                  {pageItems.map((publication, index) => (
+                    <motion.div
+                      key={publication.pmid}
+                      layout="position"
+                      initial={cardMotion.initial}
+                      whileInView={cardMotion.whileInView}
+                      viewport={{ once: true, margin: "0px" }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 120,
+                        damping: 20,
+                        delay: prefersReducedMotion ? 0 : index < 6 ? index * 0.04 : 0,
+                      }}
+                    >
+                      <PublicationRow
+                        publication={publication}
+                        query={normalizedSearch}
+                        onOpen={onOpenPublicationSnapshot}
+                      />
+                    </motion.div>
+                  ))}
+                  {!sortedPublications.length ? (
+                    <div className="px-2 py-12 text-[15px] text-muted">
+                      No publications matched this filter.
+                    </div>
+                  ) : null}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {!showPublicationSkeletons && sortedPublications.length > PAGE_SIZE ? (
