@@ -2,7 +2,7 @@ import { Flame } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 
 import { primaryDestinations } from "../lib/navigation";
-import clsx from "clsx";
+import { tabClass } from "../lib/ui";
 import { ThemeToggle } from "./ui/ThemeToggle";
 
 // Fixed bar; its height IS --nav-offset (views pad their top and focus margins with it).
@@ -25,12 +25,7 @@ export function SiteNav() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  clsx(
-                    "flex items-center border-b-2 px-2.5 text-[14px] font-medium transition-colors sm:px-3 md:px-4 md:text-[15px]",
-                    isActive
-                      ? "border-accent text-text"
-                      : "border-transparent text-muted hover:border-line-strong hover:text-text",
-                  )
+                  tabClass(isActive, "px-2.5 sm:px-3 md:px-4 md:text-[15px]")
                 }
               >
                 {item.label}
