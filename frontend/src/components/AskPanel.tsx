@@ -3,6 +3,7 @@ import { ArrowDown, SendHorizonal } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { askQuestion, askQuestionStream } from "../lib/api";
+import { markdownToPlainText } from "../lib/plainText";
 import type { AskMessage } from "../types";
 import { ChatMessage } from "./ChatMessage";
 import { LastSyncedLabel } from "./LastSyncedLabel";
@@ -99,7 +100,7 @@ export function AskPanel({
           );
         },
         onDone: (data) => {
-          setAnnouncement(data.answer);
+          setAnnouncement(markdownToPlainText(data.answer));
           setMessages((current) =>
             current.map((message) =>
               message.id === assistantId
@@ -117,7 +118,7 @@ export function AskPanel({
         onError: () => {
           void askQuestion(trimmed)
             .then((data) => {
-              setAnnouncement(data.answer);
+              setAnnouncement(markdownToPlainText(data.answer));
               setMessages((current) =>
                 current.map((message) =>
                   message.id === assistantId
