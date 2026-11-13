@@ -4,13 +4,32 @@ import { useEffect, useRef } from "react";
 import { formatStatusLabel } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import type { TrialSummary } from "../types";
+import { Tooltip } from "./ui/Tooltip";
 
+// Colour is never the only cue (WCAG 1.4.1): each status also has its own marker shape, shown in
+// the legend and next to every trial label.
 const TIMELINE_STATUS_LEGEND = [
-  { key: "recruiting", label: "Recruiting", color: "#8AB6A8" },
-  { key: "active", label: "Active", color: "#86A8C8" },
-  { key: "terminated", label: "Terminated / withdrawn", color: "#C18A8A" },
-  { key: "other", label: "Other / unknown", color: "#B6B2AC" },
+  { key: "recruiting", label: "Recruiting", marker: "" },
+  { key: "active", label: "Active", marker: "!border-2 !bg-transparent" },
+  { key: "terminated", label: "Terminated / withdrawn", marker: "rotate-45" },
+  { key: "other", label: "Other / unknown", marker: "!border-2 !border-dashed !bg-transparent" },
 ] as const;
+
+type StatusKey = (typeof TIMELINE_STATUS_LEGEND)[number]["key"];
+
+function StatusMarker({ status }: { status: StatusKey }) {
+  const entry = TIMELINE_STATUS_LEGEND.find((item) => item.key === status)!;
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-block h-2.5 w-2.5 shrink-0 ${entry.marker}`}
+      style={{
+        backgroundColor: `rgb(var(--tl-${status}))`,
+        borderColor: `rgb(var(--tl-${status}))`,
+      }}
+    />
+  );
+}
 
 function trialAriaLabel(trial: TrialSummary) {
   return `${trial.title} (${trial.id}), status: ${formatStatusLabel(trial.status)}`;
@@ -20,12 +39,16 @@ function yearFromDate(value: string | null) {
   return value ? Number.parseInt(value.slice(0, 4), 10) : undefined;
 }
 
-function colorForStatus(status: string | null) {
+function statusKey(status: string | null): StatusKey {
   const normalized = (status ?? "").toLowerCase();
-  if (normalized.includes("recruit")) return "#8AB6A8";
-  if (normalized.includes("active")) return "#86A8C8";
-  if (normalized.includes("terminat") || normalized.includes("withdraw")) return "#C18A8A";
-  return "#B6B2AC";
+  if (normalized.includes("recruit")) return "recruiting";
+  if (normalized.includes("active")) return "active";
+  if (normalized.includes("terminat") || normalized.includes("withdraw")) return "terminated";
+  return "other";
+}
+
+function colorForStatus(status: string | null) {
+  return `rgb(var(--tl-${statusKey(status)}))`;
 }
 
 type TimelineProps = {
@@ -81,11 +104,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
     >
       {TIMELINE_STATUS_LEGEND.map((entry) => (
         <li key={entry.key} className="inline-flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="inline-block h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: entry.color }}
-          />
+          <StatusMarker status={entry.key} />
           <span>{entry.label}</span>
         </li>
       ))}
@@ -94,7 +113,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
 
   if (isMobile) {
     return (
-      <div className="rounded-card border border-line bg-panel shadow-panel">
+      <div className="rounded-panel border border-line bg-panel">
         {statusLegend}
         <div ref={scrollRef} className="overflow-x-auto px-4 pb-5 pt-3">
           <div
@@ -124,9 +143,8 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                         y={4}
                         width={36}
                         height={22}
-                        rx={10}
-                        fill="rgba(232, 163, 61, 0.14)"
-                        stroke="rgba(232, 163, 61, 0.24)"
+                        rx={2}
+                        className="fill-accent/[0.14] stroke-accent/[0.5]"
                       />
                     ) : null}
                     <text
@@ -135,8 +153,8 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                       textAnchor="middle"
                       className={
                         isCurrentYear
-                          ? "fill-[#F5E0B6] text-[12px]"
-                          : "fill-[var(--muted-text)] text-[12px]"
+                          ? "fill-accent text-[12px]"
+                          : "fill-muted text-[12px]"
                       }
                     >
                       {year}
@@ -146,9 +164,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                       x2={x}
                       y1={topPadding - 6}
                       y2={chartHeight - 14}
-                      stroke={
-                        isCurrentYear ? "rgba(232, 163, 61, 0.18)" : "var(--hairline)"
-                      }
+                      className={isCurrentYear ? "stroke-accent/[0.4]" : "stroke-line"}
                       strokeWidth="1"
                     />
                   </g>
@@ -163,7 +179,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                     x2={width - 16}
                     y1={y}
                     y2={y}
-                    stroke="rgba(255,255,255,0.03)"
+                    className="stroke-line"
                     strokeWidth="1"
                   />
                 );
@@ -198,18 +214,21 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                           ease: [0.22, 1, 0.36, 1],
                         }
                   }
-                  className="absolute flex min-h-9 items-center overflow-hidden rounded-full px-3 text-left shadow-[0_8px_20px_rgba(0,0,0,0.28)] transition-transform duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--panel)]"
+                  className="absolute flex min-h-11 items-center gap-2 overflow-hidden rounded-panel px-3 text-left"
                   style={{
                     left: `${x}px`,
                     top: `${y - 8}px`,
                     width: `${barWidth}px`,
                     backgroundColor: colorForStatus(trial.status),
-                    opacity: 0.96,
+                    color: "rgb(var(--tl-text))",
                   }}
                   aria-label={trialAriaLabel(trial)}
-                  title={`${trial.title} — ${formatStatusLabel(trial.status)}`}
                 >
-                  <span className="block w-full truncate text-[12px] font-medium text-[rgba(11,11,15,0.86)]">
+                  <span
+                    aria-hidden="true"
+                    className="h-2.5 w-2.5 shrink-0 border border-current"
+                  />
+                  <span className="block w-full truncate text-[12px] font-medium">
                     {label}
                     <span className="sr-only">, {formatStatusLabel(trial.status)}</span>
                   </span>
@@ -223,7 +242,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
   }
 
   return (
-    <div className="rounded-card border border-line bg-panel shadow-panel">
+    <div className="rounded-panel border border-line bg-panel">
       {statusLegend}
       <div className="grid overflow-hidden" style={{ gridTemplateColumns: `${labelColumnWidth}px minmax(0,1fr)` }}>
         <div className="border-r border-line px-5 pb-7 pt-9">
@@ -236,23 +255,33 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                 trial.title.length > 42 ? `${trial.title.slice(0, 42)}…` : trial.title;
 
               return (
-                <button
+                <Tooltip
                   key={trial.id}
-                  type="button"
-                  onClick={() => onOpen(trial.id)}
-                  aria-label={trialAriaLabel(trial)}
-                  className="focus-ring flex min-h-11 w-full items-center rounded-[12px] px-3 text-left text-[13px] text-text transition-colors duration-200 hover:bg-[rgba(255,255,255,0.04)] hover:text-[#F5E0B6]"
-                  title={`${trial.title} — ${formatStatusLabel(trial.status)}`}
+                  label={`${trial.title} — ${formatStatusLabel(trial.status)}`}
+                  describe={false}
+                  className="flex w-full"
                 >
-                  <span className="block truncate">{label}</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpen(trial.id)}
+                    aria-label={trialAriaLabel(trial)}
+                    className="flex min-h-11 w-full items-center gap-2.5 rounded-panel px-3 text-left text-[13px] text-text transition-colors hover:bg-text/[0.06] hover:text-accent"
+                  >
+                    <StatusMarker status={statusKey(trial.status)} />
+                    <span className="block truncate">{label}</span>
+                  </button>
+                </Tooltip>
               );
             })}
           </div>
         </div>
 
+        {/* Focusable so keyboard users can scroll the chart with the arrow keys (WCAG 2.1.1). */}
         <div
           ref={scrollRef}
+          role="region"
+          aria-label="Trial timeline chart, scrolls horizontally"
+          tabIndex={0}
           className="relative overflow-x-auto px-7 pb-7 pt-9"
         >
           <motion.svg
@@ -276,9 +305,8 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                       y={2}
                       width={36}
                       height={22}
-                      rx={10}
-                      fill="rgba(232, 163, 61, 0.14)"
-                      stroke="rgba(232, 163, 61, 0.24)"
+                      rx={2}
+                      className="fill-accent/[0.14] stroke-accent/[0.5]"
                     />
                   ) : null}
                   <text
@@ -287,8 +315,8 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                     textAnchor="middle"
                     className={
                       isCurrentYear
-                        ? "fill-[#F5E0B6] text-[12px]"
-                        : "fill-[var(--muted-text)] text-[12px]"
+                        ? "fill-accent text-[12px]"
+                        : "fill-muted text-[12px]"
                     }
                   >
                     {year}
@@ -298,11 +326,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                     x2={x}
                     y1={topPadding - 6}
                     y2={trials.length * rowHeight + topPadding + 6}
-                    stroke={
-                      isCurrentYear
-                        ? "rgba(232, 163, 61, 0.18)"
-                        : "var(--hairline)"
-                    }
+                    className={isCurrentYear ? "stroke-accent/[0.4]" : "stroke-line"}
                     strokeWidth="1"
                   />
                 </g>
@@ -347,9 +371,8 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                     y={y - 5}
                     width={barWidth}
                     height={24}
-                    rx={12}
+                    rx={2}
                     fill={colorForStatus(trial.status)}
-                    opacity={0.92}
                   />
                 </motion.g>
               );
@@ -367,19 +390,22 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
             const y = topPadding + index * rowHeight;
 
             return (
+              // Pointer-only duplicate of the row button in the left column (same action, 44px
+              // target, keyboard + screen reader accessible), so it stays out of tab order and the
+              // accessibility tree instead of doubling every trial.
               <button
                 key={`bar-${trial.id}`}
                 type="button"
+                tabIndex={-1}
+                aria-hidden="true"
                 onClick={() => onOpen(trial.id)}
-                aria-label={trialAriaLabel(trial)}
-                className="focus-ring absolute min-h-6 rounded-full transition hover:brightness-110"
+                className="absolute min-h-6 rounded-panel transition-opacity hover:opacity-80"
                 style={{
                   left: `${x}px`,
                   top: `${y - 8}px`,
                   width: `${Math.max(barWidth, 24)}px`,
                   height: "24px",
                 }}
-                title={`${trial.title} — ${formatStatusLabel(trial.status)}`}
               />
             );
           })}

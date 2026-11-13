@@ -37,14 +37,14 @@ export const PublicationRow = memo(function PublicationRow({
     <button
       type="button"
       onClick={() => onOpen(publication)}
-      className="focus-ring flex w-full flex-col gap-4 border-b border-line px-2 py-6 text-left transition hover:-translate-y-px hover:bg-[rgba(0,0,0,0.015)] dark:hover:bg-[rgba(255,255,255,0.02)] md:flex-row md:items-start md:justify-between"
+      className="flex w-full flex-col gap-4 border-b border-line px-2 py-6 text-left transition-colors hover:bg-text/[0.06] md:flex-row md:items-start md:justify-between"
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-3">
           <div className="min-w-0">
-            <h3 className="text-[19px] font-medium leading-7 tracking-[-0.015em] text-text">
+            <h2 className="text-[19px] font-medium leading-7 tracking-[-0.015em] text-text">
               {highlightText(publication.title, query)}
-            </h3>
+            </h2>
             <p className="mt-2 text-[15px] text-muted">{formatAuthors(publication)}</p>
             <p className="mt-1.5 text-[15px] italic text-muted">
               {publication.journal || "Journal not listed"}
@@ -60,7 +60,7 @@ export const PublicationRow = memo(function PublicationRow({
 
       {publication.trial_id ? (
         <div className="flex items-center gap-3">
-          <span className="inline-flex items-center rounded-full border border-[rgba(232,163,61,0.3)] bg-[rgba(232,163,61,0.12)] px-3.5 py-1.5 text-[13px] text-accent">
+          <span className="kicker inline-flex items-center rounded-panel border border-accent bg-accent/[0.12] px-2.5 py-1.5 text-[11px] font-medium text-accent">
             {publication.trial_id}
           </span>
         </div>

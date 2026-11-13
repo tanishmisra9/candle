@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 const MARK_STYLE = {
   background: "transparent",
-  color: "#E8A33D",
+  color: "rgb(var(--accent))",
   fontWeight: 600,
 } as const;
 

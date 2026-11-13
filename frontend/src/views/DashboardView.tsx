@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { FilterBar } from "../components/FilterBar";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
+import { ToggleButton } from "../components/ui/ToggleButton";
 import { Timeline } from "../components/Timeline";
 import { TrialCard } from "../components/TrialCard";
 import { TrialCardSkeleton } from "../components/TrialCardSkeleton";
@@ -301,27 +302,17 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   );
 
   const timelineToggle = (
-    <div className="inline-flex rounded-full border border-line bg-glass p-1 backdrop-blur-2xl">
-      <motion.button
-        type="button"
-        whileTap={{ scale: 0.97 }}
-        onClick={() =>
-          setViewMode((current) => (current === "timeline" ? "grid" : "timeline"))
-        }
-        className={clsx(
-          "rounded-full px-5 py-2.5 text-[14px] font-medium transition",
-          viewMode === "timeline" ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
-        )}
-        aria-pressed={viewMode === "timeline"}
-        aria-label={
-          viewMode === "timeline"
-            ? "Timeline view active. Activate to return to grid view."
-            : "Activate to switch to timeline view."
-        }
-      >
-        Timeline
-      </motion.button>
-    </div>
+    <ToggleButton
+      pressed={viewMode === "timeline"}
+      onClick={() => setViewMode((current) => (current === "timeline" ? "grid" : "timeline"))}
+      aria-label={
+        viewMode === "timeline"
+          ? "Timeline view active. Activate to return to grid view."
+          : "Activate to switch to timeline view."
+      }
+    >
+      Timeline
+    </ToggleButton>
   );
 
   return (
@@ -335,20 +326,20 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
       </header>
 
       <div className="space-y-4">
-        <div className="glass-nav relative z-30 flex flex-col gap-3 rounded-[24px] px-4 py-4 md:flex-row md:items-start md:justify-between">
+        <div className="relative z-30 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           {filterBar}
-          <div className="relative z-10 flex items-center justify-start md:pt-4">
+          <div className="relative z-10 flex items-center justify-start md:min-h-[88px]">
             {timelineToggle}
           </div>
         </div>
 
         <div className="space-y-4">
           {trialsQuery.isError ? (
-            <div className="rounded-card border border-line bg-panel p-6 text-[15px] text-muted">
+            <div className="rounded-panel border border-line bg-panel p-6 text-[15px] text-muted">
               <p>Trials could not be loaded.</p>
               <button
                 type="button"
-                className="focus-ring mt-4 rounded-full border border-line px-4 py-2 text-[14px] text-text"
+                className="mt-4 min-h-11 rounded-panel border border-line-strong px-4 py-2 text-[14px] text-text hover:bg-text/5"
                 onClick={() => void trialsQuery.refetch()}
               >
                 Retry
@@ -401,7 +392,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
                   ))}
                 </div>
                 {!trials.length ? (
-                  <div className="rounded-card border border-line bg-panel px-6 py-12 text-[15px] text-muted">
+                  <div className="rounded-panel border border-line bg-panel px-6 py-12 text-[15px] text-muted">
                     No trials matched this filter.
                   </div>
                 ) : null}

@@ -29,22 +29,22 @@ function statusTier(status: string | null): "active" | "completed" | "terminated
   return "unknown";
 }
 
-const tierStyles = {
-  active: "bg-[rgba(52,199,89,0.1)] border-[rgba(52,199,89,0.22)] text-[#34C759]",
-  completed: "border-line bg-glass text-muted",
-  terminated:
-    "bg-[rgba(255,69,58,0.08)] border-[rgba(255,69,58,0.16)] text-[#ff7b72]",
-  unknown: "border-line bg-glass text-muted",
+// Marker shape differs per tier so status never depends on colour alone (WCAG 1.4.1); the text
+// label is the primary signal and the marker is decorative.
+const tierMarker = {
+  active: "bg-success",
+  completed: "border border-muted",
+  terminated: "rotate-45 bg-danger",
+  unknown: "border border-dashed border-muted",
 } as const;
 
 export function StatusBadge({ status }: { status: string | null }) {
   return (
-    <span
-      className={clsx(
-        "inline-flex items-center rounded-full border px-3 py-1.5 text-[12px] font-medium backdrop-blur-2xl",
-        tierStyles[statusTier(status)],
-      )}
-    >
+    <span className="kicker inline-flex items-center gap-2 rounded-panel border border-line px-2.5 py-1.5 text-[11px] font-medium text-text">
+      <span
+        aria-hidden="true"
+        className={clsx("h-2 w-2 shrink-0", tierMarker[statusTier(status)])}
+      />
       {formatStatusLabel(status)}
     </span>
   );

@@ -167,7 +167,7 @@ export function FilterBar({
     <div
       ref={rootRef}
       className={clsx(
-        "glass-nav flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-auto md:flex-row md:items-center md:gap-3",
+        "flex w-full flex-col gap-4 rounded-panel border border-line bg-panel px-4 py-4 md:w-auto md:flex-row md:items-center md:gap-3",
         sticky && ["sticky", NAV_OFFSET_CLASS, "z-30"],
         className,
       )}
@@ -188,9 +188,9 @@ export function FilterBar({
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder={searchPlaceholder}
-          className="pl-11 pr-14 focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+          className="pl-11 md:pr-16"
         />
-        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
+        <span className="kicker pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-panel border border-line px-2 py-1 text-[11px] text-muted md:block">
           {kbdShortcut}
         </span>
       </div>
@@ -226,9 +226,8 @@ export function FilterBar({
                     onKeyDown={(event) => handleMenuKeyDown(event, group, menuId)}
                     className={clsx(
                       "justify-center px-4 py-2.5 text-[14px]",
-                      isActive &&
-                        "border-[rgba(232,163,61,0.28)] bg-[rgba(232,163,61,0.08)] text-text",
-                      isOpen && !isActive && "border-[rgba(232,163,61,0.28)]",
+                      isActive && "border-accent bg-accent/[0.08]",
+                      isOpen && !isActive && "border-accent",
                     )}
                   >
                     {activeLabel}
@@ -242,7 +241,7 @@ export function FilterBar({
                       initial={menuMotion.initial}
                       animate={menuMotion.animate}
                       exit={menuMotion.exit}
-                      className="absolute left-0 top-[calc(100%+10px)] z-50 w-60 rounded-[20px] border border-line bg-panel p-2 shadow-panel backdrop-blur-2xl"
+                      className="absolute left-0 top-[calc(100%+8px)] z-50 w-60 max-w-[calc(100vw-2rem)] rounded-panel border border-line-strong bg-panel p-2"
                     >
                       {group.options.map((option, optionIndex) => {
                         const isSelected = isMultiSelect
@@ -270,22 +269,22 @@ export function FilterBar({
                               }
                             }}
                             className={clsx(
-                              "flex w-full items-center justify-between rounded-[14px] px-3.5 py-2.5 text-left text-[14px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)]",
+                              "flex min-h-11 w-full items-center justify-between rounded-panel px-3.5 py-2.5 text-left text-[14px] transition-colors",
                               isSelected
-                                ? "bg-[rgba(232,163,61,0.14)] text-text"
-                                : "text-muted hover:bg-[rgba(0,0,0,0.04)] dark:hover:bg-[rgba(255,255,255,0.06)]",
+                                ? "bg-accent/[0.12] text-text"
+                                : "text-muted hover:bg-text/[0.06]",
                               optionIndex === activeOptionIndex &&
-                                "ring-1 ring-[rgba(232,163,61,0.28)]",
+                                "ring-1 ring-accent/[0.28]",
                             )}
                           >
                             <span>{option.label}</span>
-                            {isMultiSelect ? (
+                            {isMultiSelect || isSelected ? (
                               <span
                                 aria-hidden="true"
                                 className={clsx(
-                                  "inline-flex h-4 w-4 items-center justify-center rounded border border-line text-[10px]",
-                                  isSelected &&
-                                    "border-[rgba(232,163,61,0.9)] bg-[rgba(232,163,61,0.2)]",
+                                  "inline-flex h-4 w-4 items-center justify-center text-[11px]",
+                                  isMultiSelect && "rounded-panel border border-line-strong",
+                                  isMultiSelect && isSelected && "border-accent bg-accent/[0.2]",
                                 )}
                               >
                                 {isSelected ? "✓" : ""}
@@ -308,7 +307,7 @@ export function FilterBar({
                   setOpenGroup(null);
                   onClearAll();
                 }}
-                className="rounded-full px-4 py-3 text-[14px] text-muted hover:text-text"
+                className="px-4 py-3 text-[14px] text-muted hover:text-text"
               >
                 Clear all filters
               </Button>

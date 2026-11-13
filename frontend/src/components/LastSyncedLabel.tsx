@@ -18,7 +18,7 @@ export function LastSyncedLabel({ className }: LastSyncedLabelProps) {
   }
 
   return (
-    <p className={clsx("text-center text-xs text-muted/70", className)}>
+    <p className={clsx("text-center text-xs text-muted", className)}>
       Data last synced: {formatted}
     </p>
   );

@@ -9,6 +9,9 @@ import { ScrollToTopButton } from "../components/ScrollToTopButton";
 import clsx from "clsx";
 import { listPublicationsPage } from "../lib/api";
 import { catalogQueryOptions } from "../lib/queryClient";
+import { tabClass } from "../lib/ui";
+import { ToggleButton } from "../components/ui/ToggleButton";
+import { Tooltip } from "../components/ui/Tooltip";
 import { cardScrollRevealMotion, listContentSwapMotion } from "../lib/motion";
 import type { PublicationSummary } from "../types";
 
@@ -153,62 +156,45 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search title or abstract"
           className={clsx(
-            "w-full rounded-full border border-line bg-glass pl-11 pr-14 text-[14px] text-text shadow-panel outline-none backdrop-blur-2xl placeholder:text-muted transition-all focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
-            "text-[16px]",
-            "py-3.5",
+            "min-h-11 w-full rounded-panel border border-line-strong bg-panel py-3 pl-11 pr-14 text-[16px] text-text placeholder:text-muted transition-colors hover:border-text/60",
           )}
         />
-        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-line px-2.5 py-1 text-[12px] text-muted">
+        <span className="kicker pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-panel border border-line px-2 py-1 text-[11px] text-muted md:block">
           {kbdShortcut}
         </span>
       </div>
 
-      <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
-        <motion.button
+      <div role="group" aria-label="Sort order" className="inline-flex items-stretch self-start md:self-auto">
+        <button
           type="button"
-          whileTap={{ scale: 0.97 }}
           onClick={() => setSortOrder("newest")}
-          className={clsx(
-            "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
-            sortOrder === "newest" ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
-          )}
+          className={tabClass(sortOrder === "newest")}
           aria-pressed={sortOrder === "newest"}
         >
           Newest
-        </motion.button>
-        <motion.button
+        </button>
+        <button
           type="button"
-          whileTap={{ scale: 0.97 }}
           onClick={() => setSortOrder("oldest")}
-          className={clsx(
-            "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
-            sortOrder === "oldest" ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
-          )}
+          className={tabClass(sortOrder === "oldest")}
           aria-pressed={sortOrder === "oldest"}
         >
           Oldest
-        </motion.button>
+        </button>
       </div>
 
-      <div className="inline-flex self-start rounded-full border border-line bg-glass p-1 backdrop-blur-2xl md:self-auto">
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.97 }}
-          onClick={() => setLinkedOnly((current) => !current)}
-          className={clsx(
-            "focus-ring rounded-full px-5 py-2.5 text-[14px] font-medium transition",
-            linkedOnly ? "bg-[rgba(232,163,61,0.14)] text-text" : "text-muted",
-          )}
-          aria-pressed={linkedOnly}
-          aria-label={
-            linkedOnly
-              ? "Showing linked publications only. Activate to show all publications."
-              : "Activate to show linked publications only."
-          }
-        >
-          Linked
-        </motion.button>
-      </div>
+      <ToggleButton
+        pressed={linkedOnly}
+        onClick={() => setLinkedOnly((current) => !current)}
+        className="self-start md:self-auto"
+        aria-label={
+          linkedOnly
+            ? "Showing linked publications only. Activate to show all publications."
+            : "Activate to show linked publications only."
+        }
+      >
+        Linked
+      </ToggleButton>
     </div>
   );
 
@@ -223,17 +209,17 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
       </header>
 
       <div className="space-y-8 md:space-y-12">
-        <div className="glass-nav flex w-full flex-col gap-4 rounded-[24px] px-4 py-4 md:w-fit md:self-start">
+        <div className="flex w-full flex-col gap-4 rounded-panel border border-line bg-panel px-4 py-4 md:w-fit md:self-start">
           {literatureControls}
         </div>
 
         <div className="space-y-8 md:space-y-12">
           {publicationsQuery.isError ? (
-            <div className="rounded-card border border-line bg-panel p-6 text-[15px] text-muted">
+            <div className="rounded-panel border border-line bg-panel p-6 text-[15px] text-muted">
               <p>Publications could not be loaded.</p>
               <button
                 type="button"
-                className="focus-ring mt-4 rounded-full border border-line px-4 py-2 text-[14px] text-text"
+                className="mt-4 min-h-11 rounded-panel border border-line-strong px-4 py-2 text-[14px] text-text hover:bg-text/5"
                 onClick={() => void publicationsQuery.refetch()}
               >
                 Retry
@@ -241,7 +227,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
             </div>
           ) : null}
 
-          <div className="rounded-card border border-line bg-panel px-4 shadow-panel md:px-8">
+          <div className="rounded-panel border border-line bg-panel px-4 md:px-8">
             <AnimatePresence mode="wait" initial={false}>
               {showPublicationSkeletons ? (
                 <motion.div
@@ -294,27 +280,31 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
 
           {!showPublicationSkeletons && sortedPublications.length > PAGE_SIZE ? (
             <div className="flex items-center justify-center gap-4 pt-2">
-              <button
-                type="button"
-                aria-label="Previous page"
-                disabled={currentPage === 0}
-                onClick={() => goToPage((current) => Math.max(0, current - 1))}
-                className="focus-ring rounded-full border border-line p-2.5 text-text disabled:opacity-40"
-              >
-                <ChevronLeft size={18} strokeWidth={1.75} />
-              </button>
+              <Tooltip label="Previous page" describe={false}>
+                <button
+                  type="button"
+                  aria-label="Previous page"
+                  disabled={currentPage === 0}
+                  onClick={() => goToPage((current) => Math.max(0, current - 1))}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-panel border border-line-strong text-text hover:bg-text/5 disabled:opacity-40"
+                >
+                  <ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" />
+                </button>
+              </Tooltip>
               <span className="text-[14px] text-muted tabular-nums">
                 Page {currentPage + 1} of {totalPages}
               </span>
-              <button
-                type="button"
-                aria-label="Next page"
-                disabled={currentPage >= totalPages - 1}
-                onClick={() => goToPage((current) => Math.min(totalPages - 1, current + 1))}
-                className="focus-ring rounded-full border border-line p-2.5 text-text disabled:opacity-40"
-              >
-                <ChevronRight size={18} strokeWidth={1.75} />
-              </button>
+              <Tooltip label="Next page" describe={false}>
+                <button
+                  type="button"
+                  aria-label="Next page"
+                  disabled={currentPage >= totalPages - 1}
+                  onClick={() => goToPage((current) => Math.min(totalPages - 1, current + 1))}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-panel border border-line-strong text-text hover:bg-text/5 disabled:opacity-40"
+                >
+                  <ChevronRight size={18} strokeWidth={1.75} aria-hidden="true" />
+                </button>
+              </Tooltip>
             </div>
           ) : null}
         </div>

@@ -14,7 +14,7 @@ import { useIsMobile, useScrolledPastThreshold } from "../lib/mobile";
 import { Button } from "./ui/Button";
 
 const SNAPSHOT_SECTION_HEADING_CLASS =
-  "text-[13px] font-medium uppercase tracking-[0.16em] text-muted";
+  "text-[13px] font-medium kicker text-muted";
 const AI_DISCLAIMER_COPY =
   "This is AI-generated. Always verify medical information with a qualified professional.";
 
@@ -177,7 +177,7 @@ export function TrialSnapshot({
         <AnimatePresence>
           {trialId ? (
             <motion.div
-              className="fixed inset-0 z-[60] flex items-end overflow-y-auto bg-[rgba(11,11,15,0.28)] p-3 backdrop-blur-sm md:items-start md:justify-center md:px-6 md:pb-6 md:pt-16"
+              className="fixed inset-0 z-[60] flex items-end overflow-y-auto bg-scrim/60 p-3 md:items-start md:justify-center md:px-6 md:pb-6 md:pt-16"
               initial={backdropMotion.initial}
               animate={backdropMotion.animate}
               exit={backdropMotion.exit}
@@ -194,7 +194,7 @@ export function TrialSnapshot({
                 animate={panelMotion.animate}
                 exit={panelMotion.exit}
                 onClick={(event) => event.stopPropagation()}
-                className="flex h-[min(87svh,920px)] w-full flex-col overflow-hidden rounded-[26px] border border-line bg-panel shadow-panel md:h-[min(calc(100vh-7rem),920px)] md:max-w-[1040px] md:rounded-[30px]"
+                className="flex h-[min(87svh,920px)] w-full flex-col overflow-hidden rounded-panel border border-line bg-panel md:h-[min(calc(100vh-7rem),920px)] md:max-w-[1040px] md:rounded-panel"
               >
                 <motion.div
                   animate={
@@ -210,7 +210,7 @@ export function TrialSnapshot({
                       ? { duration: 0 }
                       : { type: "spring", stiffness: 340, damping: 34, mass: 0.8 }
                   }
-                  className="border-b border-line bg-panel/92 px-5 pt-6 pb-5 backdrop-blur-xl md:px-8"
+                  className="border-b border-line bg-panel/92 px-5 pt-6 pb-5 md:px-8"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 max-w-[820px] flex-1">
@@ -221,7 +221,7 @@ export function TrialSnapshot({
                             ? { duration: 0 }
                             : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
                         }
-                        className="text-[11px] uppercase tracking-[0.18em] text-muted md:text-[12px]"
+                        className="text-[11px] kicker text-muted md:text-[12px]"
                       >
                         {detailQuery.data?.id}
                       </motion.p>
@@ -257,8 +257,8 @@ export function TrialSnapshot({
                   {detailQuery.isLoading || detailQuery.data ? (
                     <div className="grid gap-6 md:grid-cols-[1.25fr_0.75fr] md:gap-8">
                       <div className="space-y-6 md:space-y-8">
-                        <section className="rounded-card border border-line bg-glass px-5 py-4 shadow-panel">
-                          <p className="text-[11px] uppercase tracking-[0.24em] text-muted">
+                        <section className="rounded-panel border border-line bg-panel px-5 py-4">
+                          <p className="text-[11px] kicker text-muted">
                             OVERVIEW
                           </p>
                           <p className="mt-2 text-[12px] text-muted">{AI_DISCLAIMER_COPY}</p>
@@ -306,14 +306,15 @@ export function TrialSnapshot({
                                 href={detailQuery.data.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex w-fit items-center gap-2 rounded-full border border-[rgba(232,163,61,0.28)] bg-[rgba(232,163,61,0.12)] px-4 py-2 text-[13px] font-medium text-accent transition hover:bg-[rgba(232,163,61,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
+                                className="inline-flex w-fit items-center gap-2 min-h-11 rounded-panel border border-accent bg-accent/[0.12] px-4 py-2 text-[13px] font-medium text-accent transition-colors hover:bg-accent/[0.2]"
                               >
                                 <ExternalLink
                                   size={14}
                                   strokeWidth={1.7}
-                                  className="opacity-80"
+                                  aria-hidden="true"
                                 />
                                 ClinicalTrials.gov
+                                <span className="sr-only"> (opens in a new tab)</span>
                               </a>
                               {detailQuery.data.locations.length ? (
                                 <div className="space-y-3 pt-2">
@@ -334,7 +335,7 @@ export function TrialSnapshot({
                                         return (
                                           <div
                                             key={`${locationTitle}-${index}`}
-                                            className="rounded-[16px] border border-line px-4 py-3"
+                                            className="rounded-panel border border-line px-4 py-3"
                                           >
                                             <p className="text-[14px] font-medium text-text">
                                               {locationTitle}
@@ -383,7 +384,7 @@ export function TrialSnapshot({
                                             return (
                                               <div
                                                 key={`${locationTitle}-${index + 3}`}
-                                                className="rounded-[16px] border border-line px-4 py-3"
+                                                className="rounded-panel border border-line px-4 py-3"
                                               >
                                                 <p className="text-[14px] font-medium text-text">
                                                   {locationTitle}
@@ -408,7 +409,7 @@ export function TrialSnapshot({
                                     <button
                                       type="button"
                                       onClick={() => setShowAllLocations((current) => !current)}
-                                      className="focus-ring inline-flex rounded-md text-[14px] text-muted transition hover:text-text"
+                                      className="inline-flex min-h-11 items-center text-[14px] text-muted transition-colors hover:text-text"
                                     >
                                       {showAllLocations
                                         ? "Show fewer locations"
@@ -428,9 +429,9 @@ export function TrialSnapshot({
                                   detailQuery.data.outcomes.map((outcome, index) => (
                                     <div
                                       key={`${outcome.outcome_type}-${index}`}
-                                      className="rounded-[18px] border border-line p-4"
+                                      className="rounded-panel border border-line p-4"
                                     >
-                                      <p className="text-[12px] uppercase tracking-[0.14em] text-muted">
+                                      <p className="text-[12px] kicker text-muted">
                                         {outcome.outcome_type}
                                       </p>
                                       <p className="mt-2 text-[15px] font-medium text-text">
@@ -472,7 +473,7 @@ export function TrialSnapshot({
                                     type="button"
                                     key={publication.pmid}
                                     onClick={() => onOpenPublicationSnapshot(publication)}
-                                    className="focus-ring block w-full rounded-[18px] border border-line p-4 text-left transition hover:border-[rgba(232,163,61,0.22)]"
+                                    className="block w-full rounded-panel border border-line p-4 text-left transition hover:border-accent/[0.22]"
                                   >
                                     <p className="text-[15px] font-medium leading-6 text-text">
                                       {publication.title}
