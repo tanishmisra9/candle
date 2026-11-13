@@ -43,6 +43,17 @@ A restrained take on the Telogify language: paper-like, square, no pills. Keep i
 - **Tailwind gotcha**: named tokens are emitted alphabetically, so a class you add later in a `clsx` does not necessarily beat a primitive's own class (`border-line-strong` beats `border-accent`). Override shared-primitive colours with `!` modifiers and confirm with `getComputedStyle` in a browser.
 - **No theme flash**: an inline script in `index.html` sets the class, `color-scheme` and `theme-color` before first paint from `localStorage["candle-theme"]` or the OS. Keep `--canvas` in sync in `index.css`, that script, and `THEME_COLORS` in `lib/theme.ts`.
 
+## Landing page
+
+`views/HomeView.tsx` composes `components/home/*`: the candle, the three audience paths, a live "Candle today" sentence (reuses the Trials/Literature total queries), a glossary built from the same formatters/badges as the Trials page, a "what Candle does and doesn't do" section and a builder's note. It is one rem-based column so it scales with the user's text-size setting.
+
+The candle animation is decorative and must stay safe and stoppable:
+- Limits (tested in `src/test/candle-motion.test.ts`, which parses `index.css`): every looping animation has a period >= 4s and alternates, the glow's opacity swing is <= 0.15, and keyframes only animate `transform`/`opacity`. Change an animation and run the test.
+- `useCandleMotion` is the one switch: the "Pause animation" button (fixed label, `aria-pressed`, remembered) and `prefers-reduced-motion` both stop the flicker AND freeze the scroll glow. Base styles are the fully lit candle, so "no animation" always renders a calm still image.
+- The room glow sits behind content (`z-index: -1`, `pointer-events: none`) at a fixed max alpha of 0.12; `contrast.test.ts` checks text/muted/accent/borders/focus on that tint. If you raise the alpha, update both places.
+- `forced-colors` and `prefers-contrast: more` remove the glow and redraw the candle in system colours.
+- Disease background and glossary wording on the page are cited/derived from MedlinePlus Genetics and NEI and should be reviewed by the owner before changes.
+
 ## Accessibility rules
 
 Accessibility is the top requirement for this app. Closure notes and what still needs a human are in [`docs/ADA_CLOSURE.md`](docs/ADA_CLOSURE.md).

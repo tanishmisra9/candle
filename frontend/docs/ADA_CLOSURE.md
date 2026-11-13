@@ -14,7 +14,8 @@ Closure pass for remaining WCAG gaps flagged after the tiered ADA work (`d5dbbb8
 
 | WCAG | Scope | Result | Evidence |
 | --- | --- | --- | --- |
-| **2.2.2** Pause, Stop, Hide (A) | Auto-moving/updating content | **N/A** | No carousels, marquees, or auto-updating regions that run >5s without user control. Pending dots are ephemeral request feedback, not persistent auto-motion. |
+| **2.2.2** Pause, Stop, Hide (A) | Landing-page candle | **Pass** | The candle flickers and a soft glow follows scroll. One labelled button ("Pause animation", `aria-pressed`, remembered in `localStorage`) stills the flicker and freezes the glow; it is the first control after the hero actions. `prefers-reduced-motion` removes all motion and hides the button. Verified in a real browser: pausing leaves zero running candle animations and the glow variable stops following scroll. The loading dots elsewhere are ephemeral request feedback. |
+| **2.3.1** Three Flashes or Below Threshold (A) | Candle flicker | **Pass** | Every looping animation has a period of at least 4s and alternates (half-cycles >= 2s, far below three per second); the glow's opacity swing is <= 0.15; keyframes only touch transform/opacity. `src/test/candle-motion.test.ts` parses the stylesheet and fails if any limit is exceeded (mutation-checked). |
 | **2.3.3** Animation from Interactions (AAA, advisory) | Reduced motion | **Pass** | `prefers-reduced-motion` gates Framer Motion in App, views, ChatMessage, snapshots, timeline, cards/rows. Global CSS reduces transitions/scroll-behavior. |
 | **1.4.10** Reflow (AA) | 320px width | **Pass (manual)** | Routes and overlays use fluid widths, wrapping chips/buttons, scrollable dialog bodies. Sticky bars use `NAV_OFFSET_CLASS` + flexible layout. Verified in a real browser at 320px: no horizontal page scroll in either theme (the wordmark collapses to the icon below 420px). |
 | **1.4.12** Text Spacing (AA) | 200% spacing overrides | **Pass (manual)** | `.a11y-text-spacing` utility available; controls use `min-h-11`; chips and labels allow wrap. |
@@ -25,6 +26,14 @@ Closure pass for remaining WCAG gaps flagged after the tiered ADA work (`d5dbbb8
 | **4.1.3** Status Messages (AA) | Async errors/status | **Pass** | Ask: an always-mounted `role="status"` polite region (in the composer) announces "Generating answer.", then the finished answer text once (or the error), never per-token deltas; the log is `aria-live="off"` and the loading indicator is an empty `role="status"`. **Unverified in screen readers** (see residual risks). Empty submit **prevented** (disabled send, no error text). Publication overview errors use `role="status"` with retry guidance. |
 | **1.4.1** Use of Color (A) | Status signaling | **Pass** | `StatusBadge` uses a text label plus a distinct marker shape per tier; timeline legend, desktop rows and mobile bars carry the same marker shapes, plus status in the accessible name. Toggles expose `aria-pressed` + descriptive `aria-label`. |
 | **4.1.2 / 2.4.3** (A) | Stacked overlays | **Pass** | Page shell `inert` when any overlay open; non-topmost dialog gets `aria-hidden` + `inert` via DOM attribute; focus trap on topmost layer. |
+
+## Landing page decisions (documented)
+
+- **Audience**: CHM causes night blindness and tunnel vision, so many visitors are low-vision. The page is one linear column, rem-based type (body 18px, scales with browser/OS text size), ~40rem measure, no tiny mono labels except the glossary badges (enlarged to ~15px there).
+- **Forced colours / `prefers-contrast: more`**: the glow layer is removed; in forced colours the candle is redrawn as a system-colour line drawing (verified by screenshot).
+- **Glow contrast**: the glow is a fixed 12% alpha tint behind content; `contrast.test.ts` checks text, muted, accent, borders and focus on the tinted surface in both themes, and real-browser axe (with contrast) was clean at 0%, 50% and 100% scroll in both themes.
+- **Reflow / spacing**: no overflow or clipping at 320px with the WCAG 1.4.12 text-spacing override, in both themes.
+- **Live counts** never render as zeros: while loading or when the API is down the sentence is omitted and its space is reserved (CLS 0.002 with a 1.2s API delay).
 
 ## Ask panel decisions (documented)
 
@@ -52,5 +61,6 @@ Automated checks in this closure pass do **not** establish full WCAG conformance
 - [x] Tab through `/trials`: every stop shows a 2px solid outline
 - [x] Tooltips: open on keyboard focus and mouse hover (delayed), Escape dismisses, hoverable, never open on touch
 - [x] Theme: persists across reload; stored light beats a dark OS with no flash before JS loads
+- [x] Landing: animation stoppable and persisted; reduced motion, forced colours and `prefers-contrast: more` handled; guide link lands below the fixed nav; no CLS; API-down state clean; axe clean in both themes at 0/50/100% scroll
 - [x] Ask: follows the stream, rests at the real bottom, does not drag after scrolling up, Jump to latest resumes
 - [x] Trial → publication stacked overlay: background inert, focus in top dialog

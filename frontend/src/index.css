@@ -283,6 +283,7 @@ a {
 }
 @media (forced-colors: active) {
   .candle-art * { fill: none; stroke: CanvasText; }
+  .candle-art [class*="candle-flame"] { stroke-width: 3; }
   .candle-halo { display: none; }
 }
 
