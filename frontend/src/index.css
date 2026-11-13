@@ -178,14 +178,6 @@ a {
   word-spacing: 0.16em !important;
 }
 
-@media (max-width: 480px) {
-  .nav-controls input,
-  .nav-controls button,
-  .nav-controls [role="menuitem"] {
-    min-height: 2.75rem;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -25,6 +25,7 @@ type TooltipProps = {
 
 const HOVER_DELAY_MS = 400;
 const CLOSE_GRACE_MS = 120;
+const SCROLL_GRACE_MS = 250;
 const GAP = 8;
 const EDGE = 8;
 
@@ -41,6 +42,7 @@ export function Tooltip({ label, children, describe = true, className }: Tooltip
   const bubbleRef = useRef<HTMLDivElement>(null);
   const openTimer = useRef<number>();
   const closeTimer = useRef<number>();
+  const openedAt = useRef(0);
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
 
@@ -50,6 +52,7 @@ export function Tooltip({ label, children, describe = true, className }: Tooltip
   };
   const show = useCallback(() => {
     clearTimers();
+    openedAt.current = performance.now();
     setOpen(true);
   }, []);
   const hide = useCallback(() => {
@@ -71,11 +74,16 @@ export function Tooltip({ label, children, describe = true, className }: Tooltip
       if (event.key === "Escape") hide();
     };
     document.addEventListener("keydown", onKeyDown);
-    window.addEventListener("scroll", hide, { capture: true, passive: true });
+    // The browser's own scroll-into-view when a control gains keyboard focus fires a scroll event
+    // right after opening; ignore that burst so the tooltip isn't dismissed as it appears.
+    const onScroll = () => {
+      if (performance.now() - openedAt.current > SCROLL_GRACE_MS) hide();
+    };
+    window.addEventListener("scroll", onScroll, { capture: true, passive: true });
     window.addEventListener("resize", hide);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", hide);
     };
   }, [open, hide]);
@@ -108,7 +116,14 @@ export function Tooltip({ label, children, describe = true, className }: Tooltip
         onPointerLeave={mouseOnly(scheduleHide)}
         onFocus={(event) => {
           // Focus from a mouse click is not a keyboard focus: only show for :focus-visible.
-          if ((event.target as HTMLElement).matches?.(":focus-visible")) show();
+          // Older Safari throws on the unknown selector; there, treat any focus as keyboard focus.
+          let keyboardFocus = true;
+          try {
+            keyboardFocus = (event.target as HTMLElement).matches(":focus-visible");
+          } catch {
+            /* unsupported selector */
+          }
+          if (keyboardFocus) show();
         }}
         onBlur={hide}
       >

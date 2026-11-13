@@ -226,8 +226,9 @@ export function FilterBar({
                     onKeyDown={(event) => handleMenuKeyDown(event, group, menuId)}
                     className={clsx(
                       "justify-center px-4 py-2.5 text-[14px]",
-                      isActive && "border-accent bg-accent/[0.08]",
-                      isOpen && !isActive && "border-accent",
+                      // `!` because Button's own border/bg tokens come later in the generated CSS and would win.
+                      isActive && "!border-accent !bg-accent/[0.08]",
+                      isOpen && !isActive && "!border-accent",
                     )}
                   >
                     {activeLabel}
@@ -274,7 +275,7 @@ export function FilterBar({
                                 ? "bg-accent/[0.12] text-text"
                                 : "text-muted hover:bg-text/[0.06]",
                               optionIndex === activeOptionIndex &&
-                                "ring-1 ring-accent/[0.28]",
+                                "ring-2 ring-inset ring-accent",
                             )}
                           >
                             <span>{option.label}</span>
@@ -284,7 +285,7 @@ export function FilterBar({
                                 className={clsx(
                                   "inline-flex h-4 w-4 items-center justify-center text-[11px]",
                                   isMultiSelect && "rounded-panel border border-line-strong",
-                                  isMultiSelect && isSelected && "border-accent bg-accent/[0.2]",
+                                  isMultiSelect && isSelected && "!border-accent bg-accent/[0.2]",
                                 )}
                               >
                                 {isSelected ? "✓" : ""}

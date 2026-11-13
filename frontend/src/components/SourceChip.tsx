@@ -19,12 +19,14 @@ export function SourceChip({
     <>
       <span className="truncate">{label}</span>
       <span className="kicker ml-2 shrink-0 text-[11px] text-muted">{detail}</span>
+      {/* The visible label is often just an id; keep the full title in the accessible name. */}
+      <span className="sr-only">: {source.title}</span>
     </>
   );
 
   if (source.source_type === "trial" && onOpenTrialSnapshot) {
     return (
-      <Tooltip label={source.title} className="inline-flex min-w-0 max-w-[min(100%,20rem)]">
+      <Tooltip label={source.title} describe={false} className="inline-flex min-w-0 max-w-[min(100%,20rem)]">
         <button
           type="button"
           onClick={() => onOpenTrialSnapshot(source.source_id)}
@@ -37,7 +39,7 @@ export function SourceChip({
   }
 
   return (
-    <Tooltip label={source.title} className="inline-flex min-w-0 max-w-[min(100%,20rem)]">
+    <Tooltip label={source.title} describe={false} className="inline-flex min-w-0 max-w-[min(100%,20rem)]">
       <a href={source.url ?? "#"} target="_blank" rel="noreferrer" className={chipClass}>
         {content}
         <span className="sr-only"> (opens in a new tab)</span>

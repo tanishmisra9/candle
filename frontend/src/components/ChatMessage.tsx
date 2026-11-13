@@ -87,9 +87,6 @@ export const ChatMessage = memo(function ChatMessage({
               ? "border border-line bg-text/[0.05] px-5 py-3.5 text-[15px] leading-[1.6] text-text"
               : "group relative border border-line bg-panel py-5 pl-6 pr-14 text-[16px] leading-[1.6] text-text"
           }`}
-          // While streaming, hold announcements; the finished answer is announced once.
-          aria-live={isUser ? undefined : "polite"}
-          aria-busy={isUser ? undefined : Boolean(message.isStreaming)}
         >
           {!isUser ? (
             <div className="absolute right-2 top-2 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">

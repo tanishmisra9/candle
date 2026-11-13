@@ -46,6 +46,9 @@ export function AskPanel({
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<AskMessage[]>([]);
   const [isPending, setIsPending] = useState(false);
+  // Always-mounted polite region: text is swapped on state changes (inserting a live region that
+  // already has text is announced unreliably). It carries the finished answer, not the deltas.
+  const [announcement, setAnnouncement] = useState("");
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const questionFieldId = useId();
   // Whether the page should follow new content. A ref, not state: it must never re-run the
@@ -77,6 +80,7 @@ export function AskPanel({
       { id: assistantId, role: "assistant", content: "", isStreaming: true },
     ]);
     setDraft("");
+    setAnnouncement("Generating answer.");
     setIsPending(true);
     stickRef.current = true;
     setShowJumpToLatest(false);
@@ -94,6 +98,7 @@ export function AskPanel({
           );
         },
         onDone: (data) => {
+          setAnnouncement(data.answer);
           setMessages((current) =>
             current.map((message) =>
               message.id === assistantId
@@ -111,6 +116,7 @@ export function AskPanel({
         onError: () => {
           void askQuestion(trimmed)
             .then((data) => {
+              setAnnouncement(data.answer);
               setMessages((current) =>
                 current.map((message) =>
                   message.id === assistantId
@@ -126,6 +132,11 @@ export function AskPanel({
             })
             .catch((error) => {
               const isRateLimited = /rate limit|too many/i.test(String(error?.message ?? ""));
+              setAnnouncement(
+                isRateLimited
+                  ? "Too many requests. Please wait a moment and try again."
+                  : "Answer could not be completed.",
+              );
               setMessages((current) =>
                 current.map((message) =>
                   message.id === assistantId
@@ -252,7 +263,6 @@ export function AskPanel({
             {showLoadingDots ? (
               <div className="flex justify-start" role="status">
                 <div className="inline-flex items-center gap-2 rounded-panel border border-line bg-panel px-5 py-4">
-                  <span className="sr-only">Generating answer</span>
                   {[0, 1, 2].map((dot) => (
                     <span
                       key={dot}
@@ -289,6 +299,9 @@ export function AskPanel({
             </div>
           ) : null}
           <div className="rounded-panel border border-line-strong bg-panel p-3 md:p-4">
+            <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+              {announcement}
+            </span>
             <div className="flex items-center gap-3">
               <label htmlFor={questionFieldId} className="sr-only">
                 Ask a question about CHM trials, outcomes, sponsors, or papers

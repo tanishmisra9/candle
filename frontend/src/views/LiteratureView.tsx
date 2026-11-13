@@ -6,10 +6,10 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { PublicationRow } from "../components/PublicationRow";
 import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
-import clsx from "clsx";
 import { listPublicationsPage } from "../lib/api";
 import { catalogQueryOptions } from "../lib/queryClient";
 import { tabClass } from "../lib/ui";
+import { Input } from "../components/ui/Input";
 import { ToggleButton } from "../components/ui/ToggleButton";
 import { Tooltip } from "../components/ui/Tooltip";
 import { cardScrollRevealMotion, listContentSwapMotion } from "../lib/motion";
@@ -149,15 +149,13 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
           className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted"
           aria-hidden="true"
         />
-        <input
+        <Input
           id={searchFieldId}
           ref={inputRef}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search title or abstract"
-          className={clsx(
-            "min-h-11 w-full rounded-panel border border-line-strong bg-panel py-3 pl-11 pr-14 text-[16px] text-text placeholder:text-muted transition-colors hover:border-text/60",
-          )}
+          className="pl-11 md:pr-16"
         />
         <span className="kicker pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-panel border border-line px-2 py-1 text-[11px] text-muted md:block">
           {kbdShortcut}

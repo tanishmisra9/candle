@@ -9,7 +9,6 @@ import { Timeline } from "../components/Timeline";
 import { TrialCard } from "../components/TrialCard";
 import { TrialCardSkeleton } from "../components/TrialCardSkeleton";
 import { listTrialsPage } from "../lib/api";
-import clsx from "clsx";
 import { catalogQueryOptions } from "../lib/queryClient";
 import { cardScrollRevealMotion, listContentSwapMotion } from "../lib/motion";
 import {
@@ -326,9 +325,9 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
       </header>
 
       <div className="space-y-4">
-        <div className="relative z-30 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="relative z-30 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           {filterBar}
-          <div className="relative z-10 flex items-center justify-start md:min-h-[88px]">
+          <div className="relative z-10 flex items-center justify-start">
             {timelineToggle}
           </div>
         </div>

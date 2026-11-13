@@ -57,9 +57,26 @@ describe("AskPanel streaming UI", () => {
     streamGate.release?.();
 
     await waitFor(() => {
-      expect(screen.getByText(/Recruiting trials found\./)).toBeInTheDocument();
+      expect(within(conversation).getByText(/Recruiting trials found\./)).toBeInTheDocument();
     });
 
     expect(within(conversation).queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("announces the finished answer once through a persistent status region, not per delta", async () => {
+    streamGate.release = null;
+    render(<AskPanel />);
+    const region = screen.getByText("", { selector: '[role="status"].sr-only' });
+
+    fireEvent.change(screen.getByLabelText(/ask a question about chm trials/i), {
+      target: { value: "What trials are recruiting?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send question" }));
+    await waitFor(() => expect(region).toHaveTextContent("Generating answer."));
+
+    streamGate.release?.();
+    await waitFor(() => expect(region).toHaveTextContent("Recruiting trials found."));
+    // The region is mounted from the start (live regions inserted with text announce unreliably).
+    expect(screen.getByRole("log", { name: "Conversation" })).toHaveAttribute("aria-live", "off");
   });
 });

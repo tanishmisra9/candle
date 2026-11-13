@@ -17,16 +17,16 @@ const TIMELINE_STATUS_LEGEND = [
 
 type StatusKey = (typeof TIMELINE_STATUS_LEGEND)[number]["key"];
 
-function StatusMarker({ status }: { status: StatusKey }) {
+// `onFill`: the marker sits on a bar already painted in the status colour, so draw it in the
+// label colour instead.
+function StatusMarker({ status, onFill = false }: { status: StatusKey; onFill?: boolean }) {
   const entry = TIMELINE_STATUS_LEGEND.find((item) => item.key === status)!;
+  const color = onFill ? "rgb(var(--tl-text))" : `rgb(var(--tl-${status}))`;
   return (
     <span
       aria-hidden="true"
       className={`inline-block h-2.5 w-2.5 shrink-0 ${entry.marker}`}
-      style={{
-        backgroundColor: `rgb(var(--tl-${status}))`,
-        borderColor: `rgb(var(--tl-${status}))`,
-      }}
+      style={{ backgroundColor: color, borderColor: color }}
     />
   );
 }
@@ -39,11 +39,13 @@ function yearFromDate(value: string | null) {
   return value ? Number.parseInt(value.slice(0, 4), 10) : undefined;
 }
 
-function statusKey(status: string | null): StatusKey {
-  const normalized = (status ?? "").toLowerCase();
-  if (normalized.includes("recruit")) return "recruiting";
-  if (normalized.includes("active")) return "active";
-  if (normalized.includes("terminat") || normalized.includes("withdraw")) return "terminated";
+export function statusKey(status: string | null): StatusKey {
+  // Normalise CT.gov enums. Order matters: ACTIVE_NOT_RECRUITING and NOT_YET_RECRUITING both
+  // contain "recruit" but are not recruiting. Mirrors StatusBadge's tiers (+ SUSPENDED).
+  const normalized = (status ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+  if (["TERMINATED", "WITHDRAWN", "SUSPENDED"].includes(normalized)) return "terminated";
+  if (["ACTIVE_NOT_RECRUITING", "NOT_YET_RECRUITING"].includes(normalized)) return "active";
+  if (["RECRUITING", "ENROLLING_BY_INVITATION"].includes(normalized)) return "recruiting";
   return "other";
 }
 
@@ -224,10 +226,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                   }}
                   aria-label={trialAriaLabel(trial)}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="h-2.5 w-2.5 shrink-0 border border-current"
-                  />
+                  <StatusMarker status={statusKey(trial.status)} onFill />
                   <span className="block w-full truncate text-[12px] font-medium">
                     {label}
                     <span className="sr-only">, {formatStatusLabel(trial.status)}</span>
