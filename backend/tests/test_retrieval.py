@@ -87,3 +87,46 @@ def test_rrf_returns_non_decreasing_distance():
 
     distances = [chunk.distance for chunk in fused]
     assert distances == sorted(distances)
+
+
+class _OneAtATimeSession:
+    """Models SQLAlchemy's AsyncSession contract: a session runs one operation at a time.
+
+    Real sessions raise "This session is provisioning a new connection; concurrent operations
+    are not permitted" when two queries start together on a fresh session. Here we record the
+    overlap instead so the test can assert on it.
+    """
+
+    def __init__(self) -> None:
+        self.in_flight = 0
+        self.max_in_flight = 0
+        self.statements = 0
+
+    async def execute(self, *_args, **_kwargs):
+        import asyncio
+
+        self.in_flight += 1
+        self.max_in_flight = max(self.max_in_flight, self.in_flight)
+        self.statements += 1
+        await asyncio.sleep(0)  # yield, as a real driver round trip would
+        self.in_flight -= 1
+
+        class _Empty:
+            def all(self):
+                return []
+
+        return _Empty()
+
+
+async def test_hybrid_retrieval_never_overlaps_queries_on_one_session():
+    # Running dense and full-text search with asyncio.gather on the request's single session made
+    # the second query fail; retrieve_bm25_chunks swallows errors, so hybrid search silently
+    # became dense-only.
+    from app.services.retrieval import retrieve_hybrid_chunks
+
+    session = _OneAtATimeSession()
+
+    await retrieve_hybrid_chunks(session, "choroideremia gene therapy", [0.0] * 3, limit=10)
+
+    assert session.statements == 2  # both searches ran
+    assert session.max_in_flight == 1

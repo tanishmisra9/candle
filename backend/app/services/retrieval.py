@@ -1,13 +1,13 @@
 """Hybrid retrieval over the `embeddings` table.
 
 Dense pgvector cosine search and Postgres full-text search (`ts_rank_cd` over the generated
-`content_tsv`) are run concurrently and fused with Reciprocal Rank Fusion (`RRF_K = 60`), one entry
-per (source_type, source_id). `RetrievedChunk.distance` is lower-is-better in all paths.
+`content_tsv`) are run one after the other (a session cannot run two queries at once) and fused with
+Reciprocal Rank Fusion (`RRF_K = 60`), one entry per (source_type, source_id). `RetrievedChunk.distance` is lower-is-better in all paths.
 """
 
 from __future__ import annotations
 
-import asyncio
+import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -16,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Embedding
 
+
+logger = logging.getLogger("candle.api")
 
 RRF_K = 60
 
@@ -103,6 +105,7 @@ async def retrieve_bm25_chunks(
         )
         fetched = result.all()
     except Exception:
+        logger.warning("Full-text search failed; continuing with dense results only", exc_info=True)
         return []
 
     rows: list[RetrievedChunk] = []
@@ -166,14 +169,15 @@ async def retrieve_hybrid_chunks(
     limit: int = 50,
     source_type: str | None = None,
 ) -> list[RetrievedChunk]:
-    """Run dense and full-text retrieval concurrently (each capped at 50) and fuse them."""
+    """Run dense then full-text retrieval (each capped at 50) and fuse them. Sequential: one session cannot run two queries at once."""
     capped_limit = min(limit, 50)
-    dense, bm25 = await asyncio.gather(
-        retrieve_similar_chunks(
-            session, embedding, limit=capped_limit, source_type=source_type
-        ),
-        retrieve_bm25_chunks(
-            session, query, limit=capped_limit, source_type=source_type
-        ),
+    # Sequential on purpose: an AsyncSession runs one operation at a time, and asyncio.gather on
+    # the request's single session made the second query fail (swallowed below, so hybrid search
+    # silently degraded to dense-only).
+    dense = await retrieve_similar_chunks(
+        session, embedding, limit=capped_limit, source_type=source_type
+    )
+    bm25 = await retrieve_bm25_chunks(
+        session, query, limit=capped_limit, source_type=source_type
     )
     return _fuse_rankings([dense, bm25], capped_limit)
