@@ -16,11 +16,16 @@ export function PageTransition({ children }: { children: ReactNode }) {
   // reader users land at the top of the new content (WCAG 2.4.3). The flag flips on a timer so
   // StrictMode's double-invoked effect doesn't count the first mount as a navigation.
   useEffect(() => {
-    const heading = ref.current?.querySelector<HTMLElement>("h1");
-    if (hasNavigated && heading) {
-      heading.setAttribute("tabindex", "-1");
-      heading.setAttribute("data-route-heading", "");
-      heading.focus({ preventScroll: true });
+    if (hasNavigated) {
+      // Fall back to <main> if the heading is not rendered yet, so focus is never left on the
+      // previous page's removed link (which would drop keyboard users at the top of <body>).
+      const target =
+        ref.current?.querySelector<HTMLElement>("h1") ?? document.getElementById("main-content");
+      if (target) {
+        target.setAttribute("tabindex", "-1");
+        target.setAttribute("data-route-heading", "");
+        target.focus({ preventScroll: true });
+      }
     }
     const timer = window.setTimeout(() => {
       hasNavigated = true;
