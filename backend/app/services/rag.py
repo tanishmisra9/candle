@@ -12,7 +12,10 @@ Flow (`answer_question` and `answer_question_stream` share it):
  4. Output guard: `contains_advice_language` replaces the whole answer with `ADVICE_REFUSAL`
     (never partial redaction). Parse failure or timeout also fails closed to the refusal.
 Streaming emits `delta` events while the JSON is still arriving and a final authoritative `done`
-event; the guard runs after the stream, so the client must replace streamed text with `done`.
+event. The advice guard also runs incrementally on `answer` responses: the newest
+`STREAM_HOLDBACK_CHARS` characters are held back, so a prohibited phrase is detected before its first
+character is shown; the model stream is then closed and `done` carries the refusal. Clients should
+still replace streamed text with `done`.
 The refusal wording, prohibited phrases and distress handling are deliberate product behaviour:
 see `tests/test_rag_advice_guard.py` and `tests/test_safety_regression.py` before changing them.
 """
@@ -182,6 +185,12 @@ OUTPUT_PROHIBITED_PHRASES = [
     "suitable for you",
     "appropriate for you",
 ]
+
+
+# While streaming, the newest characters are held back by this many so a prohibited phrase is
+# detected (and the stream stopped) before its first character has been shown.
+STREAM_HOLDBACK_CHARS = max(len(phrase) for phrase in OUTPUT_PROHIBITED_PHRASES) - 1
+_RESPONSE_TYPE_RE = re.compile(r'"response_type"\s*:\s*"(\w+)"')
 
 
 def contains_advice_language(answer: str) -> bool:
@@ -728,6 +737,7 @@ async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
     settings = get_settings()
     buffer = ""
     emitted = ""
+    blocked = False
     parsed: StructuredAskOutput | None = None
 
     try:
@@ -755,13 +765,32 @@ async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
                 continue
             buffer += delta
             current = extract_partial_answer_text(buffer)
-            if len(current) > len(emitted):
-                new_text = current[len(emitted) :]
-                emitted = current
+            # Only `answer` responses are advice-guarded (as in the non-streaming path); the
+            # type is the first key of the strict schema, so it is known before answer_text.
+            type_match = _RESPONSE_TYPE_RE.search(buffer)
+            guarded = type_match is None or type_match.group(1) == "answer"
+            if guarded and contains_advice_language(current):
+                blocked = True
+                break
+            visible = current[:-STREAM_HOLDBACK_CHARS] if guarded else current
+            if len(visible) > len(emitted):
+                new_text = visible[len(emitted) :]
+                emitted = visible
                 yield json.dumps({"type": "delta", "delta": new_text})
-
+        if blocked:
+            close = getattr(stream, "close", None)
+            if close is not None:
+                await close()
+            logger.warning("Streamed answer contained advice language, replacing with refusal")
+            yield json.dumps({"type": "done", "answer": ADVICE_REFUSAL, "sources": []})
+            return
         parsed = StructuredAskOutput.model_validate_json(buffer)
         logger.info("ASK_RESPONSE: response_type=%s", parsed.response_type)
+        # Flush the held-back tail unless the final answer is itself blocked below.
+        final_text = parsed.answer_text
+        blocked_final = parsed.response_type == "answer" and contains_advice_language(final_text)
+        if not blocked_final and final_text.startswith(emitted) and len(final_text) > len(emitted):
+            yield json.dumps({"type": "delta", "delta": final_text[len(emitted) :]})
     except asyncio.TimeoutError:
         logger.warning("Structured ask stream timed out, failing closed")
         yield json.dumps({"type": "done", "answer": ADVICE_REFUSAL, "sources": []})

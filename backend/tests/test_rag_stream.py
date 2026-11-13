@@ -177,3 +177,112 @@ async def test_refusal_stream_replaces_partial_text_in_done(monkeypatch) -> None
     assert len(deltas) >= 1
     assert done["answer"] == ADVICE_REFUSAL
     assert done["sources"] == []
+
+
+class _ClosableStream:
+    """Async-iterable fake of the OpenAI stream that records whether it was closed."""
+
+    def __init__(self, chunks: list[str]) -> None:
+        self._chunks = chunks
+        self.closed = False
+
+    def __aiter__(self):
+        return self._iterate()
+
+    async def _iterate(self):
+        for chunk in self._chunks:
+            yield _FakeStreamEvent(chunk)
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+def _patch_stream(monkeypatch, stream: _ClosableStream) -> None:
+    async def _fake_classify(_question: str):
+        from app.services.intent import IntentClassification
+
+        return IntentClassification(intent="info_request")
+
+    async def _fake_prepare(_question, _session):
+        return "ready", [], [], {}, "context block"
+
+    async def _fake_create(**_kwargs):
+        return stream
+
+    async def _fake_enrich(_session, sources):
+        return sources
+
+    mock_client = MagicMock()
+    mock_client.chat.completions.create = _fake_create
+    monkeypatch.setattr("app.services.rag.classify_intent", _fake_classify)
+    monkeypatch.setattr("app.services.rag._prepare_question_context", _fake_prepare)
+    monkeypatch.setattr("app.services.rag.get_openai_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.rag.enrich_sources", _fake_enrich)
+
+
+def _chunked(payload: dict, size: int) -> list[str]:
+    raw = json.dumps(payload)
+    return [raw[i : i + size] for i in range(0, len(raw), size)]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("chunk_size", [1, 7, 10_000])
+async def test_stream_never_shows_a_prohibited_phrase_before_the_guard_replaces_it(
+    monkeypatch, chunk_size
+) -> None:
+    # The guard used to run only after the stream ended, so "you should consider enrolling" was
+    # visible in the UI until the final event replaced it. It must never be emitted at all, for
+    # any chunking (including a phrase split across chunks).
+    from app.services.rag import contains_advice_language
+
+    answer = "Trial NCT02435940 is recruiting. You should consider enrolling in it right away."
+    stream = _ClosableStream(
+        _chunked({"response_type": "answer", "answer_text": answer, "cited_ids": []}, chunk_size)
+    )
+    _patch_stream(monkeypatch, stream)
+
+    events = await _collect_stream_events("What is recruiting?", monkeypatch)
+
+    shown = "".join(e["delta"] for e in events if e["type"] == "delta")
+    assert not contains_advice_language(shown)
+    assert "you should" not in shown.lower()
+    done = [e for e in events if e["type"] == "done"]
+    assert len(done) == 1
+    assert done[0]["answer"] == ADVICE_REFUSAL
+    assert done[0]["sources"] == []
+    # We stop consuming the model once the answer is known to be blocked.
+    assert stream.closed is True
+
+
+@pytest.mark.asyncio
+async def test_stream_still_delivers_a_clean_answer_in_full(monkeypatch) -> None:
+    # The hold-back must be flushed once the final answer passes the guard.
+    answer = "According to NCT02435940, the trial is recruiting adults with CHM."
+    stream = _ClosableStream(
+        _chunked({"response_type": "answer", "answer_text": answer, "cited_ids": []}, 5)
+    )
+    _patch_stream(monkeypatch, stream)
+
+    events = await _collect_stream_events("What is recruiting?", monkeypatch)
+
+    shown = "".join(e["delta"] for e in events if e["type"] == "delta")
+    assert shown == answer
+    assert next(e for e in events if e["type"] == "done")["answer"] == answer
+
+
+@pytest.mark.asyncio
+async def test_stream_does_not_guard_insufficient_context_text(monkeypatch) -> None:
+    # Parity with the non-streaming path, which returns refusal/insufficient_context text as-is.
+    answer = "I don't have indexed records on that. I suggest checking clinicaltrials.gov."
+    stream = _ClosableStream(
+        _chunked(
+            {"response_type": "insufficient_context", "answer_text": answer, "cited_ids": []}, 6
+        )
+    )
+    _patch_stream(monkeypatch, stream)
+
+    events = await _collect_stream_events("Tell me about X", monkeypatch)
+
+    shown = "".join(e["delta"] for e in events if e["type"] == "delta")
+    assert shown == answer
+    assert next(e for e in events if e["type"] == "done")["answer"] == answer

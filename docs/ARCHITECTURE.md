@@ -51,7 +51,9 @@ The refusal wording, the prohibited phrases and the distress handling are **deli
 
 ### Streaming
 
-`/ask/stream` emits server-sent events: `delta` (new answer text, extracted incrementally from the still-incomplete JSON), then one authoritative `done` (final answer and sources) or `error`. The advice-language guard runs **after** the stream is parsed, so streamed text can be replaced by the refusal in the `done` event. The frontend therefore always replaces its streamed text with the `done` payload; any other client must do the same. (Consequence: text that later fails the guard is briefly visible while streaming.)
+`/ask/stream` emits server-sent events: `delta` (new answer text, extracted incrementally from the still-incomplete JSON), then one authoritative `done` (final answer and sources) or `error`.
+
+The advice-language guard also runs **while streaming** for `answer` responses (refusals and insufficient-context text are not guarded, matching `/ask`). The newest `STREAM_HOLDBACK_CHARS` (longest prohibited phrase minus one) characters are held back, so a prohibited phrase is detected before its first character is shown. On a hit the model stream is closed and the client receives `done` with the refusal; nothing prohibited was ever emitted. On a clean answer the held-back tail is flushed before `done`. Clients should still treat `done` as authoritative and replace what they streamed. If you add a phrase to `OUTPUT_PROHIBITED_PHRASES` the hold-back adjusts automatically; the tests in `tests/test_rag_stream.py` cover phrases split across arbitrary chunk boundaries.
 
 ## Request-level protections
 
