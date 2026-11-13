@@ -81,4 +81,18 @@ describe.each(Object.entries(themes))("%s theme contrast", (_name, tokens) => {
       expect(ratio(tokens.text, tinted)).toBeGreaterThanOrEqual(4.5);
     }
   });
+
+  // The landing page's room glow tints the canvas at up to this alpha (see .candle-room-glow in
+  // index.css), so text and UI colours must still pass on the tinted surface.
+  it("text, muted, accent, borders and focus still pass on the room glow at its maximum alpha", () => {
+    const GLOW_ALPHA = 0.12;
+    for (const surface of ["canvas", "panel"]) {
+      const lit = blend(tokens["flame-glow"], tokens[surface], GLOW_ALPHA);
+      expect(ratio(tokens.text, lit), `text on ${surface}+glow`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(tokens.muted, lit), `muted on ${surface}+glow`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(tokens.accent, lit), `accent on ${surface}+glow`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(tokens["line-strong"], lit), `line-strong on ${surface}+glow`).toBeGreaterThanOrEqual(3);
+      expect(ratio(tokens.focus, lit), `focus on ${surface}+glow`).toBeGreaterThanOrEqual(3);
+    }
+  });
 });
