@@ -80,7 +80,7 @@ async def generate_trial_summary_text(trial: Trial) -> str | None:
 
 
 async def generate_trial_summaries(session: AsyncSession) -> int:
-    """Summarise stale trials in batches of 20, committing after each trial. An empty model response is logged, stored as NULL with a fresh attempt time (retried after 7 days) and not counted. Returns the number of summaries actually generated."""
+    """Summarise stale trials in batches of 20, committing after each trial. An empty model response is logged, leaves any existing summary untouched, records a fresh attempt time (retried after 7 days) and is not counted. Returns the number of summaries actually generated."""
     generated_count = 0
     while True:
         trials = (await session.execute(stale_trial_stmt(SUMMARY_COMMIT_BATCH_SIZE))).scalars().all()
@@ -91,11 +91,12 @@ async def generate_trial_summaries(session: AsyncSession) -> int:
         # but commit each completed summary so partial progress survives upstream failures.
         for index, trial in enumerate(trials, start=1):
             summary = await generate_trial_summary_text(trial)
-            trial.ai_summary = summary
             trial.ai_summary_generated_at = datetime.now(timezone.utc)
             if summary is None:
+                # Keep any existing summary; only the attempt time moves.
                 logger.warning("Empty trial summary for %s; will retry after the stale window", trial.id)
             else:
+                trial.ai_summary = summary
                 generated_count += 1
             await session.commit()
 

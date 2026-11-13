@@ -22,7 +22,7 @@ _PUBLICATION_OVERVIEW_PATH = re.compile(r"^/publications/[^/]+/overview$")
 
 
 def is_llm_endpoint(method: str, path: str) -> bool:
-    """True for the POST routes covered by the body limit: `/ask` and `/publications/{pmid}/overview` (not `/ask/stream`)."""
+    """True for the POST routes covered by the body limit: `/ask`, `/ask/stream` and `/publications/{pmid}/overview`."""
     if method != "POST":
         return False
     if path in {"/ask", "/ask/stream"}:

@@ -265,3 +265,29 @@ async def test_empty_model_response_is_not_counted_and_does_not_loop(monkeypatch
     assert trials[0].ai_summary is None
     assert isinstance(trials[0].ai_summary_generated_at, datetime)  # attempted: retried after 7 days
     assert trials[1].ai_summary == "Summary for NCT00000002"
+
+
+@pytest.mark.asyncio
+async def test_empty_model_response_keeps_an_existing_summary(monkeypatch):
+    # A stale trial that already has a good summary must not be overwritten with NULL when the
+    # model returns nothing; only the attempt time moves so it is retried after the window.
+    trial = make_trial("NCT00000001", ai_summary="Old summary", ai_summary_generated_at=None)
+    session = DummySummarySession([trial])
+
+    async def fake_generate_trial_summary_text(_trial):
+        return None
+
+    async def fake_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr(
+        "app.ingest.summarise.generate_trial_summary_text",
+        fake_generate_trial_summary_text,
+    )
+    monkeypatch.setattr("app.ingest.summarise.asyncio.sleep", fake_sleep)
+
+    count = await generate_trial_summaries(session)
+
+    assert count == 0
+    assert trial.ai_summary == "Old summary"
+    assert isinstance(trial.ai_summary_generated_at, datetime)
