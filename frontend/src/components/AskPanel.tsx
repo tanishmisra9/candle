@@ -1,5 +1,5 @@
-import { SendHorizonal } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { ArrowDown, SendHorizonal } from "lucide-react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { askQuestion, askQuestionStream } from "../lib/api";
 import type { AskMessage } from "../types";
@@ -7,6 +7,7 @@ import { ChatMessage } from "./ChatMessage";
 import { LastSyncedLabel } from "./LastSyncedLabel";
 import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
+import { Tooltip } from "./ui/Tooltip";
 
 const EXAMPLE_QUESTIONS = [
   "Which CHM gene therapy trials are currently recruiting?",
@@ -31,6 +32,12 @@ const EXAMPLE_QUESTIONS = [
   "Are there any trials studying vitamin A or neuroprotective treatments for CHM?",
 ] as const;
 
+// "Following" the stream means being within this many px of the true document bottom.
+const STICK_THRESHOLD_PX = 80;
+
+const distanceFromBottom = () =>
+  document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
+
 export function AskPanel({
   onOpenTrialSnapshot,
 }: {
@@ -38,11 +45,14 @@ export function AskPanel({
 }) {
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<AskMessage[]>([]);
-  const [statusMessage, setStatusMessage] = useState("");
   const [isPending, setIsPending] = useState(false);
-  const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const questionFieldId = useId();
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  // Whether the page should follow new content. A ref, not state: it must never re-run the
+  // follow effect (that feedback loop was the "infinite scroll" glitch).
+  const stickRef = useRef(true);
+  // scrollY after our own scrollTo, so the scroll event it fires isn't mistaken for the user.
+  const programmaticYRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const exampleQuestions = useMemo(() => {
     return [...EXAMPLE_QUESTIONS]
@@ -66,9 +76,10 @@ export function AskPanel({
       { id: `user-${Date.now()}`, role: "user", content: trimmed },
       { id: assistantId, role: "assistant", content: "", isStreaming: true },
     ]);
-    setStatusMessage("Generating answer.");
     setDraft("");
     setIsPending(true);
+    stickRef.current = true;
+    setShowJumpToLatest(false);
 
     void askQuestionStream(
       trimmed,
@@ -83,7 +94,6 @@ export function AskPanel({
           );
         },
         onDone: (data) => {
-          setStatusMessage("Answer received.");
           setMessages((current) =>
             current.map((message) =>
               message.id === assistantId
@@ -101,7 +111,6 @@ export function AskPanel({
         onError: () => {
           void askQuestion(trimmed)
             .then((data) => {
-              setStatusMessage("Answer received.");
               setMessages((current) =>
                 current.map((message) =>
                   message.id === assistantId
@@ -117,7 +126,6 @@ export function AskPanel({
             })
             .catch((error) => {
               const isRateLimited = /rate limit|too many/i.test(String(error?.message ?? ""));
-              setStatusMessage("Answer could not be completed.");
               setMessages((current) =>
                 current.map((message) =>
                   message.id === assistantId
@@ -153,33 +161,44 @@ export function AskPanel({
   const showLoadingDots =
     isPending && !(inFlightAssistant && inFlightAssistant.content.length > 0);
 
+  // Stickiness is derived from position, and only from scrolls we did not cause ourselves.
   useEffect(() => {
-    const handleScroll = () => {
-      const distanceFromBottom =
-        document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
-      setIsUserScrolledUp(distanceFromBottom > 100);
+    const onScroll = () => {
+      if (
+        programmaticYRef.current !== null &&
+        Math.abs(window.scrollY - programmaticYRef.current) < 1
+      ) {
+        return;
+      }
+      programmaticYRef.current = null;
+      const stuck = distanceFromBottom() <= STICK_THRESHOLD_PX;
+      stickRef.current = stuck;
+      setShowJumpToLatest(!stuck);
     };
 
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => {
-    if (!hasConversation || isUserScrolledUp) {
+  // Follow growth by scrolling to the true bottom (not a sentinel above the padding), so our own
+  // scroll always lands inside the stick threshold and can never unstick itself.
+  useLayoutEffect(() => {
+    if (!hasConversation || !stickRef.current) {
       return;
     }
-    const anchor = messagesEndRef.current;
-    if (typeof anchor?.scrollIntoView === "function") {
-      anchor.scrollIntoView({
-        block: "end",
-        behavior: "auto",
-      });
-    }
-  }, [messages, isPending, hasConversation, isUserScrolledUp]);
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    programmaticYRef.current = window.scrollY;
+  }, [messages, isPending, hasConversation]);
+
+  const jumpToLatest = () => {
+    stickRef.current = true;
+    setShowJumpToLatest(false);
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    programmaticYRef.current = window.scrollY;
+  };
 
   return (
-    <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
+    <div className="space-y-8 pb-24 pt-28 md:space-y-12 md:pt-32">
       <header className="space-y-2">
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           Ask
@@ -193,19 +212,18 @@ export function AskPanel({
       <div
         className="min-h-[280px] space-y-10"
         role="log"
-        aria-live="polite"
-        aria-relevant="additions"
+        aria-live="off"
         aria-label="Conversation"
       >
         {emptyState ? (
-          <div className="pb-32 pt-12">
+          <div className="pt-12">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {exampleQuestions.map((question) => (
                 <button
                   key={question}
                   type="button"
                   onClick={() => sendQuestion(question)}
-                  className="focus-ring inline-flex min-h-12 rounded-full border border-line bg-glass px-5 py-3.5 text-left text-[15px] text-muted shadow-panel backdrop-blur-2xl transition hover:border-[rgba(232,163,61,0.28)] hover:text-text"
+                  className="inline-flex min-h-12 items-center rounded-panel border border-line-strong bg-panel px-5 py-3.5 text-left text-[15px] text-muted transition-colors hover:border-accent hover:text-text"
                 >
                   {question}
                 </button>
@@ -213,7 +231,7 @@ export function AskPanel({
             </div>
           </div>
         ) : (
-          <div className="space-y-5 pb-32">
+          <div className="space-y-5">
             {messages.map((message) => {
               if (
                 message.role === "assistant" &&
@@ -232,13 +250,13 @@ export function AskPanel({
               );
             })}
             {showLoadingDots ? (
-              <div className="flex justify-start" role="status" aria-live="polite">
-                <div className="inline-flex items-center gap-2 rounded-[22px] border border-line bg-glass px-5 py-4 backdrop-blur-2xl">
+              <div className="flex justify-start" role="status">
+                <div className="inline-flex items-center gap-2 rounded-panel border border-line bg-panel px-5 py-4">
                   <span className="sr-only">Generating answer</span>
                   {[0, 1, 2].map((dot) => (
                     <span
                       key={dot}
-                      className="h-2 w-2 animate-pulse rounded-full bg-accent"
+                      className="h-2 w-2 animate-pulse rounded-panel bg-accent"
                       style={{ animationDelay: `${dot * 120}ms` }}
                       aria-hidden="true"
                     />
@@ -246,7 +264,6 @@ export function AskPanel({
                 </div>
               </div>
             ) : null}
-            <div ref={messagesEndRef} />
           </div>
         )}
       </div>
@@ -258,32 +275,44 @@ export function AskPanel({
         }}
         className="fixed inset-x-0 bottom-6 z-40 px-4 sm:px-5 md:px-10"
       >
-        <div className="mx-auto w-full max-w-[1360px] rounded-[32px] border border-line bg-glass p-4 shadow-panel backdrop-blur-2xl">
-          <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-            {statusMessage}
-          </span>
-          <div className="flex items-center gap-3">
-            <label htmlFor={questionFieldId} className="sr-only">
-              Ask a question about CHM trials, outcomes, sponsors, or papers
-            </label>
-            <Input
-              id={questionFieldId}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              placeholder="Ask about CHM trials, outcomes, sponsors, or papers"
-              className="border-[rgba(255,255,255,0.045)] bg-[rgba(18,18,24,0.74)] px-4 py-4 text-[17px] shadow-[0_8px_22px_rgba(0,0,0,0.12)] hover:border-[rgba(255,255,255,0.07)] focus-visible:border-[rgba(255,255,255,0.08)] focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.4)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
-            />
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={!draft.trim() || isPending}
-              aria-label="Send question"
-              className="h-12 w-12 shrink-0 p-0 opacity-100 transition-opacity disabled:opacity-30"
-            >
-              <SendHorizonal size={17} strokeWidth={1.5} aria-hidden="true" />
-            </Button>
+        <div className="mx-auto w-full max-w-[1360px]">
+          {showJumpToLatest && hasConversation ? (
+            <div className="flex justify-end pb-2">
+              <button
+                type="button"
+                onClick={jumpToLatest}
+                className="inline-flex min-h-11 items-center gap-2 rounded-panel border border-line-strong bg-panel px-4 text-[14px] font-medium text-text transition-colors hover:border-accent"
+              >
+                <ArrowDown size={16} strokeWidth={1.75} aria-hidden="true" />
+                Jump to latest
+              </button>
+            </div>
+          ) : null}
+          <div className="rounded-panel border border-line-strong bg-panel p-3 md:p-4">
+            <div className="flex items-center gap-3">
+              <label htmlFor={questionFieldId} className="sr-only">
+                Ask a question about CHM trials, outcomes, sponsors, or papers
+              </label>
+              <Input
+                id={questionFieldId}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="Ask about CHM trials, outcomes, sponsors, or papers"
+              />
+              <Tooltip label="Send question" describe={false}>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={!draft.trim() || isPending}
+                  aria-label="Send question"
+                  className="w-11 shrink-0 p-0"
+                >
+                  <SendHorizonal size={17} strokeWidth={1.5} aria-hidden="true" />
+                </Button>
+              </Tooltip>
+            </div>
+            <LastSyncedLabel className="mt-2" />
           </div>
-          <LastSyncedLabel className="mt-2.5" />
         </div>
       </form>
     </div>

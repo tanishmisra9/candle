@@ -7,16 +7,17 @@ import remarkGfm from "remark-gfm";
 import { messageEntranceMotion } from "../lib/motion";
 import type { AskMessage } from "../types";
 import { SourceChip } from "./SourceChip";
+import { Tooltip } from "./ui/Tooltip";
 
 const markdownComponents = {
   p: ({ children }: { children?: ReactNode }) => (
     <p className="mb-3 leading-[1.6] text-text last:mb-0">{children}</p>
   ),
   ul: ({ children }: { children?: ReactNode }) => (
-    <ul className="mb-3 space-y-1.5 pl-4 last:mb-0">{children}</ul>
+    <ul className="mb-3 list-disc space-y-1.5 pl-5 last:mb-0">{children}</ul>
   ),
   ol: ({ children }: { children?: ReactNode }) => (
-    <ol className="mb-3 list-decimal space-y-1.5 pl-4 last:mb-0">{children}</ol>
+    <ol className="mb-3 list-decimal space-y-1.5 pl-5 last:mb-0">{children}</ol>
   ),
   li: ({ children }: { children?: ReactNode }) => (
     <li className="leading-[1.6] text-text marker:text-muted">{children}</li>
@@ -81,21 +82,32 @@ export const ChatMessage = memo(function ChatMessage({
     >
       <div className="max-w-[92%]">
         <div
-          className={`rounded-[24px] shadow-panel ${
+          className={`rounded-panel ${
             isUser
-              ? "border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.05)] px-5 py-3.5 text-[15px] leading-[1.6] text-text backdrop-blur-xl"
-              : "group relative border border-line bg-glass px-6 py-5 pr-14 text-[16px] leading-[1.6] text-text backdrop-blur-2xl"
+              ? "border border-line bg-text/[0.05] px-5 py-3.5 text-[15px] leading-[1.6] text-text"
+              : "group relative border border-line bg-panel py-5 pl-6 pr-14 text-[16px] leading-[1.6] text-text"
           }`}
+          // While streaming, hold announcements; the finished answer is announced once.
+          aria-live={isUser ? undefined : "polite"}
+          aria-busy={isUser ? undefined : Boolean(message.isStreaming)}
         >
           {!isUser ? (
-            <button
-              type="button"
-              onClick={() => void handleCopy()}
-              className="focus-ring absolute right-3 top-3 rounded-full p-2 text-muted opacity-0 transition hover:text-text focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
-              aria-label={copied ? "Copied" : "Copy response"}
-            >
-              {copied ? <Check size={16} strokeWidth={1.75} /> : <Copy size={16} strokeWidth={1.75} />}
-            </button>
+            <div className="absolute right-2 top-2 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
+              <Tooltip label={copied ? "Copied" : "Copy response"} describe={false}>
+                <button
+                  type="button"
+                  onClick={() => void handleCopy()}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-panel text-muted transition-colors hover:bg-text/5 hover:text-text"
+                  aria-label={copied ? "Copied" : "Copy response"}
+                >
+                  {copied ? (
+                    <Check size={16} strokeWidth={1.75} aria-hidden="true" />
+                  ) : (
+                    <Copy size={16} strokeWidth={1.75} aria-hidden="true" />
+                  )}
+                </button>
+              </Tooltip>
+            </div>
           ) : null}
           {isUser ? (
             message.content
