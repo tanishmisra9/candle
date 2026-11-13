@@ -1,3 +1,4 @@
+/** Viewport helpers: `useIsMobile` (matches Tailwind's `md` breakpoint, `max-width: 767px`), `useScrolledPastThreshold` for condensing sticky headers, and `NAV_OFFSET_CLASS`, the `top` offset that clears the fixed nav (`--nav-offset` in `index.css`). */
 import { useEffect, useState } from "react";
 
 export const MOBILE_MEDIA_QUERY = "(max-width: 767px)";

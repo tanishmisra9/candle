@@ -1,3 +1,4 @@
+/** Trial list card. The whole card is one `<button>`, so nothing inside it may be interactive (no tooltips or links on its badges). Title is an `<h2>` under the page `<h1>`. */
 import { memo } from "react";
 import { Building2, MapPin, Users } from "lucide-react";
 

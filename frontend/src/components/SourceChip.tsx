@@ -1,3 +1,4 @@
+/** Citation chip under an assistant answer: a button that opens the trial dialog, or a new-tab link to PubMed. The full source title is in the accessible name and in a tooltip. */
 import type { AskSource } from "../types";
 import { Tooltip } from "./ui/Tooltip";
 

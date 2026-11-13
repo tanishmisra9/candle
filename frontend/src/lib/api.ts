@@ -1,3 +1,8 @@
+/**
+ * The only API client boundary. `VITE_API_BASE_URL` (default `http://localhost:8000`) is the backend origin.
+ *
+ * `askQuestionStream` reads the `/ask/stream` SSE frames (`delta`, `done`, `error`); the `done` payload is authoritative and replaces any streamed text. List endpoints return a cursor envelope (`items`, `next_cursor`, `total`) when `envelope=true` or a cursor is sent.
+ */
 import type {
   AskResponse,
   CursorPage,

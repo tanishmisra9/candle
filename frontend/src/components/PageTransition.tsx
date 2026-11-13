@@ -1,3 +1,4 @@
+/** Route enter/exit animation wrapper that also moves focus to the new page heading after client-side navigation. */
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, type ReactNode } from "react";
 

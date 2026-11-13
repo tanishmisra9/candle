@@ -1,3 +1,8 @@
+/**
+ * Trial detail dialog (portal). Fetches `GET /trials/{id}` when `trialId` is set.
+ *
+ * Can be covered by a `PublicationSnapshot` (`publicationSnapshotLayer`); only the topmost dialog has the focus trap, and the lower one gets `aria-hidden` + `inert`. Focus returns to the trigger on close, and body scroll is locked while open.
+ */
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";

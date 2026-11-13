@@ -1,3 +1,4 @@
+/** Trial status label: text plus a marker shape per tier (active, completed, terminated, unknown) so status is never colour alone. */
 import { formatStatusLabel } from "../lib/formatters";
 import clsx from "clsx";
 

@@ -1,3 +1,4 @@
+/** Wrap search-term matches in `<mark>` (accent colour + weight, no background) for titles and abstracts. */
 import type { ReactNode } from "react";
 
 const MARK_STYLE = {

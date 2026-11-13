@@ -1,3 +1,4 @@
+/** Trial timeline. Desktop: label buttons on the left (the real, keyboard-accessible controls) plus an SVG chart in a focusable scroll region; pointer-only bar overlays are hidden from AT. Mobile: bar buttons. Status is shown by colour AND a marker shape (WCAG 1.4.1); fills come from the `--tl-*` tokens. */
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef } from "react";
 

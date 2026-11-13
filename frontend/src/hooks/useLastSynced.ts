@@ -1,3 +1,4 @@
+/** Last successful ingest time (`GET /sync/last-synced`) for the "Data last synced" label. Cached for the session. */
 import { useQuery } from "@tanstack/react-query";
 
 import { getSyncLastSynced } from "../lib/api";

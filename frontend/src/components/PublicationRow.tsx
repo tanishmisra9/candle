@@ -1,3 +1,4 @@
+/** Publication list row (one `<button>`, same no-nested-interactive rule as `TrialCard`). */
 import { memo } from "react";
 
 import { highlightText } from "../lib/highlight";

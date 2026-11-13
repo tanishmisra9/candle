@@ -1,3 +1,4 @@
+/** Display formatting for ClinicalTrials.gov enums (status, phase, intervention type): e.g. `ACTIVE_NOT_RECRUITING` -> "Active Not Recruiting", `PHASE2/PHASE3` -> "Phase 2 / Phase 3". Null maps to "Unknown" / "Unspecified". */
 function titleCaseWords(value: string) {
   return value
     .toLowerCase()

@@ -1,3 +1,4 @@
+/** Trials page (`/trials`): filters, grid with IntersectionObserver infinite scroll, and the timeline toggle. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";

@@ -1,3 +1,4 @@
+/** Floating back-to-top button after 600px of scroll. Used by the list views (not Ask, which has its own composer and Jump-to-latest control). */
 import { useEffect, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { ArrowUp } from "lucide-react";

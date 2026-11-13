@@ -1,3 +1,4 @@
+/** TanStack Query defaults: 5 min stale time and one retry. `catalogQueryOptions` is for rarely-changing catalog data (spread into the list views' queries): 30 min stale time. */
 import { QueryClient } from "@tanstack/react-query";
 
 export const queryClient = new QueryClient({

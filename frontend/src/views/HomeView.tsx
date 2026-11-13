@@ -1,3 +1,4 @@
+/** Landing page (`/`): intro and links to the three destinations. */
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Flame } from "lucide-react";
 import { Link } from "react-router-dom";

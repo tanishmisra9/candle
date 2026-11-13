@@ -1,3 +1,4 @@
+/** Trial phase label (hairline mono text; despite the name it is not pill-shaped). */
 import { formatPhaseLabel } from "../lib/formatters";
 
 export function PhasePill({ phase }: { phase: string | null }) {

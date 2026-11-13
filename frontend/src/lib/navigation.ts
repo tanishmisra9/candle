@@ -1,3 +1,4 @@
+/** The three primary destinations (Trials, Literature, Ask), shared by the nav and the home page cards. */
 export type PrimaryDestination = {
   to: "/trials" | "/literature" | "/ask";
   label: string;

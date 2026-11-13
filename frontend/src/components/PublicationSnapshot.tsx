@@ -1,3 +1,4 @@
+/** Publication reader dialog (portal): abstract, linked trial and a persisted AI overview fetched via `POST /publications/{pmid}/overview`. Same stacking, focus-trap and focus-return rules as `TrialSnapshot`. */
 import { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CalendarRange, ExternalLink, X } from "lucide-react";

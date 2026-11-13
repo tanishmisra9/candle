@@ -1,3 +1,4 @@
+/** App entry: mounts React with the TanStack Query client, the router and a top-level error boundary. `index.css` is imported here, so the pre-paint theme script in `index.html` is what prevents a flash of the wrong theme. */
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";

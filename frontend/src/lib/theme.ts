@@ -1,3 +1,4 @@
+/** Theme switching. The class/`color-scheme`/`theme-color` are first set by the inline script in `index.html` (before paint); this module applies later changes and persists the choice in `localStorage` (guarded: storage can be blocked). */
 export type Theme = "light" | "dark";
 
 const STORAGE_KEY = "candle-theme";

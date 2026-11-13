@@ -1,3 +1,4 @@
+/** Catches render errors and shows a retry panel instead of a blank page. */
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 type ErrorBoundaryProps = {

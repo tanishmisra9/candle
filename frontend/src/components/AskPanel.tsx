@@ -1,3 +1,4 @@
+/** The Ask page: example questions, conversation log, fixed composer and the streaming scroll/announcement logic. See the scroll invariant in the module body before changing the follow behaviour (it must be a ref derived from position; the old state-driven version caused an infinite scroll glitch). */
 import { ArrowDown, SendHorizonal } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 

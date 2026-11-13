@@ -1,3 +1,4 @@
+/** Loading placeholder matching `PublicationRow`. */
 export function PublicationRowSkeleton() {
   return (
     <div className="flex flex-col gap-3 border-b border-line px-2 py-6 md:flex-row md:items-start md:justify-between">

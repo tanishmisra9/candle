@@ -1,3 +1,4 @@
+/** Literature page (`/literature`): search, sort, linked-only filter, client-side pagination (50 per page). Auto-loads every page from the API first because sorting needs the full set. */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";

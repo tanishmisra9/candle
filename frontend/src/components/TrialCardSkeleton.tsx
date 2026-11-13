@@ -1,3 +1,4 @@
+/** Loading placeholder matching `TrialCard`'s layout (keeps the grid from jumping). */
 export function TrialCardSkeleton() {
   return (
     <div className="flex h-full flex-col rounded-panel border border-line bg-panel p-7">

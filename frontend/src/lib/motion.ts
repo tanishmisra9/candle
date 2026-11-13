@@ -1,3 +1,4 @@
+/** Shared framer-motion variants. Every factory takes `prefersReducedMotion` and returns a static/no-op variant when true. Add new shared motion here instead of inlining it in a component. Keep message entrance opacity-only (a y offset shifts layout while Ask follows the stream). */
 export function overlayBackdropMotion(prefersReducedMotion: boolean | null) {
   if (prefersReducedMotion) {
     return {

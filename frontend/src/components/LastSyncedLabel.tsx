@@ -1,3 +1,4 @@
+/** "Data last synced" line; renders nothing while loading, on error, or if no ingest has succeeded. */
 import clsx from "clsx";
 import { formatLastSynced, useLastSynced } from "../hooks/useLastSynced";
 

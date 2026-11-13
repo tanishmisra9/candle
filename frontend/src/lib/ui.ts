@@ -1,3 +1,4 @@
+/** Shared class helper for underline tabs/toggles (`tabClass`). */
 import clsx from "clsx";
 
 // Underline tab / toggle look shared by nav-like controls: 44px target, accent underline when

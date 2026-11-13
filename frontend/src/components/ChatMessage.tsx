@@ -1,3 +1,4 @@
+/** One Ask message: user text or assistant markdown, a copy button (always visible on touch, on hover/focus otherwise) and source chips. Announcements are handled by the status region in `AskPanel`, not here. */
 import { memo, useEffect, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Check, Copy } from "lucide-react";

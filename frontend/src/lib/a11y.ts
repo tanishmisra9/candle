@@ -1,3 +1,4 @@
+/** Focus-trap helpers for modal dialogs (`useFocusTrap`, `handleFocusTrap`) and the shared focusable-element selector. Only the topmost overlay should have the trap enabled. */
 import { useEffect, type RefObject } from "react";
 
 export const FOCUSABLE_SELECTOR =

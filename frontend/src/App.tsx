@@ -1,3 +1,8 @@
+/**
+ * App shell: skip link, fixed `SiteNav`, lazy route views inside `AnimatePresence`, the stacked trial/publication snapshot overlays and the footer.
+ *
+ * Overlays: `selectedTrialId` / `selectedPublication` plus `publicationSnapshotLayer` decide which dialog is on top; the page content is marked `inert` while any overlay is open. Navigation scrolls to top (focus moves to the new `<h1>` in `PageTransition`).
+ */
 import { AnimatePresence } from "framer-motion";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";

@@ -1,3 +1,4 @@
+/** Search box plus dropdown filter groups (single or multi select) with menu keyboard navigation (arrows, Home/End, Enter, Escape) and a Ctrl/Cmd+K shortcut. Trigger and option state styling uses `!` modifiers because `Button`'s own border/background tokens would otherwise win the cascade. */
 import { Search } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
