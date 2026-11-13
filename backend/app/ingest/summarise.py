@@ -1,8 +1,9 @@
-"""AI trial summaries (3-5 plain-English sentences) for trials that have none or whose summary is older than 7 days, committed per trial."""
+"""AI trial summaries (3-5 plain-English sentences) for trials never attempted or last attempted over 7 days ago, committed per trial."""
 
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import func, or_, select, text
@@ -12,6 +13,8 @@ from app.config import get_settings
 from app.models import Trial
 from app.services.embeddings import get_openai_client
 from app.services.openai_executor import run_openai_operation
+
+logger = logging.getLogger("candle.ingest")
 
 
 TRIAL_SUMMARY_SYSTEM_PROMPT = (
@@ -24,12 +27,15 @@ SUMMARY_COMMIT_BATCH_SIZE = 20
 
 
 def stale_trial_stmt(limit: int):
-    """Trials with no summary or one older than 7 days, oldest first."""
+    """Trials never attempted or last attempted over 7 days ago, oldest first (keyed on the attempt timestamp, so an empty response is not re-selected)."""
     return (
         select(Trial)
         .where(
+            # Staleness is about the last *attempt*, not the stored text: a trial whose model
+            # response was empty keeps a NULL summary but a fresh timestamp, so it is retried
+            # after the normal window instead of being re-selected forever by the loop below.
             or_(
-                Trial.ai_summary.is_(None),
+                Trial.ai_summary_generated_at.is_(None),
                 Trial.ai_summary_generated_at < func.now() - text("interval '7 days'"),
             )
         )
@@ -74,7 +80,7 @@ async def generate_trial_summary_text(trial: Trial) -> str | None:
 
 
 async def generate_trial_summaries(session: AsyncSession) -> int:
-    """Summarise stale trials in batches of 20, committing after each trial. Caveat: an empty model response stores NULL, which keeps that trial stale, so it would be fetched again."""
+    """Summarise stale trials in batches of 20, committing after each trial. An empty model response is logged, stored as NULL with a fresh attempt time (retried after 7 days) and not counted. Returns the number of summaries actually generated."""
     generated_count = 0
     while True:
         trials = (await session.execute(stale_trial_stmt(SUMMARY_COMMIT_BATCH_SIZE))).scalars().all()
@@ -87,7 +93,10 @@ async def generate_trial_summaries(session: AsyncSession) -> int:
             summary = await generate_trial_summary_text(trial)
             trial.ai_summary = summary
             trial.ai_summary_generated_at = datetime.now(timezone.utc)
-            generated_count += 1
+            if summary is None:
+                logger.warning("Empty trial summary for %s; will retry after the stale window", trial.id)
+            else:
+                generated_count += 1
             await session.commit()
 
             if index < len(trials):

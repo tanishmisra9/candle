@@ -19,7 +19,7 @@ React SPA (Vercel) ────────────────────�
 3. **Link** (`link.py`): the first `NCT########` in a publication's title or abstract that matches an ingested trial becomes its `trial_id`.
 4. **Overviews** (`overviews.py`): plain-language publication overviews, cached by (pmid, abstract hash, prompt version) so a repeat visit never calls the model. Bump `PUBLICATION_OVERVIEW_PROMPT_VERSION` to regenerate after a prompt change, or run `python -m app.ingest.overviews --force`.
 5. **Embeddings** (`embed.py`): a trial or publication is re-embedded when it has no embedding or was updated after its newest one. Old chunks are deleted, new ones are stored in batches (512 texts). Chunk text is exactly what Ask retrieves and cites.
-6. **Trial summaries** (`summarise.py`): 3-5 sentence summaries for trials with none or older than 7 days, committed **per trial** so a mid-batch failure keeps earlier progress.
+6. **Trial summaries** (`summarise.py`): 3-5 sentence summaries for trials never attempted or last attempted over 7 days ago, committed **per trial** so a mid-batch failure keeps earlier progress. Staleness is keyed on the attempt timestamp, so an empty model response (stored as NULL, logged, not counted) is retried after the window rather than re-selected forever.
 
 Every run writes a `sync_log` row (`running`, then `success` or `error` with the message). `GET /sync/status` returns the last five; `GET /sync/last-synced` drives the "Data last synced" label.
 

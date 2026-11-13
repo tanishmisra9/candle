@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.ingest.summarise import generate_trial_summaries, trial_summary_user_message
-from app.ingest.summarise import generate_trial_summary_text
+from app.ingest.summarise import generate_trial_summary_text, stale_trial_stmt
 from app.services.openai_executor import OpenAITimeoutError
 
 
@@ -39,10 +39,9 @@ class DummySummarySession:
             (value for value in reversed(list(params.values())) if isinstance(value, int)),
             len(self.trials),
         )
+        # Mirrors stale_trial_stmt: never attempted (the 7-day-old branch is not modelled).
         stale_trials = [
-            trial
-            for trial in self.trials
-            if trial.ai_summary is None or trial.ai_summary_generated_at is None
+            trial for trial in self.trials if trial.ai_summary_generated_at is None
         ]
         return DummyExecuteResult(stale_trials[:limit])
 
@@ -119,8 +118,9 @@ async def test_generate_trial_summaries_updates_trials_and_sleeps(monkeypatch):
     assert all(trial.ai_summary_generated_at.tzinfo == timezone.utc for trial in trials)
 
     sql = str(session.statements[0])
-    assert "trials.ai_summary IS NULL" in sql
-    assert "trials.ai_summary_generated_at" in sql
+    # Keyed on the attempt timestamp only (see test_stale_trial_stmt_does_not_reselect_...).
+    assert "trials.ai_summary_generated_at IS NULL" in sql
+    assert "trials.ai_summary IS NULL" not in sql
     assert "interval '7 days'" in sql
 
 
@@ -229,3 +229,39 @@ async def test_generate_trial_summaries_keeps_partial_progress_on_mid_batch_fail
     assert trials[1].ai_summary_generated_at is None
     assert trials[2].ai_summary is None
     assert trials[2].ai_summary_generated_at is None
+
+
+def test_stale_trial_stmt_does_not_reselect_trials_that_were_already_attempted():
+    # A trial whose model response was empty is stored with a NULL summary and a fresh
+    # generated_at. Selecting on "ai_summary IS NULL" would pick it again immediately and the
+    # `while True` loop would never end. Staleness must depend on the attempt timestamp only.
+    sql = str(stale_trial_stmt(20).compile())
+
+    assert "ai_summary IS NULL" not in sql.replace("ai_summary_generated_at", "")
+    assert "ai_summary_generated_at IS NULL" in sql
+    assert "interval" in sql.lower()
+
+
+@pytest.mark.asyncio
+async def test_empty_model_response_is_not_counted_and_does_not_loop(monkeypatch):
+    trials = [make_trial("NCT00000001"), make_trial("NCT00000002")]
+    session = DummySummarySession(trials)
+
+    async def fake_generate_trial_summary_text(trial):
+        return None if trial.id == "NCT00000001" else f"Summary for {trial.id}"
+
+    async def fake_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr(
+        "app.ingest.summarise.generate_trial_summary_text",
+        fake_generate_trial_summary_text,
+    )
+    monkeypatch.setattr("app.ingest.summarise.asyncio.sleep", fake_sleep)
+
+    count = await generate_trial_summaries(session)
+
+    assert count == 1  # only the trial that actually got a summary
+    assert trials[0].ai_summary is None
+    assert isinstance(trials[0].ai_summary_generated_at, datetime)  # attempted: retried after 7 days
+    assert trials[1].ai_summary == "Summary for NCT00000002"
