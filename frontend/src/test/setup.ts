@@ -38,3 +38,21 @@ Object.defineProperty(globalThis, "IntersectionObserver", {
   writable: true,
   value: MockIntersectionObserver,
 });
+
+// jsdom has no layout; AskPanel follows streamed content with window.scrollTo.
+Object.defineProperty(window, "scrollTo", {
+  writable: true,
+  value: () => {},
+});
+
+// jsdom has no PointerEvent, so `pointerType` would be lost (Tooltip only opens for mouse).
+if (typeof window.PointerEvent === "undefined") {
+  class PointerEventPolyfill extends MouseEvent {
+    pointerType: string;
+    constructor(type: string, init: MouseEventInit & { pointerType?: string } = {}) {
+      super(type, init);
+      this.pointerType = init.pointerType ?? "";
+    }
+  }
+  Object.defineProperty(window, "PointerEvent", { writable: true, value: PointerEventPolyfill });
+}

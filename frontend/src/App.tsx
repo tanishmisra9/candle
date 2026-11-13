@@ -4,7 +4,7 @@ import { Route, Routes, useLocation } from "react-router-dom";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Footer } from "./components/Footer";
-import { GlassNav } from "./components/GlassNav";
+import { SiteNav } from "./components/SiteNav";
 import { PageTransition } from "./components/PageTransition";
 import { PublicationSnapshot } from "./components/PublicationSnapshot";
 import { TrialSnapshot } from "./components/TrialSnapshot";
@@ -64,11 +64,6 @@ export default function App() {
   }
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.classList.add("dark");
-  }, []);
-
-  useEffect(() => {
     const node = pageContentRef.current;
     if (!node) return;
     if (isOverlayOpen) {
@@ -83,11 +78,11 @@ export default function App() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-dvh">
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
-      <GlassNav />
+      <SiteNav />
       <div ref={pageContentRef} aria-hidden={isOverlayOpen ? true : undefined}>
         <main
           id="main-content"

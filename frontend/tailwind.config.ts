@@ -1,5 +1,9 @@
 import type { Config } from "tailwindcss";
 
+// Colours are RGB channels in CSS variables (see index.css) so opacity modifiers like
+// `bg-accent/10` keep working in both themes. Never put a hardcoded rgba()/hex in a component.
+const token = (name: string) => `rgb(var(--${name}) / <alpha-value>)`;
+
 const config: Config = {
   darkMode: ["class"],
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
@@ -17,28 +21,28 @@ const config: Config = {
         ],
       },
       colors: {
-        canvas: "var(--canvas)",
-        panel: "var(--panel)",
-        glass: "var(--glass)",
-        text: "var(--text)",
-        muted: "var(--muted-text)",
-        line: "var(--hairline)",
+        canvas: token("canvas"),
+        panel: token("panel"),
+        text: token("text"),
+        muted: token("muted"),
+        // `line` is decorative hairlines; `line-strong` is for control borders (>= 3:1, WCAG 1.4.11).
+        line: token("line"),
+        "line-strong": token("line-strong"),
+        scrim: token("scrim"),
+        success: token("success"),
+        danger: token("danger"),
         accent: {
-          DEFAULT: "#E8A33D",
-          hover: "#F2B861",
-          pressed: "#C98524",
+          // Accent as text / indicator colour.
+          DEFAULT: token("accent"),
+          // Accent as a filled surface; `on` is the text that sits on it.
+          fill: token("accent-fill"),
+          "fill-hover": token("accent-fill-hover"),
+          "fill-pressed": token("accent-fill-pressed"),
+          on: token("accent-on"),
         },
       },
       borderRadius: {
-        base: "12px",
-        card: "16px",
-        nav: "24px",
-      },
-      boxShadow: {
-        panel:
-          "0 1px 1px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.28), 0 16px 40px rgba(0,0,0,0.22)",
-        "panel-hover":
-          "0 2px 2px rgba(0,0,0,0.22), 0 8px 24px rgba(0,0,0,0.38), 0 24px 56px rgba(0,0,0,0.28)",
+        panel: "2px",
       },
     },
   },

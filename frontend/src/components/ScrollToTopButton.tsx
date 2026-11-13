@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { useReducedMotion } from "framer-motion";
 import { ArrowUp } from "lucide-react";
+
+import { Tooltip } from "./ui/Tooltip";
 
 const SCROLL_THRESHOLD = 600;
 
@@ -33,19 +35,22 @@ export function ScrollToTopButton() {
   }
 
   return (
-    <motion.button
-      type="button"
-      aria-label="Scroll to top"
-      whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
-      onClick={() =>
-        window.scrollTo({
-          top: 0,
-          behavior: prefersReducedMotion ? "auto" : "smooth",
-        })
-      }
-      className="fixed bottom-6 right-6 z-50 inline-flex h-12 w-12 items-center justify-center rounded-full bg-accent text-[#2B1902] shadow-panel transition hover:bg-accent-hover active:bg-accent-pressed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(232,163,61,0.45)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
-    >
-      <ArrowUp size={20} strokeWidth={1.75} aria-hidden="true" />
-    </motion.button>
+    <div className="fixed bottom-6 right-4 z-50 sm:right-6">
+      <Tooltip label="Scroll to top" describe={false}>
+        <button
+          type="button"
+          aria-label="Scroll to top"
+          onClick={() =>
+            window.scrollTo({
+              top: 0,
+              behavior: prefersReducedMotion ? "auto" : "smooth",
+            })
+          }
+          className="inline-flex h-11 w-11 items-center justify-center rounded-panel border border-line-strong bg-accent-fill text-accent-on transition-colors hover:bg-accent-fill-hover active:bg-accent-fill-pressed"
+        >
+          <ArrowUp size={20} strokeWidth={1.75} aria-hidden="true" />
+        </button>
+      </Tooltip>
+    </div>
   );
 }

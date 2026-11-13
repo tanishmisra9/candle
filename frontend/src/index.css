@@ -1,26 +1,64 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens. Colours are space-separated RGB channels so Tailwind can apply opacity
+ * (`bg-accent/10`). Contrast of every pair is asserted in src/test/contrast.test.ts, so edit
+ * values there-and-here together.
+ *
+ * `--accent` (text/indicators) and `--accent-fill` (button surfaces) are separate on purpose:
+ * amber that reads on the dark canvas is ~2:1 on cream paper.
+ * Keep --canvas in sync with index.html (pre-paint) and THEME_COLORS in src/lib/theme.ts.
+ */
 :root {
-  color-scheme: dark;
-  --canvas: #0b0b0f;
-  --panel: #15151b;
-  --glass: rgba(20, 20, 25, 0.65);
-  --text: #f5f5f7;
-  --muted-text: rgba(245, 245, 247, 0.72);
-  --hairline: rgba(255, 255, 255, 0.08);
-  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.12), 0 10px 30px rgba(0, 0, 0, 0.24);
-  --inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --nav-offset: 74px;
+  color-scheme: light;
+  --canvas: 251 248 239;
+  --panel: 255 254 248;
+  --text: 27 23 18;
+  --muted: 94 87 76;
+  --line: 217 214 206;
+  --line-strong: 138 132 120;
+  --scrim: 27 23 18;
+  --accent: 138 75 0;
+  --accent-fill: 138 75 0;
+  --accent-fill-hover: 110 58 0;
+  --accent-fill-pressed: 86 45 0;
+  --accent-on: 255 254 248;
+  --success: 21 101 52;
+  --danger: 168 32 32;
+  --focus: 138 75 0;
+  /* Timeline status fills; --tl-text is the label colour that sits on them. */
+  --tl-recruiting: 21 101 52;
+  --tl-active: 29 78 137;
+  --tl-terminated: 168 32 32;
+  --tl-other: 110 104 94;
+  --tl-text: 255 254 248;
+  --nav-offset: 64px;
 }
 
-@media (min-width: 768px) {
-  :root {
-    --nav-offset: 94px;
-  }
+:root.dark {
+  color-scheme: dark;
+  --canvas: 11 11 15;
+  --panel: 21 21 27;
+  --text: 245 245 247;
+  --muted: 178 178 184;
+  --line: 38 38 45;
+  --line-strong: 124 124 134;
+  --scrim: 0 0 0;
+  --accent: 232 163 61;
+  --accent-fill: 232 163 61;
+  --accent-fill-hover: 242 184 97;
+  --accent-fill-pressed: 201 133 36;
+  --accent-on: 43 25 2;
+  --success: 52 199 89;
+  --danger: 255 123 114;
+  --focus: 232 163 61;
+  --tl-recruiting: 138 182 168;
+  --tl-active: 134 168 200;
+  --tl-terminated: 193 138 138;
+  --tl-other: 182 178 172;
+  --tl-text: 11 11 15;
 }
 
 html,
@@ -30,15 +68,16 @@ body,
 }
 
 html {
-  background: var(--canvas);
+  background: rgb(var(--canvas));
   scrollbar-gutter: stable;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--canvas);
-  color: var(--text);
+  min-height: 100dvh;
+  background: rgb(var(--canvas));
+  color: rgb(var(--text));
   font-family:
     Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui,
     sans-serif;
@@ -51,57 +90,12 @@ body {
 }
 
 ::selection {
-  background: rgba(232, 163, 61, 0.18);
+  background: rgb(var(--accent) / 0.25);
 }
 
 a {
   color: inherit;
   text-decoration: none;
-}
-
-.glass-nav {
-  background: var(--glass);
-  border: 1px solid var(--hairline);
-  box-shadow: var(--inner-highlight), var(--shadow-soft);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-}
-
-.glass-nav-header {
-  background: rgba(20, 20, 25, 0.8);
-  border-color: rgba(255, 255, 255, 0.16);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 12px 34px rgba(0, 0, 0, 0.34),
-    0 0 0 1px rgba(255, 255, 255, 0.03);
-}
-
-.top-glass-band {
-  position: fixed;
-  inset: 0 0 auto 0;
-  z-index: 30;
-  height: 112px;
-  pointer-events: none;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(8, 8, 12, 0.62) 0%,
-      rgba(8, 8, 12, 0.4) 42%,
-      rgba(8, 8, 12, 0.16) 74%,
-      rgba(8, 8, 12, 0) 100%
-    );
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.24);
-  backdrop-filter: blur(26px) saturate(112%);
-  -webkit-backdrop-filter: blur(26px) saturate(112%);
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.96) 72%, rgba(0, 0, 0, 0) 100%);
-  -webkit-mask-image:
-    linear-gradient(180deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.96) 72%, rgba(0, 0, 0, 0) 100%);
-}
-
-@media (min-width: 768px) {
-  .top-glass-band {
-    height: 126px;
-  }
 }
 
 .line-clamp-2 {
@@ -130,51 +124,52 @@ a {
   border-width: 0;
 }
 
+/* Mono label: NCT/PMID, years, counts, status. */
+.kicker {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .skip-link {
   position: absolute;
   left: 1rem;
   top: 1rem;
   z-index: 100;
   transform: translateY(-200%);
-  border-radius: 9999px;
-  border: 1px solid var(--hairline);
-  background: var(--panel);
-  color: var(--text);
-  padding: 0.625rem 1rem;
+  border-radius: 2px;
+  border: 1px solid rgb(var(--line-strong));
+  background: rgb(var(--panel));
+  color: rgb(var(--text));
+  padding: 0.75rem 1rem;
   font-size: 14px;
   font-weight: 500;
-  box-shadow: var(--shadow-soft);
   transition: transform 0.15s ease;
 }
 
 .skip-link:focus {
   transform: translateY(0);
-  outline: none;
-  box-shadow:
-    var(--shadow-soft),
-    0 0 0 2px var(--canvas),
-    0 0 0 4px rgba(232, 163, 61, 0.45);
 }
 
-.focus-ring {
-  outline: none;
-}
-
-.focus-ring:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--canvas),
-    0 0 0 4px rgba(232, 163, 61, 0.45);
-  scroll-margin-top: calc(var(--nav-offset) + 12px);
-  scroll-margin-bottom: 12px;
-}
-
+/*
+ * One focus indicator for everything: a real 2px outline (not a box-shadow, so it survives
+ * forced-colors mode) at >= 3:1 against the surfaces it sits on. Do not add per-component
+ * `focus-visible:outline-none` / ring classes; they override this.
+ */
 :focus-visible {
+  outline: 2px solid rgb(var(--focus));
+  outline-offset: 2px;
   scroll-margin-top: calc(var(--nav-offset) + 12px);
   scroll-margin-bottom: 12px;
 }
 
 #main-content {
   scroll-margin-top: var(--nav-offset);
+}
+
+#main-content:focus,
+[data-route-heading]:focus {
+  outline: none;
 }
 
 .a11y-text-spacing {
@@ -184,9 +179,9 @@ a {
 }
 
 @media (max-width: 480px) {
-  .glass-nav input,
-  .glass-nav button,
-  .glass-nav [role="menuitem"] {
+  .nav-controls input,
+  .nav-controls button,
+  .nav-controls [role="menuitem"] {
     min-height: 2.75rem;
   }
 }
