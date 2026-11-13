@@ -2,9 +2,8 @@
 
 `LLMRequestBodyLimitMiddleware` rejects with 413 up front when `Content-Length` exceeds the cap,
 then re-checks the byte count as chunks stream in, because a client can understate or omit
-`Content-Length`. Which routes are covered is decided by `is_llm_endpoint`. Note: that matcher
-covers `POST /ask` and `POST /publications/{pmid}/overview` but not `POST /ask/stream`, which is
-instead protected by the rate limit, the concurrency cap and the post-parse question length cap.
+`Content-Length`. Which routes are covered is decided by `is_llm_endpoint`: `POST /ask`,
+`POST /ask/stream` (the endpoint the UI uses) and `POST /publications/{pmid}/overview`.
 """
 
 from __future__ import annotations
@@ -12,6 +11,7 @@ from __future__ import annotations
 import re
 from collections.abc import Awaitable, Callable
 
+from fastapi import HTTPException
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -25,7 +25,7 @@ def is_llm_endpoint(method: str, path: str) -> bool:
     """True for the POST routes covered by the body limit: `/ask` and `/publications/{pmid}/overview` (not `/ask/stream`)."""
     if method != "POST":
         return False
-    if path == "/ask":
+    if path in {"/ask", "/ask/stream"}:
         return True
     return bool(_PUBLICATION_OVERVIEW_PATH.match(path))
 
@@ -45,8 +45,16 @@ def parse_content_length(headers: list[tuple[bytes, bytes]]) -> int | None:
     return None
 
 
-class LLMRequestBodyTooLarge(Exception):
-    pass
+class LLMRequestBodyTooLarge(HTTPException):
+    """Raised from the wrapped `receive` when a body exceeds the cap mid-stream.
+
+    It is an `HTTPException` on purpose: FastAPI turns any other exception raised while reading
+    the body into a generic 400 ("error parsing the body"), but re-raises `HTTPException`, so the
+    client gets the intended 413.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(status_code=413, detail="Request body is too large for this endpoint.")
 
 
 class LLMRequestBodyLimitMiddleware:

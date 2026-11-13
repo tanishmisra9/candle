@@ -140,7 +140,7 @@ Each run is recorded in `sync_log`. Trial summaries are committed individually s
 | `GET` | `/sync/status` | Last 5 ingest runs |
 | `GET` | `/sync/last-synced` | Timestamp of the last successful ingest (shown as "Data last synced") |
 
-The LLM-backed routes (`/ask`, `/ask/stream`, `/publications/{pmid}/overview`) are rate limited and concurrency capped, and `/ask` and the overview route also have a request body size cap (the body-limit middleware does not currently match `/ask/stream`; the question length cap still applies after parsing). Plain read routes have separate, looser limits. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#request-level-protections).
+The LLM-backed routes (`/ask`, `/ask/stream`, `/publications/{pmid}/overview`) are rate limited and concurrency capped, and have a request body size cap (`LLMRequestBodyLimitMiddleware`) plus a question length cap. Plain read routes have separate, looser limits. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#request-level-protections).
 
 ## Testing
 

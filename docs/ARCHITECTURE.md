@@ -59,7 +59,7 @@ In-process and per-worker (no Redis): state resets on restart and is not shared 
 
 - **Rate limits**: per-IP sliding window (limit plus burst) per route group: Ask (`/ask` and `/ask/stream` share one bucket), publication overview, and a looser one for plain read routes. The client IP is `X-Forwarded-For` only when `TRUST_PROXY_HEADERS` is true, which should be set only behind a real reverse proxy.
 - **Concurrency cap**: a global limit on in-flight LLM requests; excess requests get 503 immediately.
-- **Body size cap**: `LLMRequestBodyLimitMiddleware` rejects oversized bodies up front by `Content-Length` and again while streaming the body (a client can lie about the header). **It matches `POST /ask` and `POST /publications/{pmid}/overview` only; `POST /ask/stream` is not covered** (it still has the rate limit, the concurrency cap and the `ask_question_max_chars` check after parsing).
+- **Body size cap**: `LLMRequestBodyLimitMiddleware` rejects oversized bodies up front by `Content-Length` and again while streaming the body (a client can lie about the header). It covers `POST /ask`, `POST /ask/stream` and `POST /publications/{pmid}/overview`; adding a new LLM-backed POST route means adding it to `is_llm_endpoint` (the test `test_body_limit_matches_only_llm_post_routes` pins the list). The question text is also capped (`ask_question_max_chars`) after parsing.
 - A WAF or reverse-proxy throttle in front of the LLM routes is still recommended when public.
 
 ## Frontend

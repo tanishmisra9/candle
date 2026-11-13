@@ -248,3 +248,67 @@ def test_rate_limiting_uses_first_forwarded_ip_when_trusted(monkeypatch):
     assert third.status_code == 200
 
     app.dependency_overrides.clear()
+
+
+def test_ask_stream_rejects_request_bodies_over_limit(monkeypatch):
+    # /ask/stream is the endpoint the UI uses; it must get the same body cap as /ask.
+    app.dependency_overrides[get_session] = override_session(DummySession())
+    handler_called = False
+
+    monkeypatch.setattr(
+        "app.middleware.get_settings",
+        lambda: make_guard_settings(llm_request_body_max_bytes=100),
+    )
+
+    async def fake_stream(question, session):
+        nonlocal handler_called
+        handler_called = True
+        yield '{"type": "done", "answer": "ok", "sources": []}'
+
+    monkeypatch.setattr("app.routers.ask.answer_question_stream", fake_stream)
+    client = TestClient(app)
+
+    response = client.post("/ask/stream", json={"question": "x" * 150})
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == "Request body is too large for this endpoint."
+    assert handler_called is False
+
+    app.dependency_overrides.clear()
+
+
+def test_ask_stream_rejects_oversized_body_without_content_length(monkeypatch):
+    # A client can omit or understate Content-Length; the streamed byte count must still be capped.
+    app.dependency_overrides[get_session] = override_session(DummySession())
+    monkeypatch.setattr(
+        "app.middleware.get_settings",
+        lambda: make_guard_settings(llm_request_body_max_bytes=100),
+    )
+    client = TestClient(app)
+
+    def chunks():
+        yield b'{"question":"'
+        yield b"x" * 200
+        yield b'"}'
+
+    response = client.post(
+        "/ask/stream",
+        content=chunks(),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == "Request body is too large for this endpoint."
+
+    app.dependency_overrides.clear()
+
+
+def test_body_limit_matches_only_llm_post_routes():
+    from app.middleware import is_llm_endpoint
+
+    assert is_llm_endpoint("POST", "/ask")
+    assert is_llm_endpoint("POST", "/ask/stream")
+    assert is_llm_endpoint("POST", "/publications/123/overview")
+    assert not is_llm_endpoint("GET", "/ask/stream")
+    assert not is_llm_endpoint("POST", "/ask/stream/extra")
+    assert not is_llm_endpoint("POST", "/trials")
