@@ -1,3 +1,11 @@
+"""SQLAlchemy ORM models: `Trial`, `Publication`, `Outcome`, `Embedding` and `SyncLog`.
+
+`Trial.raw_json` keeps the full ClinicalTrials.gov study; `Publication.trial_id` is set by the
+linking step and nulled if the trial is deleted. `Embedding` is the RAG corpus: one or more text
+chunks per trial/publication in a `halfvec(3072)` column (plus a generated `content_tsv` column
+created by schema reconciliation for full-text search). `SyncLog` records each ingest run.
+"""
+
 from __future__ import annotations
 
 from datetime import date, datetime

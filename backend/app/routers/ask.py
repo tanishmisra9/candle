@@ -1,3 +1,11 @@
+"""`POST /ask` (single JSON response) and `POST /ask/stream` (server-sent events).
+
+Both share one pipeline (`app.services.rag`), the `ask` rate-limit bucket, the global LLM
+concurrency slot and the `ask_question_max_chars` cap. The stream emits `data: {json}` frames of
+type `delta` (answer text so far), `done` (final answer plus sources, authoritative) or `error`.
+The frontend replaces any streamed text with the `done` payload.
+"""
+
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -28,6 +36,7 @@ async def ask(
     payload: AskRequest,
     session: AsyncSession = Depends(get_session),
 ) -> AskResponse:
+    """Rate limit, validate question length, then answer within one LLM concurrency slot. Maps timeouts to 504 and provider outages to 503."""
     await enforce_rate_limit(request, ASK_ROUTE)
 
     question = payload.question.strip()
@@ -56,6 +65,7 @@ async def ask_stream(
     payload: AskRequest,
     session: AsyncSession = Depends(get_session),
 ) -> StreamingResponse:
+    """Same checks as `ask`, then stream the pipeline as server-sent events; provider failures are sent as `error` events since the response has already started."""
     await enforce_rate_limit(request, ASK_ROUTE)
 
     question = payload.question.strip()

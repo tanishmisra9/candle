@@ -1,3 +1,10 @@
+"""Persisted plain-language publication overviews.
+
+An overview is cached in `publication_overviews` keyed by (pmid, abstract hash, prompt version),
+so editing the prompt (bump `PUBLICATION_OVERVIEW_PROMPT_VERSION`) or a changed abstract
+regenerates it, and repeat visits never call the model.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -111,6 +118,7 @@ async def generate_publication_overview_text(abstract: str) -> str | None:
 async def get_or_generate_publication_overview(
     session: AsyncSession, publication: Publication, *, force: bool = False
 ) -> tuple[str | None, bool]:
+    """Return `(overview, generated)`. Cache hit returns `generated=False`. On a miss it takes a row lock on the publication and re-checks the cache (so concurrent requests generate once), then generates and stores. Publications without an abstract yield `(None, False)`."""
     abstract = (publication.abstract or "").strip()
     if not abstract:
         return None, False

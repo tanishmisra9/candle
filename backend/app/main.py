@@ -1,3 +1,12 @@
+"""FastAPI application assembly.
+
+The lifespan hook refuses to start in production on the default DATABASE_URL, runs the idempotent
+schema reconciliation (`app.db.reconcile_database_schema`) and disposes the engine on shutdown.
+Also wires CORS (single `FRONTEND_ORIGIN`), the LLM request-body-limit middleware, per-request
+timing logs, the `/healthz` and `/readyz` probes and the four routers (trials, publications, ask,
+sync under `/sync`).
+"""
+
 from __future__ import annotations
 
 import logging
@@ -23,6 +32,7 @@ logger = logging.getLogger("candle.api")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Startup: production DB-URL guard, schema reconciliation, missing-key warning. Shutdown: dispose the engine."""
     if settings.deployment_env == "production" and (
         not settings.database_url or settings.database_url == DEFAULT_DATABASE_URL
     ):
@@ -69,11 +79,13 @@ async def log_requests(request: Request, call_next):
 
 @app.get("/healthz")
 async def healthz():
+    """Liveness probe; does not touch the database."""
     return {"ok": True}
 
 
 @app.get("/readyz")
 async def readyz():
+    """Readiness probe: 503 unless the database answers."""
     if not await check_database_connectivity():
         raise HTTPException(status_code=503, detail="Database is not ready.")
     return {"ok": True}

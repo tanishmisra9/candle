@@ -1,3 +1,5 @@
+"""Ingest status endpoints, mounted under `/sync`: recent runs (`/status`) and the timestamp of the last successful run (`/last-synced`, shown in the UI as "Data last synced")."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends

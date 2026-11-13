@@ -1,3 +1,11 @@
+"""`GET /trials` and `GET /trials/{trial_id}`.
+
+The list returns a plain array by default and a cursor envelope when `cursor` or `envelope=true`
+is passed. The cursor encodes `(sort_date, id)` plus a hash of the active filters, so a cursor is
+rejected if the filters change; the sort order is backed by dedicated indexes in `app.db`.
+Change sort/cursor logic only together with those indexes and `tests/test_cursor_pagination.py`.
+"""
+
 from __future__ import annotations
 
 import base64

@@ -1,3 +1,11 @@
+"""Chunk building and embedding storage for trials and publications.
+
+A source is re-embedded when it has no embedding or was updated after its newest one
+(`needs_embedding_refresh`). Re-embedding deletes the source's old chunks first, then stores new
+ones in batches of up to 512 texts. Chunk text is what Ask retrieves and cites, so changes here
+change answers.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -160,6 +168,7 @@ def build_trial_chunk(trial: Trial) -> str:
 
 
 def needs_embedding_refresh(updated_at, embedded_at) -> bool:
+    """True if never embedded, or the source was updated after its newest embedding."""
     return embedded_at is None or updated_at is None or updated_at > embedded_at
 
 
@@ -215,6 +224,7 @@ def build_publication_records(publications: list[Publication]) -> list[ChunkReco
 
 
 async def store_chunk_records(session: AsyncSession, chunks: list[ChunkRecord]) -> int:
+    """Replace the stored chunks of the given sources: delete old rows, embed in batches, insert, commit. All chunks must share one `source_type`."""
     if not chunks:
         return 0
 
@@ -304,6 +314,7 @@ async def changed_publication_page(
 
 
 async def store_embeddings(session: AsyncSession) -> int:
+    """Page through changed trials, then changed publications, re-embedding each page; returns the number of chunks stored."""
     stored_count = 0
 
     last_trial_id: str | None = None

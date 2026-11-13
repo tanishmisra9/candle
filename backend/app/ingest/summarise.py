@@ -1,3 +1,5 @@
+"""AI trial summaries (3-5 plain-English sentences) for trials that have none or whose summary is older than 7 days, committed per trial."""
+
 from __future__ import annotations
 
 import asyncio
@@ -22,6 +24,7 @@ SUMMARY_COMMIT_BATCH_SIZE = 20
 
 
 def stale_trial_stmt(limit: int):
+    """Trials with no summary or one older than 7 days, oldest first."""
     return (
         select(Trial)
         .where(
@@ -49,6 +52,7 @@ def trial_summary_user_message(trial: Trial) -> str:
 
 
 async def generate_trial_summary_text(trial: Trial) -> str | None:
+    """One chat call; raises if no API key. An empty model response returns None."""
     settings = get_settings()
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for trial summary generation.")
@@ -70,6 +74,7 @@ async def generate_trial_summary_text(trial: Trial) -> str | None:
 
 
 async def generate_trial_summaries(session: AsyncSession) -> int:
+    """Summarise stale trials in batches of 20, committing after each trial. Caveat: an empty model response stores NULL, which keeps that trial stale, so it would be fetched again."""
     generated_count = 0
     while True:
         trials = (await session.execute(stale_trial_stmt(SUMMARY_COMMIT_BATCH_SIZE))).scalars().all()

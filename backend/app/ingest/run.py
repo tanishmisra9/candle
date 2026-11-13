@@ -1,3 +1,11 @@
+"""Full ingest entrypoint (`make ingest`).
+
+Steps, each in its own session: trials, publications, linking, overviews, embeddings, trial
+summaries. A `sync_log` row is created as `running` up front and finalized as `success` or `error`
+(with the message) when the run ends; a failure re-raises after recording it. Summaries are
+committed per trial inside their step so partial progress survives a mid-batch failure.
+"""
+
 from __future__ import annotations
 
 import asyncio

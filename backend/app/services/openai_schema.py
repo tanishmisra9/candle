@@ -1,3 +1,5 @@
+"""Helper that turns a Pydantic model into an OpenAI strict `json_schema` response format."""
+
 from __future__ import annotations
 
 from pydantic import BaseModel

@@ -1,3 +1,11 @@
+"""ClinicalTrials.gov v2 ingest.
+
+Queries `query.cond=choroideremia` page by page and keeps only studies that actually mention
+choroideremia in conditions, keywords, titles or descriptions (`raw_study_is_chm_related`); the
+condition search alone returns unrelated trials. Upserts on `Trial.id`, rewriting a row only if a
+tracked column changed.
+"""
+
 from __future__ import annotations
 
 from datetime import date
@@ -47,6 +55,7 @@ def parse_normalized_date(value: str | None) -> date | None:
 
 
 def raw_study_is_chm_related(study: dict[str, Any]) -> bool:
+    """True if choroideremia appears in the study's conditions, keywords, titles or descriptions."""
     protocol = as_dict(study.get("protocolSection"))
     identification = as_dict(protocol.get("identificationModule"))
     conditions_module = as_dict(protocol.get("conditionsModule"))
@@ -150,6 +159,7 @@ def study_to_row(study: dict[str, Any]) -> dict[str, Any] | None:
 
 
 async def ingest_trials(session: AsyncSession) -> int:
+    """Fetch all matching studies and upsert them; returns the number of rows kept (not the number changed)."""
     rows: list[dict[str, Any]] = []
     page_token: str | None = None
 

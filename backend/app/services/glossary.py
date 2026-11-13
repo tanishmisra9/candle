@@ -1,3 +1,5 @@
+"""Small CHM synonym table used to widen the retrieval query (gene names, trade names); expansions affect embedding/search only, never the text shown to the model."""
+
 from __future__ import annotations
 
 import re

@@ -1,3 +1,11 @@
+"""Environment-driven settings (`Settings`, cached by `get_settings`).
+
+Read from the repo-root `.env` (`ROOT_DIR/.env`), case-insensitive, unknown keys ignored. Besides
+models and URLs this holds the knobs for the in-process protections on the LLM routes: per-route
+rate limits and burst, the global LLM concurrency cap, the request body cap and the per-call
+OpenAI/Cohere timeouts. `DEPLOYMENT_ENV=production` changes startup behaviour (see `app.main`).
+"""
+
 from functools import lru_cache
 from pathlib import Path
 

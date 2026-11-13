@@ -1,3 +1,11 @@
+"""Pydantic request/response models for the HTTP API.
+
+`TrialCursorPage` / `PublicationCursorPage` are the envelope used by cursor pagination
+(`items`, `next_cursor`, `total`). `StructuredAskOutput` is the strict JSON schema the chat model
+must produce for Ask (`response_type` is `answer`, `refusal` or `insufficient_context`);
+`AskResponse` is what the API returns.
+"""
+
 from __future__ import annotations
 
 from datetime import date, datetime

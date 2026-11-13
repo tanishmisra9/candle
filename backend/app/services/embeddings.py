@@ -1,3 +1,5 @@
+"""OpenAI embedding client (cached per API key) and the batch/query embedding helpers used by ingest and Ask."""
+
 from __future__ import annotations
 
 from functools import lru_cache

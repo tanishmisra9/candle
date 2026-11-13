@@ -1,3 +1,5 @@
+"""Generate and persist plain-language publication overviews. Run standalone with `python -m app.ingest.overviews [--force]` to regenerate everything."""
+
 from __future__ import annotations
 
 import argparse
@@ -17,6 +19,7 @@ OVERVIEW_PAGE_SIZE = 100
 
 
 async def generate_publication_overviews(*, force: bool = False) -> int:
+    """Walk publications by pmid and generate/refresh overviews; `force=True` regenerates even cached ones. Returns the number generated."""
     async with AsyncSessionLocal() as session:
         total_publications = await session.scalar(select(func.count()).select_from(Publication))
         total_publications = total_publications or 0

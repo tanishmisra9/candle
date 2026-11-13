@@ -1,3 +1,5 @@
+"""Optional Cohere rerank of retrieved chunks. Disabled, unkeyed or failing rerank degrades to the incoming order and never fails a request."""
+
 from __future__ import annotations
 
 import logging

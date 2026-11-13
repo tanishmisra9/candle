@@ -1,3 +1,10 @@
+"""Fast intent classifier that short-circuits Ask before any retrieval.
+
+A small model labels the message `greeting`, `info_request`, `advice_seeking`, `distress` or
+`out_of_scope`. It fails open to `info_request` (no key, timeout, bad output); the separate regex
+distress check in `app.services.rag` runs first so a classifier outage cannot hide a crisis message.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -34,6 +41,7 @@ class IntentClassification(BaseModel):
 
 
 async def classify_intent(question: str) -> IntentClassification:
+    """Classify with the fast model (strict JSON, 5s timeout, no retries). Any failure returns `info_request`."""
     settings = get_settings()
     if not settings.openai_api_key:
         return IntentClassification(intent="info_request")

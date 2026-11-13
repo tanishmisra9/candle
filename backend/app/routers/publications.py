@@ -1,3 +1,9 @@
+"""`GET /publications` (list, optional cursor pagination) and `POST /publications/{pmid}/overview`.
+
+The overview route returns the persisted plain-language overview or generates and stores it on
+first request; it is rate limited, concurrency capped and body-size capped like Ask.
+"""
+
 import base64
 import binascii
 import hashlib

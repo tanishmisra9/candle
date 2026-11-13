@@ -1,3 +1,14 @@
+"""Async engine/session plumbing and startup schema reconciliation.
+
+There is no migration tool. `db/init/001_schema.sql` creates the base tables on first Docker start
+and `SCHEMA_RECONCILIATION_STATEMENTS` is run in one transaction on every boot: every statement
+must be idempotent (`IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`). Add schema changes there.
+In production a failing statement raises (a missing `pg_trgm` is fatal); in development it is
+logged and skipped so a laptop without the extension can still run. Embeddings are stored as
+`halfvec(3072)` with an HNSW cosine index, and the one-time column-type migration is guarded by a
+pgvector version check.
+"""
+
 import logging
 from collections.abc import AsyncIterator
 
@@ -126,6 +137,7 @@ SCHEMA_RECONCILIATION_STATEMENTS = (
 
 
 async def reconcile_database_schema() -> None:
+    """Run `SCHEMA_RECONCILIATION_STATEMENTS` in one transaction (see module docstring for production vs development failure handling)."""
     try:
         async with engine.begin() as conn:
             for statement in SCHEMA_RECONCILIATION_STATEMENTS:
@@ -157,6 +169,7 @@ async def reconcile_database_schema() -> None:
 
 
 async def check_database_connectivity() -> bool:
+    """Return True if a `SELECT 1` succeeds; used by `/readyz`."""
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -166,5 +179,6 @@ async def check_database_connectivity() -> bool:
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
+    """FastAPI dependency yielding one `AsyncSession` per request."""
     async with AsyncSessionLocal() as session:
         yield session

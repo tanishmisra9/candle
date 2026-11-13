@@ -1,3 +1,5 @@
+"""Heuristic publication-to-trial linking: the first NCT id found in a publication's title or abstract that matches an ingested trial becomes its `trial_id` (set to NULL if none matches)."""
+
 from __future__ import annotations
 
 import re
@@ -13,6 +15,7 @@ PUBLICATION_PAGE_SIZE = 200
 
 
 async def link_publications_to_trials(session: AsyncSession) -> int:
+    """Set or clear `Publication.trial_id` by scanning for NCT ids, in pages, committing once at the end (rolled back on error). Returns how many publications are linked."""
     trial_ids = {
         trial_id
         for trial_id in (

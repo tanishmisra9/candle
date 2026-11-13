@@ -1,3 +1,9 @@
+"""PubMed ingest via NCBI E-utilities.
+
+Searches `choroideremia[MeSH] OR "CHM gene therapy"` (capped at 500 ids, `retmax`), fetches abstracts in
+batches of 50 with a short sleep between calls to respect NCBI rate limits, and upserts on `pmid`.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -122,6 +128,7 @@ async def fetch_pmids(client: httpx.AsyncClient) -> list[str]:
 
 
 async def ingest_publications(session: AsyncSession) -> int:
+    """Fetch and upsert publications; returns the number of rows parsed (not the number changed)."""
     headers = {"User-Agent": settings.ncbi_user_agent}
     all_rows: list[dict[str, object]] = []
 

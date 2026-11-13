@@ -1,3 +1,11 @@
+"""In-process protection for the expensive routes: sliding-window per-IP rate limits and a global concurrency cap.
+
+State lives in process memory (no Redis): it resets on restart and is not shared across workers,
+so a WAF/reverse-proxy throttle is still recommended in production. `client_ip_from_request` only
+trusts `X-Forwarded-For` when `TRUST_PROXY_HEADERS` is set. `reset_llm_protection_state` exists for
+the autouse test fixture in `tests/conftest.py`.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -104,6 +112,7 @@ def ask_question_max_chars() -> int:
 
 
 def client_ip_from_request(request: Request) -> str:
+    """Client IP for rate-limit keys; trusts `X-Forwarded-For` (first hop) only when `TRUST_PROXY_HEADERS` is true."""
     settings = get_settings()
     if settings.trust_proxy_headers:
         forwarded_for = request.headers.get("x-forwarded-for", "")
@@ -117,6 +126,7 @@ def client_ip_from_request(request: Request) -> str:
 
 
 async def enforce_rate_limit(request: Request, route_name: str) -> None:
+    """Raise 429 (with `Retry-After`) if this client IP exceeded the route's per-minute limit plus burst."""
     limit = route_limit(route_name)
     key = f"{route_name}:{client_ip_from_request(request)}"
     retry_after = await _rate_limiter.check(key, limit)
@@ -130,6 +140,7 @@ async def enforce_rate_limit(request: Request, route_name: str) -> None:
 
 @asynccontextmanager
 async def llm_concurrency_slot():
+    """Context manager holding one global LLM slot; raises 503 immediately when `llm_concurrency_limit` are already in flight."""
     settings = get_settings()
     acquired = await _concurrency_limiter.acquire(settings.llm_concurrency_limit)
     if not acquired:

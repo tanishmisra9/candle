@@ -1,3 +1,5 @@
+"""Shared timeout and retry wrapper (exponential backoff with jitter) for OpenAI/Cohere calls and for plain HTTP requests used by ingest."""
+
 from __future__ import annotations
 
 import asyncio
@@ -26,6 +28,7 @@ async def run_openai_operation(
     retries: int = 0,
     retry_backoff_seconds: float = 0.5,
 ) -> T:
+    """Await `operation()` under a timeout, retrying with exponential backoff plus jitter. Raises `OpenAITimeoutError` or `OpenAIServiceUnavailableError` once retries are exhausted."""
     attempt = 0
 
     while True:
@@ -51,6 +54,7 @@ async def run_http_request(
     retry_backoff_seconds: float = 0.5,
     retry_statuses: frozenset[int] = frozenset({408, 429, 500, 502, 503, 504}),
 ) -> httpx.Response:
+    """Perform an HTTP request, retrying transport errors and retryable statuses (408/429/5xx) with backoff; raises on a final error status."""
     attempt = 0
 
     while True:

@@ -1,3 +1,12 @@
+"""Request-body size limit for the LLM-backed POST routes.
+
+`LLMRequestBodyLimitMiddleware` rejects with 413 up front when `Content-Length` exceeds the cap,
+then re-checks the byte count as chunks stream in, because a client can understate or omit
+`Content-Length`. Which routes are covered is decided by `is_llm_endpoint`. Note: that matcher
+covers `POST /ask` and `POST /publications/{pmid}/overview` but not `POST /ask/stream`, which is
+instead protected by the rate limit, the concurrency cap and the post-parse question length cap.
+"""
+
 from __future__ import annotations
 
 import re
@@ -13,6 +22,7 @@ _PUBLICATION_OVERVIEW_PATH = re.compile(r"^/publications/[^/]+/overview$")
 
 
 def is_llm_endpoint(method: str, path: str) -> bool:
+    """True for the POST routes covered by the body limit: `/ask` and `/publications/{pmid}/overview` (not `/ask/stream`)."""
     if method != "POST":
         return False
     if path == "/ask":

@@ -1,3 +1,5 @@
+"""One-off maintenance: delete trials ingested before the CHM relevance guard existed that do not mention choroideremia, then delete trial embeddings whose trial no longer exists. Use `--dry-run` first (prints a count, deletes nothing), then re-run `make ingest` to re-embed."""
+
 from __future__ import annotations
 
 import argparse

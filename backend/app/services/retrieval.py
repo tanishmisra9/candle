@@ -1,3 +1,10 @@
+"""Hybrid retrieval over the `embeddings` table.
+
+Dense pgvector cosine search and Postgres full-text search (`ts_rank_cd` over the generated
+`content_tsv`) are run concurrently and fused with Reciprocal Rank Fusion (`RRF_K = 60`), one entry
+per (source_type, source_id). `RetrievedChunk.distance` is lower-is-better in all paths.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -30,6 +37,7 @@ async def retrieve_similar_chunks(
     limit: int = 6,
     source_type: str | None = None,
 ) -> list[RetrievedChunk]:
+    """Dense nearest-neighbour search by pgvector cosine distance."""
     distance = Embedding.embedding.cosine_distance(query_embedding)
     stmt = (
         select(
@@ -68,6 +76,7 @@ async def retrieve_bm25_chunks(
     limit: int = 50,
     source_type: str | None = None,
 ) -> list[RetrievedChunk]:
+    """Full-text search (`websearch_to_tsquery`, `ts_rank_cd`). Returns [] on empty input or any database error so hybrid search degrades to dense-only."""
     if not query or not query.strip():
         return []
 
@@ -117,6 +126,7 @@ def _fuse_rankings(
     ranked_lists: list[list[RetrievedChunk]],
     limit: int,
 ) -> list[RetrievedChunk]:
+    """Reciprocal Rank Fusion across ranked lists, one entry per source, with scores rescaled into `distance` (0 best)."""
     fused_scores: dict[tuple[str, str], float] = {}
     best_chunk: dict[tuple[str, str], RetrievedChunk] = {}
 
@@ -156,6 +166,7 @@ async def retrieve_hybrid_chunks(
     limit: int = 50,
     source_type: str | None = None,
 ) -> list[RetrievedChunk]:
+    """Run dense and full-text retrieval concurrently (each capped at 50) and fuse them."""
     capped_limit = min(limit, 50)
     dense, bm25 = await asyncio.gather(
         retrieve_similar_chunks(

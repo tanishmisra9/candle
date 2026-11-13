@@ -1,3 +1,22 @@
+"""The Ask pipeline: intent routing, retrieval, rerank, grounding and the safety contract.
+
+Flow (`answer_question` and `answer_question_stream` share it):
+ 1. `_route_by_intent`: regex distress check, then the intent classifier; greetings, distress,
+    advice-seeking and out-of-scope questions get a fixed reply and never reach retrieval.
+ 2. `_prepare_question_context`: glossary-expanded hybrid search (dense + full-text, RRF), Cohere
+    rerank, CHM relevance filter, deterministic domain ranking, plus any NCT ids / PMIDs named in
+    the question and, for "current trials" questions, the active trials.
+ 3. Structured generation under `SYSTEM_PROMPT` (a hard safety contract: no clinical advice,
+    evaluative ranking or prognosis; every claim attributed). Output must match
+    `StructuredAskOutput`.
+ 4. Output guard: `contains_advice_language` replaces the whole answer with `ADVICE_REFUSAL`
+    (never partial redaction). Parse failure or timeout also fails closed to the refusal.
+Streaming emits `delta` events while the JSON is still arriving and a final authoritative `done`
+event; the guard runs after the stream, so the client must replace streamed text with `done`.
+The refusal wording, prohibited phrases and distress handling are deliberate product behaviour:
+see `tests/test_rag_advice_guard.py` and `tests/test_safety_regression.py` before changing them.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -166,6 +185,7 @@ OUTPUT_PROHIBITED_PHRASES = [
 
 
 def contains_advice_language(answer: str) -> bool:
+    """True if the answer contains any `OUTPUT_PROHIBITED_PHRASES`; the caller then replaces the whole answer with `ADVICE_REFUSAL`."""
     lowered = answer.lower()
     return any(phrase in lowered for phrase in OUTPUT_PROHIBITED_PHRASES)
 
@@ -184,6 +204,7 @@ DISTRESS_RESPONSE = (
 
 
 def is_distress_message(question: str) -> bool:
+    """Regex pre-check for crisis language, independent of the LLM classifier so a classifier failure cannot hide it."""
     lowered = question.lower()
     return any(re.search(pattern, lowered) for pattern in DISTRESS_PATTERNS)
 
@@ -200,6 +221,7 @@ def should_prioritize_trials(question: str) -> bool:
 
 
 def rank_chunks(question: str, chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
+    """Deterministic tie-breaking after rerank: prefer trial records for current/recruiting questions and Phase 3 when asked for the best/most promising. The model itself is never asked to rank trials evaluatively."""
     normalized = question.lower()
     prefers_current = asks_about_current_trials(question)
     asks_for_rank = any(phrase in normalized for phrase in ("most", "best", "promising"))
@@ -325,6 +347,7 @@ async def fetch_current_trials(session, limit: int = 4) -> list[Trial]:
 
 
 async def filter_non_chm_trial_chunks(session, chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
+    """Drop trial chunks whose own record does not mention choroideremia (guards against stale non-CHM trials ingested before the relevance guard)."""
     trial_ids = [chunk.source_id for chunk in chunks if chunk.source_type == "trial"]
     if not trial_ids:
         return chunks
@@ -344,6 +367,7 @@ async def filter_non_chm_trial_chunks(session, chunks: list[RetrievedChunk]) -> 
 
 
 async def enrich_sources(session, sources: list[AskSource]) -> list[AskSource]:
+    """Add display fields to cited sources: trials get the NCT id as `label` and \"status · phase\" as `detail`; publications get \"Lead et al., year\" (falling back to the title) and the detail \"PubMed\"."""
     if not sources:
         return sources
 
@@ -397,6 +421,7 @@ async def enrich_sources(session, sources: list[AskSource]) -> list[AskSource]:
 
 
 async def _route_by_intent(question: str) -> AskResponse | None:
+    """Return a fixed `AskResponse` for greeting/distress/advice/out-of-scope, or None to continue to retrieval."""
     if is_distress_message(question):
         return AskResponse(answer=DISTRESS_RESPONSE, sources=[])
 
@@ -418,6 +443,7 @@ async def _generate_structured_answer(
     question: str,
     context_block: str,
 ) -> StructuredAskOutput | None:
+    """Single non-streaming chat call constrained to `StructuredAskOutput`; returns None (caller fails closed) on any error or invalid output."""
     settings = get_settings()
     try:
         response = await run_openai_operation(
@@ -452,6 +478,7 @@ async def _render_structured_response(
     sources: OrderedDict[str, AskSource],
     session,
 ) -> AskResponse:
+    """Apply the output guard and attach only the sources the model cited (max 5). Refusals and insufficient-context answers carry no sources."""
     if parsed.response_type in ("refusal", "insufficient_context"):
         return AskResponse(answer=parsed.answer_text, sources=[])
 
@@ -470,6 +497,7 @@ async def _render_structured_response(
 async def _prepare_question_context(
     question: str, session
 ) -> tuple[str, list[RetrievedChunk], list[str], OrderedDict[str, AskSource], str | None]:
+    """Build the grounded context. Returns `(state, chunks, context_lines, sources, payload)`; `payload` is the prompt context block when state is "ready" and the canned no-data answer when state is "empty"."""
     settings = get_settings()
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is required for /ask.")
@@ -645,6 +673,7 @@ async def _prepare_question_context(
 
 
 async def answer_question(question: str, session) -> AskResponse:
+    """Answer one question and return the full `AskResponse` (used by `POST /ask`)."""
     routed = await _route_by_intent(question)
     if routed is not None:
         return routed
@@ -670,6 +699,7 @@ async def answer_question(question: str, session) -> AskResponse:
 
 
 async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
+    """Yield JSON event strings for `POST /ask/stream`: `delta` events while generating, then one authoritative `done` event (or a fixed reply for routed/empty cases). Fails closed to the refusal on timeout or parse failure."""
     routed = await _route_by_intent(question)
     if routed is not None:
         yield json.dumps(

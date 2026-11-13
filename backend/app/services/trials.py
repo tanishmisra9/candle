@@ -1,3 +1,5 @@
+"""Helpers that derive display data from a stored ClinicalTrials.gov study (`raw_json`)."""
+
 from __future__ import annotations
 
 from typing import Any
