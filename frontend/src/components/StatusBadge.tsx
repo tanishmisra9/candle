@@ -1,12 +1,9 @@
 /** Trial status label: text plus a marker shape per tier (active, completed, terminated, unknown) so status is never colour alone. */
-import { formatStatusLabel } from "../lib/formatters";
+import { formatStatusLabel, normalizeStatus } from "../lib/formatters";
 import clsx from "clsx";
 
 function statusTier(status: string | null): "active" | "completed" | "terminated" | "unknown" {
-  const normalized = (status ?? "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
+  const normalized = normalizeStatus(status);
 
   if (
     [

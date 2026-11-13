@@ -13,6 +13,8 @@ describe("Timeline statusKey", () => {
     ["TERMINATED", "terminated"],
     ["WITHDRAWN", "terminated"],
     ["SUSPENDED", "terminated"],
+    [" Recruiting ", "recruiting"],
+    ["Active, not recruiting", "active"],
     ["COMPLETED", "other"],
     ["UNKNOWN", "other"],
     [null, "other"],

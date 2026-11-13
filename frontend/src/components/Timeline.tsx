@@ -2,7 +2,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef } from "react";
 
-import { formatStatusLabel } from "../lib/formatters";
+import { formatStatusLabel, normalizeStatus } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import type { TrialSummary } from "../types";
 import { Tooltip } from "./ui/Tooltip";
@@ -43,7 +43,7 @@ function yearFromDate(value: string | null) {
 export function statusKey(status: string | null): StatusKey {
   // Normalise CT.gov enums. Order matters: ACTIVE_NOT_RECRUITING and NOT_YET_RECRUITING both
   // contain "recruit" but are not recruiting. Mirrors StatusBadge's tiers (+ SUSPENDED).
-  const normalized = (status ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+  const normalized = normalizeStatus(status);
   if (["TERMINATED", "WITHDRAWN", "SUSPENDED"].includes(normalized)) return "terminated";
   if (["ACTIVE_NOT_RECRUITING", "NOT_YET_RECRUITING"].includes(normalized)) return "active";
   if (["RECRUITING", "ENROLLING_BY_INVITATION"].includes(normalized)) return "recruiting";

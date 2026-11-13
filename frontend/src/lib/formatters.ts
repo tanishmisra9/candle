@@ -8,6 +8,18 @@ function titleCaseWords(value: string) {
     .join(" ");
 }
 
+/**
+ * Canonical form of a ClinicalTrials.gov status for comparisons: upper case, runs of
+ * non-alphanumerics collapsed to `_`, no leading/trailing `_` ("Active, not recruiting" ->
+ * "ACTIVE_NOT_RECRUITING"). Used by both `StatusBadge` and `Timeline` so they never disagree.
+ */
+export function normalizeStatus(status: string | null) {
+  return (status ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 export function formatStatusLabel(status: string | null) {
   if (!status) return "Unknown";
   return titleCaseWords(status);
