@@ -36,9 +36,12 @@ const tierMarker = {
   unknown: "border border-dashed border-muted",
 } as const;
 
-export function StatusBadge({ status }: { status: string | null }) {
+export function StatusBadge({ status, className }: { status: string | null; className?: string }) {
   return (
-    <span className="kicker inline-flex items-center gap-2 rounded-panel border border-line px-2.5 py-1.5 text-[11px] font-medium text-text">
+    <span className={clsx(
+        "kicker inline-flex items-center gap-2 rounded-panel border border-line px-2.5 py-1.5 text-[11px] font-medium text-text",
+        className,
+      )}>
       <span
         aria-hidden="true"
         className={clsx("h-2 w-2 shrink-0", tierMarker[statusTier(status)])}

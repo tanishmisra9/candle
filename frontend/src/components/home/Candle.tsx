@@ -38,7 +38,7 @@ export function CandleArt({ running }: { running: boolean }) {
       <div ref={glowRef} className="candle-room-glow" />
       {/* Fixed width/height + viewBox reserve the space, so the candle never shifts the layout. */}
       <svg
-        className="candle-art h-auto w-28 sm:w-32"
+        className="candle-art h-auto w-32 sm:w-40"
         width="160"
         height="240"
         viewBox="0 0 160 240"
@@ -93,7 +93,7 @@ export function PauseAnimationButton({
 }) {
   if (reduced) return null;
   return (
-    <ToggleButton pressed={paused} onClick={onToggle}>
+    <ToggleButton pressed={paused} onClick={onToggle} className="!text-[1rem]">
       <Pause size={14} strokeWidth={1.75} aria-hidden="true" />
       Pause animation
     </ToggleButton>
