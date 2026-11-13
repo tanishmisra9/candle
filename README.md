@@ -20,7 +20,7 @@ Publication overviews and trial summaries are stored in Postgres after first gen
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, Framer Motion, TanStack Query, React Router |
 | Backend | FastAPI, SQLAlchemy (async), asyncpg, Pydantic Settings |
 | Database | PostgreSQL 16 with **pgvector** (embeddings) and **pg_trgm** (substring search) |
-| AI | OpenAI — chat for Ask, embeddings for retrieval, overviews and trial summaries during ingest |
+| AI | OpenAI — chat for Ask, a small classifier model for intent routing, embeddings for retrieval, overviews and trial summaries during ingest. Optional Cohere rerank narrows Ask retrieval results |
 | Local infra | Docker Compose (`pgvector/pgvector:pg16`) |
 
 ## Prerequisites
@@ -31,6 +31,7 @@ Publication overviews and trial summaries are stored in Postgres after first gen
 - [`uv`](https://docs.astral.sh/uv/) (Python package manager)
 - [`pnpm`](https://pnpm.io/) (frontend package manager)
 - An **OpenAI API key**
+- Optional: a **Cohere API key** (rerank step in Ask; without it, retrieval order is used as-is)
 
 ## Quick Start
 
@@ -70,7 +71,7 @@ Or run services in separate terminals: `make backend` and `make frontend`.
 
 ## Environment Variables
 
-Copy [`.env.example`](.env.example) to `.env` at the repo root. The backend reads the root `.env`; the frontend uses `VITE_*` variables at build time.
+Copy [`.env.example`](.env.example) to `.env` at the repo root. The backend reads the root `.env`; the frontend uses `VITE_*` variables at build time. Local Postgres is published on host port **5433** (not 5432) to avoid colliding with a system Postgres; the default `DATABASE_URL` matches.
 
 | Variable | Purpose |
 | --- | --- |
@@ -78,6 +79,8 @@ Copy [`.env.example`](.env.example) to `.env` at the repo root. The backend read
 | `OPENAI_API_KEY` | Required for `/ask`, publication overviews, embeddings, trial summaries |
 | `EMBEDDING_MODEL` | OpenAI embedding model (default: `text-embedding-3-large`) |
 | `CHAT_MODEL` | OpenAI chat model for Ask (default: `gpt-4.1-mini`) |
+| `INTENT_CLASSIFIER_MODEL` | Fast model that routes greetings, distress, advice-seeking and out-of-scope questions before retrieval (default: `gpt-4.1-nano`) |
+| `COHERE_API_KEY` | Optional. Enables the Cohere rerank step in Ask; empty means no rerank (it never breaks a request). Model, `top_n` and timeout are `RERANK_*` settings in `config.py` |
 | `FRONTEND_ORIGIN` | CORS allowlist for the API (default: `http://localhost:5173`) |
 | `VITE_API_BASE_URL` | Frontend → backend base URL (default: `http://localhost:8000`) |
 | `DEPLOYMENT_ENV` | `development` or `production` — enforces production DB URL and `pg_trgm` behavior |
@@ -132,29 +135,34 @@ Each run is recorded in `sync_log`. Trial summaries are committed individually s
 | `GET` | `/trials/{trial_id}` | Trial detail |
 | `GET` | `/publications` | List publications (cursor pagination) |
 | `POST` | `/publications/{pmid}/overview` | Generate or fetch persisted overview |
-| `POST` | `/ask` | Grounded Q&A (RAG) |
-| `GET` | `/sync/status` | Recent ingest run history |
+| `POST` | `/ask` | Grounded Q&A (RAG), single JSON response |
+| `POST` | `/ask/stream` | Same pipeline as server-sent events (`delta`, `done`, `error`); this is what the UI uses |
+| `GET` | `/sync/status` | Last 5 ingest runs |
+| `GET` | `/sync/last-synced` | Timestamp of the last successful ingest (shown as "Data last synced") |
+
+The LLM-backed routes (`/ask`, `/ask/stream`, `/publications/{pmid}/overview`) are rate limited and concurrency capped, and `/ask` and the overview route also have a request body size cap (the body-limit middleware does not currently match `/ask/stream`; the question length cap still applies after parsing). Plain read routes have separate, looser limits. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#request-level-protections).
 
 ## Testing
 
 **Backend** (from `backend/`):
 
 ```bash
-uv run pytest
+uv run pytest            # offline suite; live tests are excluded
+uv run pytest -m live    # needs OPENAI_API_KEY, makes real API calls
 ```
 
 **Frontend** (from `frontend/`):
 
 ```bash
-pnpm test              # unit + component tests
+pnpm test              # unit + component + a11y + colour-contrast tests
 pnpm run build         # typecheck + production build
 ```
 
-Accessibility component tests (`vitest-axe`) live in `frontend/src/components/*.a11y.test.tsx`. See [Accessibility](#accessibility) below — passing these tests is necessary but not sufficient for full WCAG sign-off.
+Accessibility component tests (`vitest-axe`) live in `frontend/src/components/*.a11y.test.tsx`, and `frontend/src/test/contrast.test.ts` asserts WCAG contrast for every colour token in both themes. See [Accessibility](#accessibility) below — passing these tests is necessary but not sufficient for full WCAG sign-off. Scroll behaviour and real-browser axe runs need a real browser; the workflow is in [`frontend/README.md`](frontend/README.md#verifying-changes).
 
 ## Accessibility
 
-The frontend includes structured landmarks, keyboard support, focus management for modals, reduced-motion handling, and automated axe checks on key components.
+The frontend includes structured landmarks, keyboard support, focus management for modals and route changes, reduced-motion handling, light and dark themes with token-level contrast checks, visible 2px focus indicators, 44px touch targets, and automated axe checks on key components.
 
 - Closure sign-off and residual manual QA: [`frontend/docs/ADA_CLOSURE.md`](frontend/docs/ADA_CLOSURE.md)
 - **Important:** Component-level `vitest-axe` covers only part of real-world accessibility. Human review should still include full-route scans, screen readers (VoiceOver / NVDA), and contrast checks at 200% / 400% zoom before claiming full conformance.
@@ -203,15 +211,19 @@ make ingest
 candle/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py           # FastAPI app, health, CORS
-│   │   ├── routers/          # trials, publications, ask, sync
-│   │   ├── services/         # RAG, embeddings, LLM guards, overviews
-│   │   └── ingest/           # ClinicalTrials, PubMed, link, embed, summarise
+│   │   ├── main.py           # FastAPI app, lifespan, health, CORS
+│   │   ├── db.py             # engine/session + idempotent schema reconciliation
+│   │   ├── config.py         # Settings (env-driven)
+│   │   ├── routers/          # trials, publications, ask, sync (thin HTTP layer)
+│   │   ├── services/         # RAG, retrieval, rerank, intent, LLM guards, overviews
+│   │   └── ingest/           # ClinicalTrials, PubMed, link, overviews, embed, summarise
 │   ├── scripts/              # one-off maintenance (e.g. trial cleanup)
 │   └── tests/
-├── db/init/                  # initial SQL (extensions, tables)
+├── db/init/                  # initial SQL run by Docker on first start
+├── docs/                     # ARCHITECTURE.md, CONTRIBUTING.md
 ├── frontend/
-│   ├── src/                  # React app (views, components, hooks)
+│   ├── src/                  # React app (views, components, hooks, lib)
+│   ├── README.md             # structure, theming, a11y rules, verification
 │   ├── docs/ADA_CLOSURE.md   # accessibility closure sign-off
 │   └── vercel.json
 ├── docker-compose.yml
@@ -219,6 +231,12 @@ candle/
 ├── .env.example
 └── README.md
 ```
+
+## More Documentation
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — data flow, schema reconciliation, the Ask/RAG pipeline and its safety contract, request-level protections.
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — running tests, the lockfile rule, the accessibility gate, and what to check before changing Ask.
+- [`frontend/README.md`](frontend/README.md) — frontend structure, design system and theming, accessibility conventions, verification workflow.
 
 ## Why This Exists
 
