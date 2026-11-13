@@ -59,4 +59,25 @@ describe("Tooltip", () => {
     expect(screen.getByRole("tooltip")).toBeInTheDocument();
     expect(trigger).not.toHaveAttribute("aria-describedby");
   });
+
+  it("closes when its focused trigger becomes disabled (browsers fire no blur then)", () => {
+    const { rerender } = render(
+      <Tooltip label="Next page" describe={false}>
+        <button type="button">Next</button>
+      </Tooltip>,
+    );
+    hover(screen.getByRole("button", { name: "Next" }));
+    act(() => void vi.advanceTimersByTime(450));
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+    rerender(
+      <Tooltip label="Next page" describe={false}>
+        <button type="button" disabled>
+          Next
+        </button>
+      </Tooltip>,
+    );
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
 });

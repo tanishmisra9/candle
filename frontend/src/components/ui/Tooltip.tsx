@@ -13,7 +13,7 @@ import { createPortal } from "react-dom";
 type TooltipProps = {
   label: string;
   /** A single element that is itself focusable (button / link). Never wrap non-focusable text. */
-  children: ReactElement<{ "aria-describedby"?: string }>;
+  children: ReactElement<{ "aria-describedby"?: string; disabled?: boolean }>;
   /**
    * Set false when `label` repeats the trigger's own accessible name (icon buttons), so screen
    * readers don't announce it twice.
@@ -66,6 +66,13 @@ export function Tooltip({ label, children, describe = true, className }: Tooltip
   };
 
   useEffect(() => clearTimers, []);
+
+  // Browsers fire no blur when a focused button becomes disabled (e.g. "Next page" on the last
+  // page), so the bubble would stay attached to a dead control.
+  const triggerDisabled = Boolean(children.props.disabled);
+  useEffect(() => {
+    if (triggerDisabled) hide();
+  }, [triggerDisabled, hide]);
 
   // Dismiss on Escape (WCAG 1.4.13), scroll and resize (the anchor moves out from under it).
   useEffect(() => {
