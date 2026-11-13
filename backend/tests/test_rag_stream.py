@@ -286,3 +286,22 @@ async def test_stream_does_not_guard_insufficient_context_text(monkeypatch) -> N
     shown = "".join(e["delta"] for e in events if e["type"] == "delta")
     assert shown == answer
     assert next(e for e in events if e["type"] == "done")["answer"] == answer
+
+
+def test_extract_partial_answer_text_is_prefix_stable_across_unicode_escapes() -> None:
+    # The stream emits `current[len(emitted):]`, so every partial decode must extend the previous
+    # one. A buffer cut inside `\uXXXX` (or between a surrogate pair's halves, or after an escaped
+    # backslash followed by "u00") used to fall back to the raw undecoded text.
+    text = 'Café 😀 back\\slash \\u00e9 "q" line\nbreak'
+    buffer = json.dumps(
+        {"response_type": "answer", "answer_text": text, "cited_ids": []}, ensure_ascii=True
+    )
+    assert "\\ud83d\\ude00" in buffer and "\\u00e9" in buffer
+
+    previous = ""
+    for end in range(len(buffer) + 1):
+        current = extract_partial_answer_text(buffer[:end])
+        assert current.startswith(previous), (end, buffer[:end][-14:], previous[-8:], current[-8:])
+        assert text.startswith(current), (end, current)
+        previous = current
+    assert previous == text

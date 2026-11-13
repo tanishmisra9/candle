@@ -48,12 +48,29 @@ logger = logging.getLogger("candle.api")
 _ANSWER_TEXT_RE = re.compile(r'"answer_text"\s*:\s*"((?:[^"\\]|\\.)*)', re.DOTALL)
 
 
+# A JSON string buffer can end mid-escape: `\u`, `\u00`, or a complete high surrogate whose low half
+# has not arrived. Decoding those would give text that later changes under the reader, so they are
+# trimmed. The (?<!\\)(\\\\)* prefix makes sure the backslash is a real escape, not an escaped one.
+_TRAILING_PARTIAL_ESCAPE = re.compile(
+    r"(?<!\\)((?:\\\\)*)(\\u[0-9a-fA-F]{0,3}|\\u[dD][89abAB][0-9a-fA-F]{2})$"
+)
+
+
 def extract_partial_answer_text(buffer: str) -> str:
-    """Extract the current value of answer_text from a partial JSON buffer."""
+    """Extract the current value of answer_text from a partial JSON buffer.
+
+    The result only ever grows by appending: an incomplete trailing `\\uXXXX` escape (or an unpaired
+    high surrogate) is withheld until it is complete, because the stream emits
+    `current[len(emitted):]` and must never need to rewrite text it already sent.
+    """
     match = _ANSWER_TEXT_RE.search(buffer)
     if not match:
         return ""
     raw = match.group(1)
+    previous = None
+    while previous != raw:
+        previous = raw
+        raw = _TRAILING_PARTIAL_ESCAPE.sub(r"\1", raw)
     try:
         return json.loads(f'"{raw}"')
     except json.JSONDecodeError:
