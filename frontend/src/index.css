@@ -287,6 +287,14 @@ a {
   .candle-halo { display: none; }
 }
 
+/* setTheme() adds this class around a theme flip so transition-colors controls change with the
+   page instead of fading behind it (a visible flash). Transitions only; animations are untouched. */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
