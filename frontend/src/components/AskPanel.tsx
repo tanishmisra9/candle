@@ -300,7 +300,9 @@ export function AskPanel({
               </button>
             </div>
           ) : null}
-          <div className="rounded-panel border border-line-strong bg-panel p-3 md:p-4">
+          {/* No outer outline: the input carries its own 3:1 border (WCAG 1.4.11). The canvas background
+              only hides messages scrolling underneath the fixed composer. */}
+          <div className="bg-canvas p-3 md:p-4">
             <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
               {announcement}
             </span>
