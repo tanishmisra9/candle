@@ -1,38 +1,10 @@
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 import { useReducedMotion } from "framer-motion";
 
-const STORAGE_KEY = "candle-motion";
-
-function readPaused() {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === "paused";
-  } catch {
-    return false; // storage can be blocked; default to the animated candle
-  }
-}
-
-/**
- * One switch for all landing-page motion (WCAG 2.2.2): the user's "Pause animation" choice
- * (remembered) and `prefers-reduced-motion` both turn `running` off, which stills the flicker AND
- * freezes the scroll glow.
- */
+/** `running` is false under `prefers-reduced-motion`: the flicker stills and the scroll glow freezes. */
 export function useCandleMotion() {
   const reduced = Boolean(useReducedMotion());
-  const [paused, setPaused] = useState(readPaused);
-
-  const togglePaused = useCallback(() => {
-    setPaused((current) => {
-      const next = !current;
-      try {
-        localStorage.setItem(STORAGE_KEY, next ? "paused" : "running");
-      } catch {
-        // not persisted; still applies for this visit
-      }
-      return next;
-    });
-  }, []);
-
-  return { running: !reduced && !paused, paused, reduced, togglePaused };
+  return { running: !reduced, reduced };
 }
 
 /** Maps scroll progress (0..1) onto the room glow's `--glow` variable, one rAF per frame. */

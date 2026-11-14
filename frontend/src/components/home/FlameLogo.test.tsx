@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import { Flame } from "lucide-react";
 import { describe, expect, it } from "vitest";
 
-import { FLAME_PATH, FlameLogo, PauseAnimationButton } from "./FlameLogo";
+import { FLAME_PATH, FlameLogo } from "./FlameLogo";
 
 describe("the logo is the original logo", () => {
   it("draws exactly the lucide Flame path in every layer", () => {
@@ -41,19 +41,5 @@ describe("the logo is the original logo", () => {
     let element: HTMLDivElement | null = null;
     render(<FlameLogo logoRef={(node) => void (element = node)} />);
     expect(element).toHaveClass("flame-logo");
-  });
-});
-
-describe("PauseAnimationButton", () => {
-  it("is hidden when reduced motion is requested (nothing to pause)", () => {
-    const { container } = render(<PauseAnimationButton paused={false} reduced onToggle={() => {}} />);
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it("has a fixed label and reports its state with aria-pressed", () => {
-    const { getByRole, rerender } = render(<PauseAnimationButton paused={false} reduced={false} onToggle={() => {}} />);
-    expect(getByRole("button", { name: "Pause animation" })).toHaveAttribute("aria-pressed", "false");
-    rerender(<PauseAnimationButton paused reduced={false} onToggle={() => {}} />);
-    expect(getByRole("button", { name: "Pause animation" })).toHaveAttribute("aria-pressed", "true");
   });
 });

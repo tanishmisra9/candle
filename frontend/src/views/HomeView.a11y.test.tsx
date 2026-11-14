@@ -15,7 +15,7 @@ vi.mock("../lib/api", () => ({
 }));
 
 describe("HomeView accessibility", () => {
-  it("has no axe violations and a labelled, stoppable animation control", async () => {
+  it("has no axe violations", async () => {
     vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {} });
     const client = new QueryClient();
     const { container } = render(
@@ -27,7 +27,5 @@ describe("HomeView accessibility", () => {
     );
 
     expect((await axe(container)).violations).toHaveLength(0);
-    // WCAG 2.2.2: auto-playing motion has a visible, labelled pause control.
-    expect(screen.getByRole("button", { name: "Pause animation" })).toBeInTheDocument();
   });
 });

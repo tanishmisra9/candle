@@ -7,9 +7,6 @@
  * where the flash-safety limits are documented and tested). Decorative: `aria-hidden`.
  */
 import { useId, type CSSProperties, type Ref } from "react";
-import { Pause } from "lucide-react";
-
-import { ToggleButton } from "../ui/ToggleButton";
 
 // Identical to lucide-react's Flame path; FlameLogo.test.tsx fails if they ever differ.
 export const FLAME_PATH =
@@ -53,30 +50,5 @@ export function FlameLogo({ logoRef }: { logoRef: Ref<HTMLDivElement> }) {
         <path className="flame-head" d={FLAME_PATH} pathLength={100} />
       </svg>
     </div>
-  );
-}
-
-/**
- * Fixed visible label + `aria-pressed` (a label that also flips text would be announced twice and
- * contradict itself). Hidden when the OS already asks for reduced motion: nothing to pause.
- * Pressing it during the intro settles straight to the finished page.
- */
-export function PauseAnimationButton({
-  paused,
-  reduced,
-  onToggle,
-}: {
-  paused: boolean;
-  reduced: boolean;
-  onToggle: () => void;
-}) {
-  if (reduced) return null;
-  return (
-    // bg-canvas: on the stage this is its own opaque surface, so the label stays legible even
-    // while the light-theme veil is still cream.
-    <ToggleButton pressed={paused} onClick={onToggle} className="bg-canvas !text-[1rem]">
-      <Pause size={14} strokeWidth={1.75} aria-hidden="true" />
-      Pause animation
-    </ToggleButton>
   );
 }

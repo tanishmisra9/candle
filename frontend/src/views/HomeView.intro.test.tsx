@@ -101,18 +101,11 @@ describe("the page lights up", () => {
     expect(state(container)).toBe("lit");
   });
 
-  it("reduced motion or a remembered pause: lit at first render (no dark frame), no pause button when reduced", () => {
+  it("reduced motion: lit at first render (no dark frame) and the motion is switched off", () => {
     reduced = true;
     const a = renderHome();
     expect(state(a.container)).toBe("lit");
-    expect(screen.queryByRole("button", { name: "Pause animation" })).not.toBeInTheDocument();
-    a.unmount();
-
-    reduced = false;
-    local.set("candle-motion", "paused");
-    const b = renderHome();
-    expect(state(b.container)).toBe("lit");
-    expect(intro(b.container)).toHaveAttribute("data-candle-motion", "paused");
+    expect(intro(a.container)).toHaveAttribute("data-candle-motion", "paused");
   });
 });
 
@@ -133,46 +126,18 @@ describe("gated content stays available while the room is dark", () => {
     }
   });
 
-  it("the stop control is never gated and is first in the stage", () => {
-    const { container } = renderHome();
-    const stage = container.querySelector(".night-stage")!;
-    const button = screen.getByRole("button", { name: "Pause animation" });
-    expect(button.closest(".reveal")).toBeNull();
-    expect(stage.querySelector("button, a")).toBe(button); // first focusable in the stage
-  });
-
-  it("pressing Tab, a key, or the pause button reveals everything immediately", () => {
+  it("pressing Tab or a key reveals everything immediately", () => {
     const tab = renderHome();
     expect(state(tab.container)).toBe("go");
     act(() => void fireEvent.keyDown(document, { key: "Tab" }));
     expect(state(tab.container)).toBe("lit");
-    tab.unmount();
-
-    session.clear();
-    const pause = renderHome();
-    expect(state(pause.container)).toBe("go");
-    fireEvent.click(screen.getByRole("button", { name: "Pause animation" }));
-    expect(state(pause.container)).toBe("lit");
-    expect(intro(pause.container)).toHaveAttribute("data-candle-motion", "paused");
-    expect(local.get("candle-motion")).toBe("paused");
-  });
-
-  it("resuming after a pause does not replay the intro from dark", () => {
-    renderHome();
-    fireEvent.click(screen.getByRole("button", { name: "Pause animation" }));
-    fireEvent.click(screen.getByRole("button", { name: "Pause animation" }));
-    expect(document.querySelector(".intro")).toHaveAttribute("data-candle-motion", "running");
-    expect(document.querySelector(".intro")).toHaveAttribute("data-ignite", "lit");
   });
 });
 
 describe("room glow", () => {
-  it("follows scroll while running and freezes once paused", () => {
+  it("follows scroll while running", () => {
     const { container } = renderHome();
     scrollTo(500); // 500 / (2000 - 1000)
-    expect(glow(container).style.getPropertyValue("--glow")).toBe("0.5");
-    fireEvent.click(screen.getByRole("button", { name: "Pause animation" }));
-    scrollTo(1000);
     expect(glow(container).style.getPropertyValue("--glow")).toBe("0.5");
   });
 

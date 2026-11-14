@@ -214,7 +214,7 @@ a {
  *  - the only loops are the flame flicker and the glow breath: period >= 4s, alternating,
  *    flicker amplitude <= 2%, breath swing <= 0.15
  *  - keyframes only touch opacity, stroke-dashoffset and the flicker's transform
- * The base styles (no data-ignite state) ARE the finished, lit page, so "paused", reduced motion,
+ * The base styles (no data-ignite state) ARE the finished, lit page, so reduced motion,
  * forced colours, no-JS and "seen this session" all show everything immediately. Gated content is
  * only ever made transparent (opacity), never display:none/visibility:hidden/aria-hidden: it stays
  * in the accessibility tree and in layout from the first frame. data-ignite: idle (waiting for the
@@ -438,7 +438,7 @@ html.theme-switching .flame-logo * { transition: var(--logo-fade) !important; }
 .intro[data-candle-offscreen="true"] :is(.stage-veil, .flame-ghost, .flame-trail, .flame-head, .flame-fill, .flame-core, .flame-core-live, .flame-spark, .flame-flicker, .stage-light, .reveal) {
   animation-play-state: paused;
 }
-/* User pressed "Pause animation": every animation stops, leaving the finished page. */
+/* Reduced motion (data-candle-motion="paused"): every animation stops, leaving the finished page. */
 .intro[data-candle-motion="paused"] :is(.stage-veil, .flame-ghost, .flame-trail, .flame-head, .flame-fill, .flame-core, .flame-core-live, .flame-spark, .flame-flicker, .stage-light, .reveal) {
   animation: none;
 }

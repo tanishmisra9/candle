@@ -118,8 +118,7 @@ describe.each(Object.entries(themes))("%s landing hero", (_name, t) => {
   });
 
   it("text, muted, accent and the focus ring hold on the canvas lit by the pool at full alpha", () => {
-    // Not checked here: line-strong borders. Every bordered control in the hero (buttons, the
-    // pause toggle) has its own opaque background, so its border never sits directly on the pool.
+    // Not checked here: line-strong borders. Every bordered control in the hero (buttons) has its own opaque background, so its border never sits directly on the pool.
     const lit = blend(t["flame-glow"], t.canvas, POOL_ALPHA);
     expect(ratio(t.text, lit), "text").toBeGreaterThanOrEqual(4.5);
     expect(ratio(t.muted, lit), "muted").toBeGreaterThanOrEqual(4.5);

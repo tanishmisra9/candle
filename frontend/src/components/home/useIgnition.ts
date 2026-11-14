@@ -6,13 +6,13 @@
 import { useEffect, useRef, useState } from "react";
 
 // The ignition's states and the only allowed transitions between them. `lit` is terminal: a
-// finished (or paused/reduced-motion) page never goes back to dark and never replays. Every write
+// finished (or reduced-motion) page never goes back to dark and never replays. Every write
 // to the state goes through `ignitionNext`.
 export const IGNITE_STATES = ["idle", "go", "lit"] as const;
 export type IgniteState = (typeof IGNITE_STATES)[number];
 export const IGNITE_EDGES: Record<IgniteState, readonly IgniteState[]> = {
-  idle: ["go", "lit"], // idle -> go: visible and running; idle -> lit: paused/reduced before starting
-  go: ["lit"], // go -> lit: paused mid-sequence settles to the finished page
+  idle: ["go", "lit"], // idle -> go: visible and running; idle -> lit: reduced motion before starting
+  go: ["lit"], // go -> lit: skipped or motion turned off mid-sequence settles to the finished page
   lit: [],
 };
 
@@ -51,12 +51,12 @@ function writeSeen() {
 }
 
 /**
- * @param running false when the user paused or prefers reduced motion: start (and stay) lit.
+ * @param running false when the user prefers reduced motion: start (and stay) lit.
  * Attach `observedRef` to the element whose visibility starts the sequence (the logo).
  */
 export function useIgnition(running: boolean) {
   const observedRef = useRef<HTMLDivElement>(null);
-  // Paused, reduced-motion and already-seen visitors start lit: they never see a dark frame. Read in
+  // Reduced-motion and already-seen visitors start lit: they never see a dark frame. Read in
   // the initializer so the very first render carries the right state (no flash of hidden content).
   const [ignite, setIgnite] = useState<IgniteState>(() => (running && !readSeen() ? "idle" : "lit"));
   const [offscreen, setOffscreen] = useState(false);

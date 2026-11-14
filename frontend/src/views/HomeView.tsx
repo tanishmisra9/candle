@@ -1,8 +1,8 @@
-/** Landing page (`/`): a warm welcome, three audience paths, a live status sentence, a short guide, what Candle does and doesn't do, and a note from the builder. Single column, rem-based type, calm stoppable motion (see components/home/FlameLogo.tsx). */
+/** Landing page (`/`): a warm welcome, three audience paths, a live status sentence, a short guide, what Candle does and doesn't do, and a note from the builder. Single column, rem-based type, calm motion (see components/home/FlameLogo.tsx). */
 import { useRef } from "react";
 import { Link } from "react-router-dom";
 
-import { FlameLogo, PauseAnimationButton } from "../components/home/FlameLogo";
+import { FlameLogo } from "../components/home/FlameLogo";
 import { CandleToday } from "../components/home/CandleToday";
 import { StartPaths } from "../components/home/StartPaths";
 import { TrialGlossary } from "../components/home/TrialGlossary";
@@ -29,14 +29,6 @@ export function HomeView() {
       <div className="pt-[calc(var(--nav-offset)+1rem)]">
         <section aria-labelledby="welcome-heading" className="night-stage">
           <div className="stage-veil" aria-hidden="true" />
-          {/* First in the stage, visible from the first frame, never gated: the stop control. */}
-          <div className="absolute right-3 top-3 z-[4]">
-            <PauseAnimationButton
-              paused={motion.paused}
-              reduced={motion.reduced}
-              onToggle={motion.togglePaused}
-            />
-          </div>
           <div className="stage-content">
             <FlameLogo logoRef={observedRef} />
             <h1
