@@ -19,6 +19,17 @@ export function PageTransition({ children, cascade = true }: { children: ReactNo
   // StrictMode's double-invoked effect doesn't count the first mount as a navigation.
   useEffect(() => {
     if (hasNavigated) {
+      // A page can name the one control that should receive focus on arrival (the Ask question box:
+      // `data-route-autofocus`) so the visitor can type straight away. Only with a mouse-like pointer:
+      // on touch devices it would pop the on-screen keyboard over the page.
+      const autofocus =
+        window.matchMedia?.("(hover: hover) and (pointer: fine)").matches
+          ? ref.current?.querySelector<HTMLElement>("[data-route-autofocus]")
+          : null;
+      if (autofocus) {
+        autofocus.focus({ preventScroll: true });
+        return;
+      }
       // Fall back to <main> if the heading is not rendered yet, so focus is never left on the
       // previous page's removed link (which would drop keyboard users at the top of <body>).
       const target =

@@ -312,6 +312,7 @@ export function AskPanel({
               </label>
               <Input
                 id={questionFieldId}
+                data-route-autofocus=""
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="Ask about CHM trials, outcomes, sponsors, or papers"
