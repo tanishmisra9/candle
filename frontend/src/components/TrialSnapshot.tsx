@@ -215,7 +215,7 @@ export function TrialSnapshot({
                       ? { duration: 0 }
                       : { type: "spring", stiffness: 340, damping: 34, mass: 0.8 }
                   }
-                  className="border-b border-line bg-panel/92 px-5 pt-6 pb-5 md:px-8"
+                  className="border-b border-line bg-panel px-5 pt-6 pb-5 md:px-8"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 max-w-[820px] flex-1">

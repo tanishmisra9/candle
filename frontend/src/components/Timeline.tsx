@@ -12,7 +12,7 @@ import { Tooltip } from "./ui/Tooltip";
 const TIMELINE_STATUS_LEGEND = [
   { key: "recruiting", label: "Recruiting", marker: "" },
   { key: "active", label: "Active", marker: "!border-2 !bg-transparent" },
-  { key: "terminated", label: "Terminated / withdrawn", marker: "rotate-45" },
+  { key: "terminated", label: "Terminated, withdrawn or suspended", marker: "rotate-45" },
   { key: "other", label: "Other / unknown", marker: "!border-2 !border-dashed !bg-transparent" },
 ] as const;
 
