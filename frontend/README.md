@@ -41,17 +41,21 @@ A restrained take on the Telogify language: paper-like, square, no pills. Keep i
   - `success`, `danger`, `--tl-*` (timeline) have per-theme values.
 - **Never hardcode `rgba()` or hex in a component.** `rg "rgba\(|#[0-9a-fA-F]{6}" src --glob '*.tsx'` should return nothing.
 - **Tailwind gotcha**: named tokens are emitted alphabetically, so a class you add later in a `clsx` does not necessarily beat a primitive's own class (`border-line-strong` beats `border-accent`). Override shared-primitive colours with `!` modifiers and confirm with `getComputedStyle` in a browser.
+- **Theme switches are flash-free**: `setTheme` adds `html.theme-switching` (`transition: none !important`) around the flip and removes it two frames later, otherwise `transition-colors` controls fade for ~140ms behind the instantly-changed page. Only transitions are suppressed; animations are unaffected.
 - **No theme flash**: an inline script in `index.html` sets the class, `color-scheme` and `theme-color` before first paint from `localStorage["candle-theme"]` or the OS. Keep `--canvas` in sync in `index.css`, that script, and `THEME_COLORS` in `lib/theme.ts`.
 
 ## Landing page
 
-`views/HomeView.tsx` composes `components/home/*`: the candle, the three audience paths, a live "Candle today" sentence (reuses the Trials/Literature total queries), a glossary built from the same formatters/badges as the Trials page, a "what Candle does and doesn't do" section and a builder's note. It is one rem-based column so it scales with the user's text-size setting.
+`views/HomeView.tsx` composes `components/home/*`: the logo, the three audience paths, a live "Candle today" sentence (reuses the Trials/Literature total queries), a glossary built from the same formatters/badges as the Trials page, a "what Candle does and doesn't do" section and a builder's note. It is one rem-based column so it scales with the user's text-size setting.
 
-The candle animation is decorative and must stay safe and stoppable:
-- Limits (tested in `src/test/candle-motion.test.ts`, which parses `index.css`): every looping animation has a period >= 4s and alternates, the glow's opacity swing is <= 0.15, and keyframes only animate `transform`/`opacity`. Change an animation and run the test.
-- `useCandleMotion` is the one switch: the "Pause animation" button (fixed label, `aria-pressed`, remembered) and `prefers-reduced-motion` both stop the flicker AND freeze the scroll glow. Base styles are the fully lit candle, so "no animation" always renders a calm still image.
+The hero logo (`components/home/FlameLogo.tsx`) is Candle's original flame: the exact lucide `Flame` path at its original 1.6 stroke in the soft round tile (`FlameLogo.test.tsx` compares the path byte-for-byte). It **ignites once**: a dim but visible outline, an ember lights at the inner curl and travels the stroke (4s) leaving amber behind it, then the tile and glow warm; afterwards only a very slow glow breath remains. The motion is decorative and must stay safe and stoppable:
+- Limits (tested in `src/test/candle-motion.test.ts`, which parses `index.css`): the only loop is the glow breath (period >= 4s, alternating, opacity swing <= 0.15); the ember travels once over >= 4s; fades take >= 0.7s; keyframes only touch `opacity` and `stroke-dashoffset`. Change an animation and run the test.
+- State machine: `IGNITE_STATES` (`idle` -> `go` -> `lit`, `lit` terminal) with `ignitionNext()` as the only writer. It starts only when at least half the logo is visible and the tab is visible; paused and reduced-motion visitors start `lit` and never see a dark frame; pausing mid-sequence settles to the finished logo; resuming never replays from dark.
+- `useCandleMotion` is the one switch: the "Pause animation" button (fixed label, `aria-pressed`, remembered) and `prefers-reduced-motion` both stop the ignition AND freeze the scroll glow. The base (no-`data-ignite`) CSS is the finished lit logo, so every no-animation path renders a calm still image.
+- The unlit outline uses `--line-strong` (>= 3:1) so the logo is never invisible before it lights; `--ember` and the lit stroke are checked on the accent tile tint in `contrast.test.ts`.
 - The room glow sits behind content (`z-index: -1`, `pointer-events: none`) at a fixed max alpha of 0.12; `contrast.test.ts` checks text/muted/accent/borders/focus on that tint. If you raise the alpha, update both places.
-- `forced-colors` and `prefers-contrast: more` remove the glow and redraw the candle in system colours.
+- `forced-colors` shows a still `CanvasText` outline (no ember, tile or glow); `forced-colors` and `prefers-contrast: more` also remove the room glow.
+- **Do not put a CSS `transform` on the route wrapper** (`PageTransition` is opacity-only, pinned by `lib/motion.test.ts`): a transform makes it the containing block for `position: fixed` children, so the Ask composer and the scroll-to-top button rendered mid-screen and then jumped.
 - Disease background and glossary wording on the page are cited/derived from MedlinePlus Genetics and NEI and should be reviewed by the owner before changes.
 
 ## Accessibility rules
