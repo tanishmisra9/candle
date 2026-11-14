@@ -3,8 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-// The landing-page intro must never flash (WCAG 2.3.1), must finish quickly, must be stoppable
-// (2.2.2) and must respect the user's motion/contrast preferences. These checks read the real
+// The landing-page intro must never flash (WCAG 2.3.1), must finish quickly, must respect the user's motion/contrast preferences. These checks read the real
 // stylesheet so tuning the animation past a safe limit fails here instead of in front of a
 // photosensitive visitor.
 

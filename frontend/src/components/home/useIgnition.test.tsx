@@ -71,6 +71,17 @@ describe("replays on every page load", () => {
     expect(state()).toBe("go");
   });
 
+  it("an intro that ended by falling back to lit (idle -> lit) is not replayed on a return either", () => {
+    entry = { isIntersecting: false, intersectionRatio: 0 };
+    const first = render(<Harness />);
+    act(() => void vi.advanceTimersByTime(1100));
+    expect(state()).toBe("lit");
+    first.unmount();
+    entry = { isIntersecting: true, intersectionRatio: 1 };
+    render(<Harness />);
+    expect(state()).toBe("lit"); // not "idle" -> go: no second dim-and-reveal
+  });
+
   it("never touches storage (a blocked-storage browser plays the same way)", () => {
     const touched = vi.fn();
     vi.stubGlobal("sessionStorage", { getItem: touched, setItem: touched });

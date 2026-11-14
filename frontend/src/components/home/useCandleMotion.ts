@@ -1,9 +1,21 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import { useReducedMotion } from "framer-motion";
 
-/** `running` is false under `prefers-reduced-motion`: the flicker stills and the scroll glow freezes. */
+// The same three conditions index.html's pre-paint script checks before it starts the dusk veil. Keep
+// them in sync: if the script skipped the veil but React still started the intro, the page content
+// would be hidden (transparent) for ~2s with no veil.
+const CALM_QUERIES = ["(forced-colors: active)", "(prefers-contrast: more)"];
+const prefersCalm = () =>
+  typeof window !== "undefined" && typeof window.matchMedia === "function" && CALM_QUERIES.some((q) => window.matchMedia(q).matches);
+
+/**
+ * `running` is false under `prefers-reduced-motion`, forced colours or `prefers-contrast: more`: no
+ * intro, the flicker stills and the scroll glow freezes.
+ */
 export function useCandleMotion() {
-  const reduced = Boolean(useReducedMotion());
+  const reducedMotion = Boolean(useReducedMotion());
+  const [calm] = useState(prefersCalm);
+  const reduced = reducedMotion || calm;
   return { running: !reduced, reduced };
 }
 

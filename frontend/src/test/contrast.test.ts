@@ -128,7 +128,7 @@ describe.each(Object.entries(themes))("%s landing hero", (_name, t) => {
 
   it("text, muted, accent and the focus ring hold once the heading is fully opaque (veil <= 15% left)", () => {
     // Content starts transparent in the deep dusk; the first block is fully opaque at 1.5s, when the
-    // veil (0.5-1.8s, ease-in-out) has about 10% left. Keep in sync with the timeline in index.css.
+    // veil (0.35-1.55s, ease-in-out) has about 10% left. Keep in sync with the timeline in index.css.
     const seen = blend(t.dusk, t.canvas, 0.15);
     expect(ratio(t.text, seen), "text").toBeGreaterThanOrEqual(4.5);
     expect(ratio(t.muted, seen), "muted").toBeGreaterThanOrEqual(4.5);

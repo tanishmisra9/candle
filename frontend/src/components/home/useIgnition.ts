@@ -71,7 +71,9 @@ export function useIgnition(running: boolean) {
       return () => window.clearTimeout(timer);
     }
     const observer = new IntersectionObserver(
-      ([entry]) => {
+      (entries) => {
+        // Several records can be batched into one callback: the last one is the current state.
+        const entry = entries[entries.length - 1];
         setOffscreen(!entry.isIntersecting);
         if (entry.intersectionRatio >= START_VISIBLE_RATIO) setVisibleEnough(true);
       },
@@ -92,9 +94,9 @@ export function useIgnition(running: boolean) {
     if (running && visibleEnough && tabVisible) setIgnite((state) => ignitionNext(state, "go"));
   }, [running, visibleEnough, tabVisible]);
 
-  // Started once: do not replay on an in-app return to "/".
+  // Left `idle` (it started, was skipped, or fell back to lit): do not replay on an in-app return to "/".
   useEffect(() => {
-    if (ignite === "go") playedThisLoad = true;
+    if (ignite !== "idle") playedThisLoad = true;
   }, [ignite]);
 
   // The intro is over: settle to the finished page.
