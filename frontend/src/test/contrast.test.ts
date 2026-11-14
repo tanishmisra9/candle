@@ -108,20 +108,22 @@ describe.each(Object.entries(themes))("%s theme contrast", (_name, tokens) => {
 describe.each(Object.entries(themes))("%s landing hero", (_name, t) => {
   const POOL_ALPHA = 0.28;
 
-  it("the unlit outline, the lit stroke and the ember hold 3:1 on the canvas and on the dusk veil", () => {
-    for (const [surface, bg] of [["canvas", t.canvas], ["dusk", t.dusk]] as const) {
-      expect(ratio(t["flame-ghost"], bg), `unlit outline on ${surface}`).toBeGreaterThanOrEqual(3);
-      expect(ratio(t["flame-line"], bg), `lit stroke on ${surface}`).toBeGreaterThanOrEqual(3);
-      expect(ratio(t.ember, bg), `ember on ${surface}`).toBeGreaterThanOrEqual(3);
-    }
+  it("the lit outline holds 3:1 on the canvas and the unlit outline holds 3:1 on the dusk start", () => {
+    expect(ratio(t["flame-line"], t.canvas), "lit outline on canvas").toBeGreaterThanOrEqual(3);
+    expect(ratio(t["flame-ghost"], t.dusk), "unlit outline on dusk").toBeGreaterThanOrEqual(3);
   });
 
-  it("text, muted, accent and the focus ring hold on the dusk veil (visible while content fades in)", () => {
-    expect(ratio(t.text, t.dusk), "text").toBeGreaterThanOrEqual(4.5);
-    expect(ratio(t.muted, t.dusk), "muted").toBeGreaterThanOrEqual(4.5);
-    expect(ratio(t.accent, t.dusk), "accent").toBeGreaterThanOrEqual(4.5);
-    expect(ratio(t.focus, t.dusk), "focus").toBeGreaterThanOrEqual(3);
+
+  it("text, muted, accent and the focus ring hold once the heading is fully opaque (veil <= 15% left)", () => {
+    // Content starts transparent in the deep dusk; the first block is fully opaque at 1.5s, when the
+    // veil (0.5-1.8s, ease-in-out) has about 10% left. Keep in sync with the timeline in index.css.
+    const seen = blend(t.dusk, t.canvas, 0.15);
+    expect(ratio(t.text, seen), "text").toBeGreaterThanOrEqual(4.5);
+    expect(ratio(t.muted, seen), "muted").toBeGreaterThanOrEqual(4.5);
+    expect(ratio(t.accent, seen), "accent").toBeGreaterThanOrEqual(4.5);
+    expect(ratio(t.focus, seen), "focus").toBeGreaterThanOrEqual(3);
   });
+
 
   it("text, muted, accent and the focus ring hold on the canvas lit by the pool at full alpha", () => {
     // Not checked here: line-strong borders. Every bordered control in the hero (buttons) has its own opaque background, so its border never sits directly on the pool.

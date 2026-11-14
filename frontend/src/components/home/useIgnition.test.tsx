@@ -1,7 +1,7 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useIgnition } from "./useIgnition";
+import { useIgnition, resetIntroPlayed } from "./useIgnition";
 
 // Node's experimental global storage shadows jsdom's here; use plain stubs.
 let session = new Map<string, string>();
@@ -36,6 +36,7 @@ const state = () => screen.getByTestId("logo").getAttribute("data-ignite");
 
 beforeEach(() => {
   vi.useFakeTimers();
+  resetIntroPlayed();
   session = new Map();
   entry = { isIntersecting: true, intersectionRatio: 1 };
   window.IntersectionObserver = FakeIntersectionObserver as unknown as typeof IntersectionObserver;
@@ -52,39 +53,39 @@ afterEach(() => {
   globalThis.IntersectionObserver = originalObserver;
 });
 
-describe("once per browser session", () => {
-  it("plays on the first visit and remembers it as soon as it starts", () => {
+describe("replays on every page load", () => {
+  it("plays on a fresh load", () => {
     render(<Harness />);
     expect(state()).toBe("go");
-    expect(session.get("candle-intro-seen")).toBe("1");
   });
 
-  it("a visit after the intro has been seen starts lit (no dark frame, no replay)", () => {
-    session.set("candle-intro-seen", "1");
+  it("an in-app return after it started starts lit (no dark frame, no replay); a reload replays", () => {
+    const first = render(<Harness />);
+    expect(state()).toBe("go");
+    first.unmount();
     render(<Harness />);
     expect(state()).toBe("lit");
-  });
-
-  it("works when storage is blocked (it simply plays)", () => {
-    vi.stubGlobal("sessionStorage", {
-      getItem: () => {
-        throw new Error("blocked");
-      },
-      setItem: () => {
-        throw new Error("blocked");
-      },
-    });
+    cleanup();
+    resetIntroPlayed(); // what a full page load does
     render(<Harness />);
     expect(state()).toBe("go");
+  });
+
+  it("never touches storage (a blocked-storage browser plays the same way)", () => {
+    const touched = vi.fn();
+    vi.stubGlobal("sessionStorage", { getItem: touched, setItem: touched });
+    render(<Harness />);
+    expect(state()).toBe("go");
+    expect(touched).not.toHaveBeenCalled();
   });
 });
 
 describe("content is never hidden for long", () => {
-  it("falls back to lit after 1.5s if the intro never starts (e.g. 400% zoom: nothing half-visible)", () => {
+  it("falls back to lit after 1s if the intro never starts (e.g. 400% zoom: nothing half-visible)", () => {
     entry = { isIntersecting: false, intersectionRatio: 0 };
     render(<Harness />);
     expect(state()).toBe("idle");
-    act(() => void vi.advanceTimersByTime(1400));
+    act(() => void vi.advanceTimersByTime(900));
     expect(state()).toBe("idle");
     act(() => void vi.advanceTimersByTime(200));
     expect(state()).toBe("lit");
@@ -97,10 +98,12 @@ describe("content is never hidden for long", () => {
     expect(state()).toBe("idle"); // nobody is looking, nothing to reveal yet
   });
 
-  it("the fallback does not cut a running intro short", () => {
+  it("the fallback does not cut a running intro short; the intro settles to lit when it ends", () => {
     render(<Harness />);
-    act(() => void vi.advanceTimersByTime(3000));
+    act(() => void vi.advanceTimersByTime(2200));
     expect(state()).toBe("go");
+    act(() => void vi.advanceTimersByTime(200));
+    expect(state()).toBe("lit");
   });
 });
 

@@ -1,12 +1,13 @@
 /**
  * The landing-page logo: Candle's original flame (the exact lucide `Flame` path) as the huge
- * centerpiece of the hero. Lit, it is a filled flame (base-to-tip gradient) with an inner core
- * inside the original outline, casting a soft pool of light on the stage. The ignition
- * itself (dark -> spark -> ember travels the outline -> the flame catches) is pure CSS driven by
- * the `data-ignite` state that `useIgnition` puts on the page wrapper (see index.css `.flame-*`,
- * where the flash-safety limits are documented and tested). Decorative: `aria-hidden`.
+ * centerpiece of the hero. Lit, it is a layered flame (a soft blurred glow copy, a four-colour body
+ * gradient, an inner core) inside the original outline, casting a soft pool of light on the stage.
+ * The ignition (spark at the wick -> the outline draws -> the flame grows up from the wick -> the
+ * room lifts) is pure CSS driven by the `data-ignite` state that `useIgnition` puts on the page
+ * wrapper (see index.css `.flame-*`, where the flash-safety limits are documented and tested).
+ * Decorative: `aria-hidden`.
  */
-import { useId, type CSSProperties, type Ref } from "react";
+import { useId, type Ref } from "react";
 
 // Identical to lucide-react's Flame path; FlameLogo.test.tsx fails if they ever differ.
 export const FLAME_PATH =
@@ -15,11 +16,10 @@ export const FLAME_PATH =
 // The inner core is the same flame, scaled about its base (x=12, y=22) so it sits inside the outline.
 const CORE_TRANSFORM = "translate(12 22) scale(0.5) translate(-12 -22)";
 
-// Start x of each spark, around the flame's tip (x=12).
-const SPARKS = [11.2, 12.8, 11.8, 12.4, 10.9, 13.1];
-
 export function FlameLogo({ logoRef }: { logoRef: Ref<HTMLDivElement> }) {
-  const gradientId = useId();
+  const id = useId();
+  const gradientId = `${id}-body`;
+  const blurId = `${id}-blur`;
 
   return (
     <div ref={logoRef} aria-hidden="true" className="flame-logo">
@@ -32,22 +32,27 @@ export function FlameLogo({ logoRef }: { logoRef: Ref<HTMLDivElement> }) {
             <stop offset="0.55" className="flame-stop-mid" />
             <stop offset="1" className="flame-stop-tip" />
           </linearGradient>
+          <filter id={blurId} x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="0.55" />
+          </filter>
         </defs>
-        <g className="flame-flicker">
-          <path className="flame-fill" d={FLAME_PATH} fill={`url(#${gradientId})`} />
-          {/* The wrapper carries the inner flame's own motion (rises with the flame, then sways); the
-              path keeps the static scale-into-the-outline transform as an attribute. */}
-          <g className="flame-core-live">
-            <path className="flame-core" d={FLAME_PATH} transform={CORE_TRANSFORM} />
+        {/* One group zooms in, and inside it one group flickers: the body, the inner flame AND the outline
+            always move together, so the inner flame can never drift against (or behind) the outline. */}
+        <g className="flame-zoom">
+          <g className="flame-flicker">
+            <g className="flame-body">
+              <path className="flame-halo" d={FLAME_PATH} fill={`url(#${gradientId})`} filter={`url(#${blurId})`} />
+              <path className="flame-fill" d={FLAME_PATH} fill={`url(#${gradientId})`} />
+              {/* The wrapper carries the inner flame's own slow sway; the path keeps the static
+                  scale-into-the-outline transform as an attribute (a CSS transform would override it). */}
+              <g className="flame-core-live">
+                <path className="flame-core" d={FLAME_PATH} transform={CORE_TRANSFORM} />
+              </g>
+            </g>
+            <path className="flame-outline" d={FLAME_PATH} />
           </g>
         </g>
-        {/* Sparks that lift off the wick as the flame catches: once, 1s each, decorative. */}
-        {SPARKS.map((x, i) => (
-          <circle key={i} className="flame-spark" cx={x} cy={5} r={0.26} style={{ "--i": i, "--dx": `${(i % 2 ? 1 : -1) * (0.6 + (i % 3) * 0.5)}px` } as CSSProperties} />
-        ))}
-        <path className="flame-ghost" d={FLAME_PATH} pathLength={100} />
-        <path className="flame-trail" d={FLAME_PATH} pathLength={100} />
-        <path className="flame-head" d={FLAME_PATH} pathLength={100} />
+        <path className="flame-ghost" d={FLAME_PATH} />
       </svg>
     </div>
   );

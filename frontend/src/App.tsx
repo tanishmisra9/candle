@@ -11,31 +11,41 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Footer } from "./components/Footer";
 import { SiteNav } from "./components/SiteNav";
 import { PageTransition } from "./components/PageTransition";
+import { loadAsk, loadDashboard, loadLiterature, prefetchAllRoutesWhenIdle } from "./lib/routes";
+import { HomeView } from "./views/HomeView";
 import { PublicationSnapshot } from "./components/PublicationSnapshot";
 import { TrialSnapshot } from "./components/TrialSnapshot";
 import { usePageTitle } from "./hooks/usePageTitle";
 import type { PublicationSummary } from "./types";
 
-const HomeView = lazy(() =>
-  import("./views/HomeView").then((module) => ({ default: module.HomeView })),
-);
-const DashboardView = lazy(() =>
-  import("./views/DashboardView").then((module) => ({ default: module.DashboardView })),
-);
-const LiteratureView = lazy(() =>
-  import("./views/LiteratureView").then((module) => ({ default: module.LiteratureView })),
-);
-const AskView = lazy(() =>
-  import("./views/AskView").then((module) => ({ default: module.AskView })),
-);
+// Home is the landing page and the first paint, so it is bundled with the shell (no fallback on first
+// load). The other routes are lazy but warmed early (lib/routes.ts), so they rarely suspend.
+const DashboardView = lazy(() => loadDashboard().then((module) => ({ default: module.DashboardView })));
+const LiteratureView = lazy(() => loadLiterature().then((module) => ({ default: module.LiteratureView })));
+const AskView = lazy(() => loadAsk().then((module) => ({ default: module.AskView })));
 
+/**
+ * Shown only if a lazy route is still loading. It renders nothing for the first 250ms (so a fast load
+ * never flashes anything), then fades in a few quiet blocks, with a screen-reader-only status. Full
+ * viewport tall on purpose: the footer sits below this, so it stays below the fold instead of showing
+ * mid-screen and jumping to the bottom of the real page (a ~0.08 layout shift on first load).
+ */
 function RouteFallback() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setVisible(true), 250);
+    return () => window.clearTimeout(timer);
+  }, []);
   return (
-    // Full viewport tall on purpose: the footer sits below this, so while a lazy route loads the
-    // footer ("Data last synced") stays below the fold instead of showing mid-screen and then
-    // jumping to the bottom of the real page (a ~0.08 layout shift on first load).
-    <div className="flex min-h-dvh items-start justify-center pt-32 text-[15px] text-muted">
-      Loading view…
+    <div className="min-h-dvh pt-32" aria-busy="true">
+      {visible && (
+        <div role="status" className="page-fade mx-auto max-w-[40rem] space-y-4">
+          <span className="sr-only">Loading</span>
+          <div aria-hidden="true" className="h-8 w-2/3 bg-line/60" />
+          <div aria-hidden="true" className="h-4 w-full bg-line/40" />
+          <div aria-hidden="true" className="h-4 w-5/6 bg-line/40" />
+        </div>
+      )}
     </div>
   );
 }
@@ -85,6 +95,9 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  // Warm the other routes' chunks once the first page has painted and the browser is idle.
+  useEffect(() => prefetchAllRoutesWhenIdle(), []);
+
   return (
     <div className="min-h-dvh">
       <a href="#main-content" className="skip-link">
@@ -104,7 +117,7 @@ export default function App() {
                   <Route
                     path="/"
                     element={
-                      <PageTransition>
+                      <PageTransition cascade={false}>
                         <HomeView />
                       </PageTransition>
                     }
@@ -132,7 +145,7 @@ export default function App() {
                   <Route
                     path="/ask"
                     element={
-                      <PageTransition>
+                      <PageTransition cascade={false}>
                         <AskView onOpenTrialSnapshot={openTrialSnapshot} />
                       </PageTransition>
                     }

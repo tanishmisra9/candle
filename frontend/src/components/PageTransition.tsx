@@ -7,7 +7,9 @@ import { routeTransitionMotion } from "../lib/motion";
 // False until the first route has settled, so the initial page load never steals focus.
 let hasNavigated = false;
 
-export function PageTransition({ children }: { children: ReactNode }) {
+// cascade: the page's top-level blocks fade in top to bottom (opacity only). Home has its own intro,
+// and Ask has a fixed composer that owns its own entrance, so those two opt out.
+export function PageTransition({ children, cascade = true }: { children: ReactNode; cascade?: boolean }) {
   const prefersReducedMotion = useReducedMotion();
   const variants = routeTransitionMotion(prefersReducedMotion);
   const ref = useRef<HTMLDivElement>(null);
@@ -36,6 +38,7 @@ export function PageTransition({ children }: { children: ReactNode }) {
   return (
     <motion.div
       ref={ref}
+      className={cascade ? "page-cascade" : undefined}
       initial={variants.initial}
       animate={variants.animate}
       exit={variants.exit}

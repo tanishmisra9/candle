@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { resetIntroPlayed } from "../components/home/useIgnition";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -58,6 +59,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   reduced = false;
   local.clear();
+  resetIntroPlayed();
   session = new Map();
   entry = { isIntersecting: true, intersectionRatio: 1 };
   window.IntersectionObserver = FakeIntersectionObserver as unknown as typeof IntersectionObserver;
@@ -86,18 +88,18 @@ afterEach(() => {
 });
 
 describe("the page lights up", () => {
-  it("starts when the logo is visible, then plays once per session", () => {
+  it("starts when the logo is visible, then does not replay on an in-app return", () => {
     const first = renderHome();
     expect(state(first.container)).toBe("go");
     first.unmount();
-    expect(state(renderHome().container)).toBe("lit"); // second visit this session: finished at once
+    expect(state(renderHome().container)).toBe("lit"); // in-app return: finished at once
   });
 
-  it("waits while the logo is off-screen, and never longer than the 1.5s fallback", () => {
+  it("waits while the logo is off-screen, and never longer than the 1s fallback", () => {
     entry = { isIntersecting: false, intersectionRatio: 0 };
     const { container } = renderHome();
     expect(state(container)).toBe("idle");
-    act(() => void vi.advanceTimersByTime(1600));
+    act(() => void vi.advanceTimersByTime(1100));
     expect(state(container)).toBe("lit");
   });
 

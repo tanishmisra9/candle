@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 
 const css = readFileSync(resolve(__dirname, "../index.css"), "utf8");
 
-const rules = [...css.matchAll(/([^{}@]*\.(?:flame|candle|intro|stage|night|reveal)[^{}]*)\{([^{}]*)\}/g)].map(
+const rules = [...css.matchAll(/([^{}@]*(?:\.(?:flame|candle|intro|stage|night|reveal)|data-ignite)[^{}]*)\{([^{}]*)\}/g)].map(
   ([, selector, body]) => ({ selector: selector.trim(), body }),
 );
 
@@ -48,67 +48,55 @@ describe("intro safety limits", () => {
     expect(keyframes.map((k) => k.name)).toEqual(
       expect.arrayContaining([
         "flame-appear",
-        "flame-appear-core",
         "flame-veil-out",
-        "flame-draw",
-        "flame-travel",
-        "flame-head-fade",
+        "flame-ignite",
         "flame-ghost-out",
-        "flame-breathe",
+        "flame-core-sway",
         "flame-flicker",
       ]),
     );
-    expect(animations.length).toBeGreaterThanOrEqual(15);
+    expect(animations.length).toBeGreaterThanOrEqual(10);
   });
 
-  it("everything that plays once is finished within 5.5s (delay + duration), and the parser sees it", () => {
+  it("everything that plays once is finished within 2.8s (delay + duration), and the parser sees it", () => {
     const finishes = animations.filter((a) => !a.infinite).map((a) => a.delay + a.duration);
-    expect(Math.max(...finishes)).toBeLessThanOrEqual(5.5);
-    expect(Math.max(...finishes)).toBeGreaterThan(5); // the last reveal really is that late
+    expect(Math.max(...finishes)).toBeLessThanOrEqual(2.8);
+    expect(Math.max(...finishes)).toBeGreaterThan(1.8); // the last reveal really is that late
   });
 
-  it("the only loops are the flicker and the breath: period >= 4s and alternating", () => {
+  it("the only loops are the flicker and the sway: period >= 4s and alternating", () => {
     const looping = animations.filter((a) => a.infinite);
-    expect([...new Set(looping.map((a) => a.name))].sort()).toEqual(["flame-breathe", "flame-core-sway", "flame-flicker"]);
+    expect([...new Set(looping.map((a) => a.name))].sort()).toEqual(["flame-core-sway", "flame-flicker"]);
     for (const { part, duration } of looping) {
       expect(duration, part).toBeGreaterThanOrEqual(4);
       expect(part, part).toMatch(/\balternate\b/);
     }
   });
 
-  it("the ember travels once, slowly (>= 2s), and the trail follows at the same pace", () => {
-    for (const name of ["flame-travel", "flame-draw"]) {
-      expect(durationsOf(name).length, name).toBeGreaterThan(0);
-      for (const d of durationsOf(name)) expect(d, name).toBeGreaterThanOrEqual(2);
-      expect(animations.filter((a) => a.name === name).every((a) => !a.infinite)).toBe(true);
+  it("no abrupt luminance steps: the room lifts over >= 1.2s and every fade-in takes >= 0.4s", () => {
+    expect(durationsOf("flame-veil-out").length).toBeGreaterThan(0);
+    for (const d of durationsOf("flame-veil-out")) expect(d).toBeGreaterThanOrEqual(1.2);
+    for (const d of durationsOf("flame-appear")) expect(d).toBeGreaterThanOrEqual(0.4);
+    for (const d of durationsOf("flame-ghost-out")) expect(d).toBeGreaterThanOrEqual(0.3); // a hairline outline
+    for (const d of durationsOf("flame-ignite")) expect(d).toBeGreaterThanOrEqual(0.8); // the zoom
+  });
+
+  it("the loops use one identical declaration in the intro and afterwards (no restart, no snap)", () => {
+    const loops = rules.filter(({ body }) => /infinite/.test(body));
+    expect(loops.length).toBeGreaterThanOrEqual(2);
+    for (const { selector } of loops) {
+      expect(selector, selector).toContain(':not([data-ignite="idle"])');
+      expect(selector, selector).not.toMatch(/data-ignite="(go|lit)"/);
     }
-    expect(durationsOf("flame-travel")).toEqual(durationsOf("flame-draw"));
   });
 
-  it("no abrupt luminance steps: the veil takes >= 0.8s and every fade-in >= 0.7s", () => {
-    for (const d of durationsOf("flame-veil-out")) expect(d).toBeGreaterThanOrEqual(0.8);
-    for (const d of durationsOf("flame-appear")) expect(d).toBeGreaterThanOrEqual(0.7);
-    for (const d of durationsOf("flame-appear-core")) expect(d).toBeGreaterThanOrEqual(0.7);
-    for (const d of durationsOf("flame-ghost-out")) expect(d).toBeGreaterThanOrEqual(0.4); // a hairline outline
-    for (const d of durationsOf("flame-head-fade")) expect(d).toBeGreaterThanOrEqual(3);
-  });
-
-  it("keyframes only touch opacity, stroke-dashoffset and the flicker's transform", () => {
+  it("keyframes only touch opacity and bounded transforms", () => {
     for (const { name, body } of keyframes) {
-      // transform is allowed only where motion is bounded and tested below: the flicker, the flame
-      // growing from its wick, and the sparks.
-      const transformed = ["flame-flicker", "flame-core-sway", "flame-grow", "flame-spark-rise"].includes(name);
-      const allowed = transformed ? ["opacity", "transform"] : ["opacity", "stroke-dashoffset"];
+      const allowed = ["flame-flicker", "flame-core-sway", "flame-ignite"].includes(name) ? ["opacity", "transform"] : ["opacity"];
       for (const [, prop] of body.matchAll(/([a-z-]+)\s*:/g)) {
         expect(allowed, `${name}: ${prop}`).toContain(prop);
       }
     }
-  });
-
-  it("the breath swings opacity by at most 0.15", () => {
-    const breathe = keyframes.find((k) => k.name === "flame-breathe")!;
-    const values = [...breathe.body.matchAll(/opacity:\s*([\d.]+)/g)].map(([, v]) => parseFloat(v));
-    expect(Math.max(...values) - Math.min(...values)).toBeLessThanOrEqual(0.15);
   });
 
   it("the flicker moves the flame by at most 2% and 1 degree", () => {
@@ -123,7 +111,8 @@ describe("intro safety limits", () => {
 
 describe("content is only ever made transparent, never removed", () => {
   it("no gated rule hides content from layout or assistive technology", () => {
-    const gated = rules.filter(({ selector }) => /\.reveal|data-ignite="idle"/.test(selector));
+    // The dusk veil (html::before) is a decorative overlay and is meant to ignore input; gated CONTENT is not.
+    const gated = rules.filter(({ selector }) => /\.reveal|data-ignite="idle"/.test(selector) && !/^html|\.night-stage$/.test(selector.split("*/").pop()!.trim().split(",").pop()!.trim()));
     expect(gated.length).toBeGreaterThan(0);
     for (const { selector, body } of gated) {
       expect(body, selector).not.toMatch(/display:\s*none|visibility:\s*hidden|content-visibility|pointer-events:\s*none/);
@@ -147,11 +136,11 @@ describe("motion preferences", () => {
     expect(block).toMatch(/\.intro \*[^{}]*\{[^}]*animation:\s*none/);
     expect(block).toMatch(/\.intro \.reveal[^{}]*\{[^}]*opacity:\s*1\s*!important/);
     expect(block).toMatch(/CanvasText/);
-    expect(block).toMatch(/\.flame-head[^{}]*\{[^}]*display:\s*none/);
+    expect(block).toMatch(/\.flame-body[^{}]*\{[^}]*display:\s*none/);
   });
 
   it("forced-colors / more-contrast drop the room glow and the light pool", () => {
-    expect(css).toMatch(/@media \(forced-colors: active\), \(prefers-contrast: more\)\s*\{\s*\.candle-room-glow, \.stage-light \{ display: none; \}/);
+    expect(css).toMatch(/@media \(forced-colors: active\), \(prefers-contrast: more\)\s*\{\s*html\[data-ignite\]::before \{ display: none; \}\s*\.candle-room-glow, \.stage-light \{ display: none; \}/);
   });
 
   it("the room glow never captures input, stays behind content, with a capped alpha", () => {
@@ -169,14 +158,20 @@ describe("motion preferences", () => {
     expect(Math.max(...skews)).toBeLessThanOrEqual(3);
   });
 
-  it("grow and sparks are bounded: the flame starts at >= 0.5 scale, sparks rise <= 8px, once", () => {
-    const grow = keyframes.find((k) => k.name === "flame-grow")!;
-    const scales = [...grow.body.matchAll(/scale\(\s*([\d.]+)\s*\)/g)].map(([, v]) => +v);
+  it("the zoom starts from a flame at >= 0.5 scale and plays once", () => {
+    const ignite = keyframes.find((k) => k.name === "flame-ignite")!;
+    const scales = [...ignite.body.matchAll(/scale\(\s*([\d.]+)\s*\)/g)].map(([, v]) => +v);
     expect(Math.min(...scales)).toBeGreaterThanOrEqual(0.5);
-    const spark = keyframes.find((k) => k.name === "flame-spark-rise")!;
-    const rises = [...spark.body.matchAll(/,\s*(-?[\d.]+)px\)/g)].map(([, v]) => Math.abs(+v));
-    expect(Math.max(...rises)).toBeLessThanOrEqual(8);
-    expect(animations.filter((a) => /flame-(grow|spark-rise)/.test(a.name)).every((a) => !a.infinite)).toBe(true);
+    expect(Math.max(...scales)).toBeLessThanOrEqual(1);
+    expect(animations.filter((a) => a.name === "flame-ignite").every((a) => !a.infinite)).toBe(true);
+  });
+
+  it("the dusk veil is a fixed, input-transparent layer, and index.html starts it before first paint", () => {
+    const veil = rules.find(({ selector, body }) => selector.endsWith('html[data-ignite]::before') && body.includes("position: fixed"))!;
+    expect(veil.body).toMatch(/pointer-events:\s*none/);
+    const html = readFileSync(resolve(__dirname, "../../index.html"), "utf8");
+    expect(html).toMatch(/html\[data-ignite="idle"\]::before/);
+    expect(html).toMatch(/setAttribute\("data-ignite", "idle"\)/);
   });
 
   it("the logo cross-fades its colours on a theme flip, and reduced motion turns that off", () => {

@@ -26,8 +26,17 @@ const NO_OBSERVER_START_MS = 600; // browsers without IntersectionObserver start
 // If the intro has not started this long after mount (tab visible), show the finished page. This
 // bounds how long content can stay transparent under ANY viewport: at 400% zoom the logo may
 // never be half visible, and low-vision visitors must not be left with a blank page.
-const FALLBACK_TO_LIT_MS = 1500;
-const SEEN_KEY = "candle-intro-seen"; // sessionStorage: play once per browser session
+const FALLBACK_TO_LIT_MS = 1000;
+// The intro (index.css) finishes by 2.1s; then the state settles to `lit` (the terminal state: the stage
+// drops below the nav again and the steady-state loops take over).
+const INTRO_MS = 2300;
+// The intro plays on every full page load (a reload starts a fresh module, so this resets) but not
+// again when the visitor navigates back to "/" inside the app.
+let playedThisLoad = false;
+/** Test hook: forget that the intro played (a real page load does this by reloading the module). */
+export function resetIntroPlayed() {
+  playedThisLoad = false;
+}
 
 // Input that means "I am here, show me the page". Route-change focus (PageTransition focusing the
 // new <h1>, or <main>) is not user input and must not skip the intro.
@@ -35,30 +44,15 @@ const SKIP_EVENTS = ["keydown", "pointerdown", "wheel", "touchstart"] as const;
 const isRouteFocus = (target: EventTarget | null) =>
   target instanceof Element && (target.matches("[data-route-heading]") || target.id === "main-content");
 
-function readSeen() {
-  try {
-    return sessionStorage.getItem(SEEN_KEY) === "1";
-  } catch {
-    return false; // storage can be blocked; the intro simply plays
-  }
-}
-function writeSeen() {
-  try {
-    sessionStorage.setItem(SEEN_KEY, "1");
-  } catch {
-    // not remembered; harmless
-  }
-}
-
 /**
  * @param running false when the user prefers reduced motion: start (and stay) lit.
  * Attach `observedRef` to the element whose visibility starts the sequence (the logo).
  */
 export function useIgnition(running: boolean) {
   const observedRef = useRef<HTMLDivElement>(null);
-  // Reduced-motion and already-seen visitors start lit: they never see a dark frame. Read in
-  // the initializer so the very first render carries the right state (no flash of hidden content).
-  const [ignite, setIgnite] = useState<IgniteState>(() => (running && !readSeen() ? "idle" : "lit"));
+  // Reduced-motion visitors and in-app returns to "/" start lit: they never see a dark frame. Read
+  // in the initializer so the very first render carries the right state (no flash of hidden content).
+  const [ignite, setIgnite] = useState<IgniteState>(() => (running && !playedThisLoad ? "idle" : "lit"));
   const [offscreen, setOffscreen] = useState(false);
   const [visibleEnough, setVisibleEnough] = useState(false);
   const [tabVisible, setTabVisible] = useState(() => typeof document === "undefined" || !document.hidden);
@@ -98,9 +92,16 @@ export function useIgnition(running: boolean) {
     if (running && visibleEnough && tabVisible) setIgnite((state) => ignitionNext(state, "go"));
   }, [running, visibleEnough, tabVisible]);
 
-  // Played (or started) once: remember for the rest of the session.
+  // Started once: do not replay on an in-app return to "/".
   useEffect(() => {
-    if (ignite === "go") writeSeen();
+    if (ignite === "go") playedThisLoad = true;
+  }, [ignite]);
+
+  // The intro is over: settle to the finished page.
+  useEffect(() => {
+    if (ignite !== "go") return;
+    const timer = window.setTimeout(() => setIgnite((state) => ignitionNext(state, "lit")), INTRO_MS);
+    return () => window.clearTimeout(timer);
   }, [ignite]);
 
   // Never leave content hidden for long if the intro cannot start.

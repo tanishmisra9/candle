@@ -7,6 +7,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { queryClient } from "./lib/queryClient";
+import "@fontsource-variable/inter";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

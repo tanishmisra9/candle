@@ -11,7 +11,8 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: [
-          "Inter",
+          "Inter Variable",
+          "Inter Fallback",
           "-apple-system",
           "BlinkMacSystemFont",
           "\"SF Pro Text\"",

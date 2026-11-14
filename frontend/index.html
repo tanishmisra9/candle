@@ -6,18 +6,24 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#0b0b0f" />
     <title>Candle</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-    />
     <!-- Paint the right background before the bundle loads: `color-scheme` alone follows the OS,
          so a dark-OS user who chose light would flash dark. Keep colours in sync with index.css
          (--canvas) and the THEME_COLORS map in src/lib/theme.ts. -->
     <style>
       html { background: #fbf8ef; }
       html.dark { background: #0b0b0f; }
+      /* The landing intro's dusk veil must exist from the very first paint (before the bundle runs),
+         or the nav/page flash bright and then go dark. index.css restyles and animates it. Keep the
+         colours in sync with --dusk in index.css. */
+      html[data-ignite="idle"]::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        pointer-events: none;
+        background: #3a3128;
+      }
+      html.dark[data-ignite="idle"]::before { background: #0b0b0f; }
     </style>
     <script>
       (function () {
@@ -33,6 +39,25 @@
         root.style.colorScheme = theme;
         var meta = document.querySelector('meta[name="theme-color"]');
         if (meta) meta.setAttribute("content", theme === "dark" ? "#0b0b0f" : "#fbf8ef");
+
+        // Will the landing intro play? Same conditions as the app (home route, motion allowed).
+        var calm = function (q) {
+          return window.matchMedia(q).matches;
+        };
+        if (
+          location.pathname === "/" &&
+          !calm("(prefers-reduced-motion: reduce)") &&
+          !calm("(forced-colors: active)") &&
+          !calm("(prefers-contrast: more)")
+        ) {
+          root.setAttribute("data-ignite", "idle");
+          // Failsafe: if the app never takes over (a load error), never leave the page dimmed.
+          setTimeout(function () {
+            if (root.getAttribute("data-ignite") === "idle" && !document.querySelector(".intro")) {
+              root.removeAttribute("data-ignite");
+            }
+          }, 5000);
+        }
       })();
     </script>
   </head>

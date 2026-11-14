@@ -11,18 +11,20 @@ describe("the logo is the original logo", () => {
 
     const { container } = render(<FlameLogo logoRef={() => {}} />);
     const layers = Object.fromEntries(
-      ["fill", "core", "ghost", "trail", "head"].map((name) => [name, container.querySelector(`.flame-${name}`)!]),
+      ["fill", "halo", "core", "outline", "ghost"].map((name) => [name, container.querySelector(`.flame-${name}`)!]),
     );
     for (const [name, path] of Object.entries(layers)) {
       expect(path.getAttribute("d"), name).toBe(FLAME_PATH);
     }
   });
 
-  it("the outline layers share one dash scale (pathLength 100) so the ember rides the trail", () => {
+  it("the outline is inside the flickering group with the body and inner flame, so they always move together", () => {
     const { container } = render(<FlameLogo logoRef={() => {}} />);
-    for (const name of ["ghost", "trail", "head"]) {
-      expect(container.querySelector(`.flame-${name}`)!.getAttribute("pathLength"), name).toBe("100");
-    }
+    const group = container.querySelector(".flame-flicker")!;
+    for (const name of ["body", "core", "outline"]) expect(group.querySelector(`.flame-${name}`), name).not.toBeNull();
+    // the outline is drawn after (on top of) the body
+    const kids = [...group.children].map((c) => c.getAttribute("class"));
+    expect(kids.indexOf("flame-body")).toBeLessThan(kids.indexOf("flame-outline"));
   });
 
   it("the lit fill uses a gradient and the core is the same flame scaled into it", () => {

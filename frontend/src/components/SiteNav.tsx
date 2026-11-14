@@ -2,6 +2,7 @@ import { Flame } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 
 import { primaryDestinations } from "../lib/navigation";
+import { prefetchRoute } from "../lib/routes";
 import { tabClass } from "../lib/ui";
 import { ThemeToggle } from "./ui/ThemeToggle";
 
@@ -24,6 +25,9 @@ export function SiteNav() {
               <NavLink
                 key={item.to}
                 to={item.to}
+                onPointerEnter={() => prefetchRoute(item.to)}
+                onFocus={() => prefetchRoute(item.to)}
+                onTouchStart={() => prefetchRoute(item.to)}
                 className={({ isActive }) =>
                   tabClass(isActive, "px-2.5 sm:px-3 md:px-4 md:text-[15px]")
                 }

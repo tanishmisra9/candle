@@ -1,5 +1,5 @@
 /** Landing page (`/`): a warm welcome, three audience paths, a live status sentence, a short guide, what Candle does and doesn't do, and a note from the builder. Single column, rem-based type, calm motion (see components/home/FlameLogo.tsx). */
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 
 import { FlameLogo } from "../components/home/FlameLogo";
@@ -16,6 +16,13 @@ export function HomeView() {
   const glowRef = useRef<HTMLDivElement>(null);
   useScrollGlow(glowRef, motion.running);
 
+  // The dusk veil is drawn by html::before (index.html starts it before first paint), so mirror the
+  // ignition state onto <html>, and clear it when leaving the page.
+  useLayoutEffect(() => {
+    document.documentElement.dataset.ignite = ignite;
+  }, [ignite]);
+  useLayoutEffect(() => () => void delete document.documentElement.dataset.ignite, []);
+
   return (
     // data-ignite drives the whole page: the dark stage, the flame, and the content that appears in
     // its light. Gated elements (.reveal) are only made transparent, never removed or hidden.
@@ -26,9 +33,8 @@ export function HomeView() {
       data-ignite={ignite}
     >
       <div ref={glowRef} aria-hidden="true" className="candle-room-glow" />
-      <div className="pt-[calc(var(--nav-offset)+1rem)]">
+      <div>
         <section aria-labelledby="welcome-heading" className="night-stage">
-          <div className="stage-veil" aria-hidden="true" />
           <div className="stage-content">
             <FlameLogo logoRef={observedRef} />
             <h1
