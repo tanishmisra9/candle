@@ -21,8 +21,7 @@ function readTokens(selector: RegExp): Record<string, RGB> {
 
 const themes = {
   light: readTokens(/:root\s*\{([^}]*)\}/),
-  // .night-stage (the landing hero) shares the dark block, so it is always the dark palette.
-  dark: { ...readTokens(/:root\s*\{([^}]*)\}/), ...readTokens(/:root\.dark,\s*\.night-stage\s*\{([^}]*)\}/) },
+  dark: { ...readTokens(/:root\s*\{([^}]*)\}/), ...readTokens(/:root\.dark\s*\{([^}]*)\}/) },
 };
 
 function luminance([r, g, b]: RGB) {
@@ -98,24 +97,20 @@ describe.each(Object.entries(themes))("%s theme contrast", (_name, tokens) => {
   });
 });
 
-// The landing hero is a dark stage in BOTH themes (it re-scopes the dark palette), so its colours are
-// always the dark tokens. The flame casts a light pool tinted by --flame-glow at up to this alpha
-// (see .stage-light in index.css; candle-motion.test.ts pins the alpha).
-describe("night stage (always the dark palette)", () => {
-  const t = themes.dark;
+// The landing hero follows the page theme. The flame casts a light pool tinted by --flame-glow at up
+// to this alpha (see .stage-light in index.css; candle-motion.test.ts pins the alpha).
+describe.each(Object.entries(themes))("%s landing hero", (_name, t) => {
   const POOL_ALPHA = 0.28;
 
-  it("the unlit outline, the lit stroke and the ember hold 3:1 on the stage", () => {
+  it("the unlit outline, the lit stroke and the ember hold 3:1 on the canvas", () => {
     expect(ratio(t["line-strong"], t.canvas), "unlit outline").toBeGreaterThanOrEqual(3);
     expect(ratio(t.accent, t.canvas), "lit stroke").toBeGreaterThanOrEqual(3);
     expect(ratio(t.ember, t.canvas), "ember").toBeGreaterThanOrEqual(3);
   });
 
-  it("text, muted, accent and the focus ring hold on the stage lit by the pool at full alpha", () => {
-    // Not checked here: line-strong borders. Every bordered control on the stage (buttons, the
-    // pause toggle) has its own opaque background, so its border never sits directly on the pool
-    // (without that, a border on the brightest pool would be only ~2.8:1). The real-browser audit
-    // asserts those controls have opaque backgrounds.
+  it("text, muted, accent and the focus ring hold on the canvas lit by the pool at full alpha", () => {
+    // Not checked here: line-strong borders. Every bordered control in the hero (buttons, the
+    // pause toggle) has its own opaque background, so its border never sits directly on the pool.
     const lit = blend(t["flame-glow"], t.canvas, POOL_ALPHA);
     expect(ratio(t.text, lit), "text").toBeGreaterThanOrEqual(4.5);
     expect(ratio(t.muted, lit), "muted").toBeGreaterThanOrEqual(4.5);
@@ -123,7 +118,7 @@ describe("night stage (always the dark palette)", () => {
     expect(ratio(t.focus, lit), "focus").toBeGreaterThanOrEqual(3);
   });
 
-  it("the primary button (accent fill + on-accent text) stays legible on the stage", () => {
+  it("the primary button (accent fill + on-accent text) stays legible", () => {
     expect(ratio(t["accent-on"], t["accent-fill"])).toBeGreaterThanOrEqual(4.5);
     expect(ratio(t["accent-fill"], t.canvas)).toBeGreaterThanOrEqual(3);
   });

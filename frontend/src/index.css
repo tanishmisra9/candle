@@ -34,20 +34,20 @@
   --tl-terminated: 168 32 32;
   --tl-other: 110 104 94;
   --tl-text: 255 254 248;
-  /* The page's own canvas as a colour. Inherited as a resolved value, so it stays the PAGE's
-     canvas inside .night-stage, which re-scopes --canvas to the dark palette. */
+  /* The page's own canvas as a colour (the intro veil that fades out over the landing hero). */
   --paper: rgb(var(--canvas));
   /* Landing room glow (decorative; max alpha 0.12, checked against text/muted/accent/line/focus
-     in contrast.test.ts). The logo's own colours live in the dark block below (the stage is
-     always dark). */
+     in contrast.test.ts) and the logo's colours: ember and flame gradient base -> tip. The hero
+     follows the page theme (light page = lit flame on paper). --ember must hold 3:1 on the canvas. */
   --flame-glow: 217 119 6;
+  --ember: 194 65 12;
+  --flame-base: 194 65 12;
+  --flame-mid: 234 120 10;
+  --flame-tip: 252 196 70;
   --nav-offset: 64px;
 }
 
-:root.dark,
-.night-stage {
-  /* Dark palette. .night-stage (the landing hero) re-scopes it, so the hero is always dark whatever
-     the user's theme, and its text, contrast and colours come from this one block. */
+:root.dark {
   color-scheme: dark;
   --canvas: 11 11 15;
   --panel: 21 21 27;
@@ -70,8 +70,6 @@
   --tl-other: 182 178 172;
   --tl-text: 11 11 15;
   --flame-glow: 232 163 61;
-  /* Logo (decorative, only ever drawn on the dark stage): the ignition ember, and the lit flame's
-     gradient from base to tip. --ember must hold 3:1 on the stage; see contrast.test.ts. */
   --ember: 255 233 170;
   --flame-base: 194 65 12;
   --flame-mid: 240 150 30;
@@ -196,8 +194,8 @@ a {
 }
 
 /*
- * Landing hero: the original Candle flame (the exact lucide Flame path), huge, lighting a dark stage
- * like a candle being lit, then the rest of the page appearing in its light. Decorative and fully
+ * Landing hero: the original Candle flame (the exact lucide Flame path), huge, lighting the stage (near-black in
+ * the dark theme, paper in the light one) like a candle being lit, then the rest of the page appearing in its light. Decorative and fully
  * stoppable. Safety limits, enforced by src/test/candle-motion.test.ts:
  *  - everything finishes by 5.4s (delay + duration of every non-looping animation <= 5.5s)
  *  - the ember travels once over >= 2s; the veil takes >= 0.8s; every fade takes >= 0.7s
@@ -234,10 +232,9 @@ a {
   align-items: center;
   text-align: center;
 }
-/* The "lights go down": a veil in the PAGE's own canvas colour fades out over the dark stage. In the
-   dark theme it equals the stage colour (nothing visible); in the light theme the panel starts
-   cream like the page and darkens gradually, so there is never a cream-to-dark jump at first paint.
-   It covers the stage border too (inset -1px). */
+/* The "lights go down": a veil in the page's own canvas colour fades out over the stage, so the
+   flame appears to light the room. In the dark theme the stage is dark and the veil is invisible
+   against it; in the light theme the stage is paper like the page and the veil changes nothing. */
 .stage-veil {
   position: absolute;
   inset: -1px;

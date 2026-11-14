@@ -1,7 +1,7 @@
 /**
  * The landing-page logo: Candle's original flame (the exact lucide `Flame` path) as the huge
  * centerpiece of the hero. Lit, it is a filled flame (base-to-tip gradient) with an inner core
- * inside the original outline, casting a soft pool of light on the dark stage. The ignition
+ * inside the original outline, casting a soft pool of light on the stage. The ignition
  * itself (dark -> spark -> ember travels the outline -> the flame catches) is pure CSS driven by
  * the `data-ignite` state that `useIgnition` puts on the page wrapper (see index.css `.flame-*`,
  * where the flash-safety limits are documented and tested). Decorative: `aria-hidden`.
@@ -61,7 +61,7 @@ export function PauseAnimationButton({
 }) {
   if (reduced) return null;
   return (
-    // bg-canvas: on the dark stage this is its own dark surface, so the label stays legible even
+    // bg-canvas: on the stage this is its own opaque surface, so the label stays legible even
     // while the light-theme veil is still cream.
     <ToggleButton pressed={paused} onClick={onToggle} className="bg-canvas !text-[1rem]">
       <Pause size={14} strokeWidth={1.75} aria-hidden="true" />
