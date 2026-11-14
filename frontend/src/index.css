@@ -235,7 +235,6 @@ a {
   --logo: min(42svh, 78vw, 26rem);
   position: relative;
   isolation: isolate;
-  overflow: hidden;
   display: flex;
   /* The stage runs up under the frosted nav (no strip of bare page between them), so the flame's glow
      shows through the glass. */
@@ -244,20 +243,9 @@ a {
   align-items: center;
   justify-content: center;
   padding: calc(var(--nav-offset) + 2rem) 1rem 3rem;
-  /* Transparent, so the page (and, while the intro plays, the dusk veil) shows through; the hairline
-     frame is ::before so it can fade in. */
+  /* Transparent and frameless: the hero is part of the page, not a box on it. */
   background: transparent;
   color: rgb(var(--text));
-}
-.night-stage::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  border: 1px solid rgb(var(--line));
-  border-top-width: 0;
-  border-radius: 0 0 2px 2px;
 }
 /* While the intro plays (idle/go) the stage sits ABOVE the dusk veil (z 50) so the logo stays visible
    while the rest of the page, nav included, is dim. It lets clicks through to the nav it overlaps.
@@ -311,8 +299,10 @@ html[data-ignite]::before {
   position: absolute;
   left: 50%;
   top: 46%;
-  width: calc(var(--logo) * 2.7);
-  height: calc(var(--logo) * 2.7);
+  /* Capped to the viewport (centred on the logo, which is centred in the page) so the glow is never
+     clipped at the stage's edges and never adds a horizontal scrollbar. */
+  width: min(calc(var(--logo) * 2.7), calc(100vw - 2rem));
+  height: min(calc(var(--logo) * 2.7), calc(100vw - 2rem));
   transform: translate(-50%, -50%);
   pointer-events: none;
   background: radial-gradient(
@@ -327,8 +317,8 @@ html[data-ignite]::before {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 170%;
-  height: 170%;
+  width: min(calc(var(--logo) * 4.6), calc(100vw - 2rem));
+  height: min(calc(var(--logo) * 4.6), calc(100vw - 2rem));
   transform: translate(-50%, -50%);
   background: radial-gradient(closest-side, transparent 30%, rgb(var(--flame-glow) / 0.08) 55%, transparent);
 }
@@ -356,14 +346,12 @@ html.theme-switching .flame-logo * { transition: var(--logo-fade) !important; }
 /* idle: the room is in deep dusk and nothing else is drawn yet (no placeholder outline: it read as a
    crossfade). Gated content is transparent only; idle lasts well under a second. */
 html[data-ignite="idle"]::before { opacity: 1; }
-.intro[data-ignite="idle"] .night-stage::before,
 .intro[data-ignite="idle"] .flame-zoom,
 .intro[data-ignite="idle"] .stage-light,
 .intro[data-ignite="idle"] .reveal { opacity: 0; }
 
 /* go: see the timeline above. */
 html[data-ignite="go"]::before { opacity: 1; animation: flame-veil-out 1.2s ease-in-out 0.35s forwards; }
-.intro[data-ignite="go"] .night-stage::before { animation: flame-appear 0.6s ease-out 1.2s backwards; }
 .intro[data-ignite="go"] .flame-zoom { animation: flame-ignite 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards; }
 .intro[data-ignite="go"] .stage-light { animation: flame-appear 1s ease-out 0.5s backwards; }
 .intro[data-ignite="go"] .reveal-1 { animation: flame-appear 0.6s ease-out 0.9s backwards; }
@@ -401,11 +389,11 @@ html[data-ignite="go"]::before { opacity: 1; animation: flame-veil-out 1.2s ease
 }
 
 /* Scrolled out of view mid-sequence: hold, then continue when it returns. */
-.intro[data-candle-offscreen="true"] :is(.flame-zoom, .flame-core-live, .flame-flicker, .stage-light, .stage-light::after, .night-stage::before, .reveal) {
+.intro[data-candle-offscreen="true"] :is(.flame-zoom, .flame-core-live, .flame-flicker, .stage-light, .stage-light::after, .reveal) {
   animation-play-state: paused;
 }
 /* Reduced motion (data-candle-motion="paused"): every animation stops, leaving the finished page. */
-.intro[data-candle-motion="paused"] :is(.flame-zoom, .flame-core-live, .flame-flicker, .stage-light, .stage-light::after, .night-stage::before, .reveal) {
+.intro[data-candle-motion="paused"] :is(.flame-zoom, .flame-core-live, .flame-flicker, .stage-light, .stage-light::after, .reveal) {
   animation: none;
 }
 
@@ -436,7 +424,6 @@ html[data-ignite="go"]::before { opacity: 1; animation: flame-veil-out 1.2s ease
   .intro *, .intro *::after { animation: none !important; }
   .intro .reveal { opacity: 1 !important; }
   .night-stage { background: Canvas; color: CanvasText; }
-  .night-stage::before { border-color: CanvasText; }
   .flame-body { display: none; }
   .flame-outline { stroke: CanvasText; opacity: 1 !important; }
 }
