@@ -87,6 +87,21 @@ export function AskPanel({
     stickRef.current = true;
     setShowJumpToLatest(false);
 
+    // The one place a failed answer is reported: the message stops "streaming", says what happened
+    // (keeping nothing half-finished), and the polite live region announces the outcome, so a screen
+    // reader user is never left on "Generating answer.".
+    const failAssistant = (id: string, error: unknown) => {
+      const isRateLimited = /rate limit|too many/i.test(String((error as Error | undefined)?.message ?? ""));
+      const text = isRateLimited
+        ? "Too many requests. Please wait a moment and try again."
+        : "I couldn't complete that answer just now. Please check that the backend is running and the OpenAI key is configured.";
+      setAnnouncement(isRateLimited ? text : "Answer could not be completed.");
+      setMessages((current) =>
+        current.map((message) => (message.id === id ? { ...message, content: text, isStreaming: false } : message)),
+      );
+      setIsPending(false);
+    };
+
     void askQuestionStream(
       trimmed,
       {
@@ -132,36 +147,18 @@ export function AskPanel({
                 ),
               );
             })
-            .catch((error) => {
-              const isRateLimited = /rate limit|too many/i.test(String(error?.message ?? ""));
-              setAnnouncement(
-                isRateLimited
-                  ? "Too many requests. Please wait a moment and try again."
-                  : "Answer could not be completed.",
-              );
-              setMessages((current) =>
-                current.map((message) =>
-                  message.id === assistantId
-                    ? {
-                        ...message,
-                        content: isRateLimited
-                          ? "Too many requests. Please wait a moment and try again."
-                          : "I couldn't complete that answer just now. Please check that the backend is running and the OpenAI key is configured.",
-                        isStreaming: false,
-                      }
-                    : message,
-                ),
-              );
-            })
+            .catch((error) => failAssistant(assistantId, error))
             .finally(() => {
               setIsPending(false);
             });
         },
       },
       controller.signal,
-    ).catch(() => {
+    ).catch((error) => {
+      // Aborted on purpose (a newer question or leaving the page): nothing to report. Anything else
+      // that escapes the stream reader must still finish the message instead of leaving it hanging.
       if (!controller.signal.aborted) {
-        setIsPending(false);
+        failAssistant(assistantId, error);
       }
     });
   };

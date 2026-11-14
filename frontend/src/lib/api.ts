@@ -135,37 +135,63 @@ export async function askQuestionStream(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  // The stream is only complete once a `done` (or `error`) event has been handled. A proxy cutting
+  // the connection, a dropped network or a backend crash can all end it without either, and the
+  // caller must still hear about that exactly once (otherwise the answer sits "generating" forever).
+  let finished = false;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+  const handle = (event: string) => {
+    const dataLine = event.split("\n").find((line) => line.startsWith("data: "));
+    if (!dataLine) {
+      return;
     }
 
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
+    const payload = JSON.parse(dataLine.slice(6)) as
+      | { type: "delta"; delta: string }
+      | { type: "done"; answer: string; sources: AskResponse["sources"] }
+      | { type: "error"; detail: string };
 
-    for (const event of events) {
-      const dataLine = event
-        .split("\n")
-        .find((line) => line.startsWith("data: "));
-      if (!dataLine) {
-        continue;
+    if (payload.type === "delta") {
+      handlers.onDelta(payload.delta);
+    } else if (payload.type === "done") {
+      finished = true;
+      handlers.onDone({ answer: payload.answer, sources: payload.sources });
+    } else if (payload.type === "error") {
+      finished = true;
+      handlers.onError(payload.detail);
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
       }
 
-      const payload = JSON.parse(dataLine.slice(6)) as
-        | { type: "delta"; delta: string }
-        | { type: "done"; answer: string; sources: AskResponse["sources"] }
-        | { type: "error"; detail: string };
-
-      if (payload.type === "delta") {
-        handlers.onDelta(payload.delta);
-      } else if (payload.type === "done") {
-        handlers.onDone({ answer: payload.answer, sources: payload.sources });
-      } else if (payload.type === "error") {
-        handlers.onError(payload.detail);
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split("\n\n");
+      buffer = events.pop() ?? "";
+      for (const event of events) {
+        handle(event);
       }
     }
+    // A last event that arrived without its trailing blank line.
+    if (buffer.trim()) {
+      handle(buffer);
+    }
+  } catch (error) {
+    // A deliberate abort (a new question, leaving the page) is not a failure to report.
+    // An error thrown by our own handlers after a finished stream is a bug in the caller: surface it.
+    if (signal?.aborted || finished) {
+      throw error;
+    }
+    finished = true;
+    handlers.onError(error instanceof Error ? error.message : "The answer stream was interrupted.");
+    return;
+  }
+
+  if (!finished) {
+    handlers.onError("The answer stream ended before the answer was complete.");
   }
 }

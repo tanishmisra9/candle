@@ -79,4 +79,25 @@ describe("AskPanel streaming UI", () => {
     // The region is mounted from the start (live regions inserted with text announce unreliably).
     expect(screen.getByRole("log", { name: "Conversation" })).toHaveAttribute("aria-live", "off");
   });
+
+  it("a stream that blows up still finishes the message and announces the failure (no stuck 'Generating answer.')", async () => {
+    const api = await import("../lib/api");
+    vi.mocked(api.askQuestionStream).mockImplementationOnce(async () => {
+      throw new Error("reader exploded");
+    });
+    render(<AskPanel />);
+
+    fireEvent.change(screen.getByLabelText(/ask a question about chm trials/i), {
+      target: { value: "What trials are recruiting?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send question" }));
+
+    const conversation = screen.getByRole("log", { name: "Conversation" });
+    await waitFor(() => {
+      expect(within(conversation).getByText(/couldn't complete that answer/i)).toBeInTheDocument();
+    });
+    expect(screen.getAllByRole("status").some((el) => /Generating answer/.test(el.textContent ?? ""))).toBe(false);
+    expect(screen.getAllByRole("status").some((el) => /could not be completed/.test(el.textContent ?? ""))).toBe(true);
+    expect(screen.getByRole("button", { name: "Send question" })).toBeDisabled(); // empty draft, no longer pending
+  });
 });

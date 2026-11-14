@@ -2,11 +2,14 @@
 
 Both share one pipeline (`app.services.rag`), the `ask` rate-limit bucket, the global LLM
 concurrency slot and the `ask_question_max_chars` cap. The stream emits `data: {json}` frames of
-type `delta` (answer text so far), `done` (final answer plus sources, authoritative) or `error`.
-The frontend replaces any streamed text with the `done` payload.
+type `delta` (the NEW answer text since the previous delta; clients append), `done` (the complete
+answer plus sources, authoritative) or `error`. The frontend replaces any streamed text with the
+`done` payload. Whatever goes wrong mid-stream, the stream ends with `done` or `error`, never
+silently, so a client can always finish the message.
 """
 
 import json
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -26,6 +29,8 @@ from app.services.openai_executor import (
 )
 from app.services.rag import answer_question, answer_question_stream
 
+
+logger = logging.getLogger("candle.api")
 
 router = APIRouter(tags=["ask"])
 
@@ -94,6 +99,12 @@ async def ask_stream(
             )
         except RuntimeError as exc:
             yield f"data: {json.dumps({'type': 'error', 'detail': str(exc)})}\n\n"
+        except Exception:
+            # The response has already started, so an unexpected failure (a database error, a bug)
+            # cannot become an HTTP status. End the stream with an `error` event instead of cutting
+            # it off, and keep the internals out of the message.
+            logger.exception("Unexpected failure while streaming an answer")
+            yield f"data: {json.dumps({'type': 'error', 'detail': 'Something went wrong while answering. Please try again.'})}\n\n"
 
     return StreamingResponse(
         event_generator(),
