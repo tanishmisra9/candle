@@ -8,7 +8,7 @@ import { ThemeToggle } from "./ui/ThemeToggle";
 // Fixed bar; its height IS --nav-offset (views pad their top and focus margins with it).
 export function SiteNav() {
   return (
-    <header className="fixed inset-x-0 top-0 z-40 h-[var(--nav-offset)] border-b border-line backdrop-blur-xl backdrop-saturate-150 site-nav">
+    <header className="fixed inset-x-0 top-0 z-40 h-[var(--nav-offset)] site-nav">
       <div className="mx-auto flex h-full max-w-[1360px] items-stretch justify-between gap-2 px-4 sm:px-5 md:px-10">
         <Link to="/" className="flex min-h-11 min-w-11 items-center justify-center gap-2.5 self-center rounded-panel">
           <Flame size={20} strokeWidth={1.5} className="text-accent" aria-hidden="true" />
