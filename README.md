@@ -9,7 +9,7 @@ Candle is a quiet research dashboard for Choroideremia (CHM). It pulls clinical 
 - **Trials** (`/trials`) — Browse CHM trials in grid or timeline view; open detailed trial snapshots with AI summaries, locations, and linked publications.
 - **Literature** (`/literature`) — Search and paginate publications; open reader snapshots with persisted AI overviews and trial links.
 - **Ask** (`/ask`) — Ask grounded questions across trials and publications via retrieval-augmented generation (RAG).
-- **Home** (`/`) — Entry point with quick navigation into the three main areas.
+- **Home** (`/`) — A welcoming landing page: a short flame-lighting intro (about 2s, every page load, skippable by any input), three guided paths for people with CHM, families and researchers, a live "Candle follows N trials and M publications" line, a glossary of trial terms, what Candle does and doesn't do, and a note from the builder.
 
 Publication overviews and trial summaries are stored in Postgres after first generation so repeat visits stay fast.
 
@@ -147,9 +147,11 @@ The LLM-backed routes (`/ask`, `/ask/stream`, `/publications/{pmid}/overview`) a
 **Backend** (from `backend/`):
 
 ```bash
-uv run pytest            # offline suite; live tests are excluded
+uv run pytest            # everything except `live` tests (no OpenAI calls)
 uv run pytest -m live    # needs OPENAI_API_KEY, makes real API calls
 ```
+
+A few backend tests (retrieval SQL, the summary CHECK constraint) run against the local Postgres from `make up` and skip themselves when it is not reachable.
 
 **Frontend** (from `frontend/`):
 

@@ -16,10 +16,11 @@ If you edit `package.json`, regenerate `pnpm-lock.yaml` in the same change (`pnp
 ```text
 src/
 ├── main.tsx, App.tsx      # entry; shell, routes, stacked snapshot overlays
-├── views/                 # route-level, lazy-loaded (Home, Dashboard=/trials, Literature, Ask)
+├── views/                 # route-level (Home is bundled with the shell; Dashboard=/trials, Literature, Ask are lazy)
 ├── components/            # shared UI (cards, dialogs, filters, timeline, Ask panel)
+│   ├── home/              # the landing page: FlameLogo, useIgnition (intro state), glossary, guided paths
 │   └── ui/                # primitives: Button, Input, ToggleButton, Tooltip, ThemeToggle
-├── lib/                   # api (sole API client), a11y, motion, theme, mobile, formatters, ...
+├── lib/                   # api (sole API client), routes (lazy chunks + prefetch), a11y, motion, theme, mobile, formatters, ...
 ├── hooks/                 # usePageTitle, useLastSynced
 ├── test/                  # setup (jsdom stubs) and contrast.test.ts
 └── index.css              # design tokens (both themes), focus style, base styles
@@ -82,7 +83,7 @@ Accessibility is the top requirement for this app. Closure notes and what still 
 `vitest-axe` runs with `color-contrast` off because jsdom cannot compute colour or layout, so some checks need a real browser.
 
 - **Contrast gate**: `src/test/contrast.test.ts` reads the tokens from `index.css` and asserts WCAG ratios for every pair in both themes. Change a colour, run `pnpm test`.
-- **Real-browser axe**: run axe-core (`node_modules/axe-core/axe.min.js`, all WCAG tags plus best-practice) on each route in both themes at 1280, 390 and 320px, including open dialogs and the timeline view. Also check no horizontal overflow and that targets are >= 44px.
+- **Real-browser axe**: wait >= 1.5s after any scroll before scanning (cards reveal on scroll and axe reports a false contrast failure mid-fade), and for the landing page wait for the intro (about 2.5s). Run axe-core (`node_modules/axe-core/axe.min.js`, all WCAG tags plus best-practice) on each route in both themes at 1280, 390 and 320px, including open dialogs and the timeline view. Also check no horizontal overflow and that targets are >= 44px.
 - **Ask scroll**: mock `/ask/stream` (override `window.fetch` in an init script) to stream long markdown slowly, then assert: it follows while at the bottom; one second after scrolling to the real bottom `scrollHeight - scrollY - innerHeight <= 4`; after a wheel-up mid-stream `scrollY` does not change as tokens arrive; "Jump to latest" resumes following. Run at 1280x800 and 390x844 and confirm it fails against the previous commit.
 - **Theme**: with a stored theme opposite to the OS theme, `<html>` has the stored class before the JS bundle loads (delay `main.tsx` in the test).
 - **Screen readers** (VoiceOver, NVDA) and 400% zoom are manual; see `docs/ADA_CLOSURE.md`.

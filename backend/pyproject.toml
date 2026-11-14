@@ -32,6 +32,8 @@ packages = ["app"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 asyncio_mode = "auto"
+# `live` tests call the real OpenAI API (cost); run them on purpose with `pytest -m live`.
+addopts = "-m 'not live'"
 markers = [
     "live: requires OPENAI_API_KEY, makes real API calls -- run with pytest -m live",
 ]

@@ -10,7 +10,8 @@ See the [README](../README.md#quick-start). In short: `cp .env.example .env`, se
 
 ```bash
 # backend (from backend/)
-uv run pytest            # offline; live tests are excluded
+uv run pytest            # everything except `live` tests (no OpenAI calls); a few tests use the
+                         # local Postgres (`make up`) and skip themselves without it
 uv run pytest -m live    # needs OPENAI_API_KEY, hits the real API
 
 # frontend (from frontend/)
