@@ -1,19 +1,22 @@
 """Hybrid retrieval over the `embeddings` table.
 
-Dense pgvector cosine search and Postgres full-text search (`ts_rank_cd` over the generated
-`content_tsv`) are run one after the other (a session cannot run two queries at once) and fused with
-Reciprocal Rank Fusion (`RRF_K = 60`), one entry per (source_type, source_id). `RetrievedChunk.distance` is lower-is-better in all paths.
+Dense pgvector cosine search (on the request's session) and Postgres full-text search (`ts_rank_cd`
+over the generated `content_tsv`, on its OWN short-lived session, because one session cannot run two
+queries at once) run concurrently and are fused with Reciprocal Rank Fusion (`RRF_K = 60`), one entry per (source_type, source_id). `RetrievedChunk.distance` is lower-is-better in all paths.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import AsyncSessionLocal
 from app.models import Embedding
 
 
@@ -92,7 +95,7 @@ async def retrieve_bm25_chunks(
             ts_rank_cd(e.content_tsv, q) AS rank
         FROM embeddings e, websearch_to_tsquery('english', :query) q
         WHERE e.content_tsv @@ q
-          AND (:source_type IS NULL OR e.source_type = :source_type)
+          AND (CAST(:source_type AS text) IS NULL OR e.source_type = CAST(:source_type AS text))
         ORDER BY rank DESC
         LIMIT :limit
         """
@@ -173,16 +176,35 @@ async def retrieve_hybrid_chunks(
     embedding: list[float],
     limit: int = 50,
     source_type: str | None = None,
+    bm25_session_factory: Callable[[], Any] = AsyncSessionLocal,
 ) -> list[RetrievedChunk]:
-    """Run dense then full-text retrieval (each capped at 50) and fuse them. Sequential: one session cannot run two queries at once."""
+    """Run dense and full-text retrieval (each capped at 50) concurrently and fuse them.
+
+    The two queries cannot share one AsyncSession (it runs one operation at a time: running both with
+    asyncio.gather on the request's session made the second one fail, which hybrid search then
+    swallowed and silently became dense-only). So the dense query uses `session` and the full-text
+    query gets its own short-lived session from `bm25_session_factory`. Any failure of the full-text
+    side, including not getting a connection, degrades to dense-only.
+    """
     capped_limit = min(limit, 50)
-    # Sequential on purpose: an AsyncSession runs one operation at a time, and asyncio.gather on
-    # the request's single session made the second query fail (swallowed below, so hybrid search
-    # silently degraded to dense-only).
-    dense = await retrieve_similar_chunks(
-        session, embedding, limit=capped_limit, source_type=source_type
-    )
-    bm25 = await retrieve_bm25_chunks(
-        session, query, limit=capped_limit, source_type=source_type
-    )
+
+    async def full_text() -> list[RetrievedChunk]:
+        try:
+            async with bm25_session_factory() as own_session:
+                return await retrieve_bm25_chunks(
+                    own_session, query, limit=capped_limit, source_type=source_type
+                )
+        except Exception:
+            logger.warning("Full-text search unavailable; continuing with dense results only", exc_info=True)
+            return []
+
+    bm25_task = asyncio.create_task(full_text())
+    try:
+        dense = await retrieve_similar_chunks(
+            session, embedding, limit=capped_limit, source_type=source_type
+        )
+    except BaseException:
+        bm25_task.cancel()  # do not leave the sibling query running after the request has failed
+        raise
+    bm25 = await bm25_task
     return _fuse_rankings([dense, bm25], capped_limit)

@@ -90,12 +90,17 @@ def test_rrf_returns_non_decreasing_distance():
 
 
 class _OneAtATimeSession:
-    """Models SQLAlchemy's AsyncSession contract: a session runs one operation at a time.
+    """A session that, like a real AsyncSession, must never run two statements at once.
 
     Real sessions raise "This session is provisioning a new connection; concurrent operations
-    are not permitted" when two queries start together on a fresh session. Here we record the
-    overlap instead so the test can assert on it.
+    are not permitted" when two queries start together. Here we record the overlap instead so the
+    test can assert on it.
     """
+
+    def __init__(self) -> None:
+        self.in_flight = 0
+        self.max_in_flight = 0
+        self.statements = 0
 
     def begin_nested(self):
         # The full-text query runs inside a SAVEPOINT; a no-op context manager is enough here.
@@ -108,10 +113,11 @@ class _OneAtATimeSession:
 
         return _Savepoint()
 
-    def __init__(self) -> None:
-        self.in_flight = 0
-        self.max_in_flight = 0
-        self.statements = 0
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_exc):
+        return False
 
     async def execute(self, *_args, **_kwargs):
         import asyncio
@@ -129,18 +135,68 @@ class _OneAtATimeSession:
         return _Empty()
 
 
-async def test_hybrid_retrieval_never_overlaps_queries_on_one_session():
-    # Running dense and full-text search with asyncio.gather on the request's single session made
-    # the second query fail; retrieve_bm25_chunks swallows errors, so hybrid search silently
-    # became dense-only.
+async def test_hybrid_retrieval_runs_each_query_on_its_own_session():
+    # Dense and full-text run concurrently, but never on the same session: one AsyncSession cannot run
+    # two statements at once (gathering both on the request's session made the second fail, and the
+    # swallowed error silently made search dense-only).
     from app.services.retrieval import retrieve_hybrid_chunks
 
-    session = _OneAtATimeSession()
+    request_session = _OneAtATimeSession()
+    own_session = _OneAtATimeSession()
 
-    await retrieve_hybrid_chunks(session, "choroideremia gene therapy", [0.0] * 3, limit=10)
+    await retrieve_hybrid_chunks(
+        request_session,
+        "choroideremia gene therapy",
+        [0.0] * 3,
+        limit=10,
+        bm25_session_factory=lambda: own_session,
+    )
 
-    assert session.statements == 2  # both searches ran
-    assert session.max_in_flight == 1
+    assert request_session.statements == 1 and own_session.statements == 1  # both searches ran, apart
+    assert request_session.max_in_flight == 1
+    assert own_session.max_in_flight == 1
+
+
+async def test_hybrid_retrieval_degrades_to_dense_when_the_fulltext_session_cannot_start():
+    from app.services.retrieval import retrieve_hybrid_chunks
+
+    def broken_factory():
+        raise ConnectionError("pool exhausted")
+
+    request_session = _OneAtATimeSession()
+    result = await retrieve_hybrid_chunks(
+        request_session, "q", [0.0] * 3, limit=10, bm25_session_factory=broken_factory
+    )
+
+    assert result == []  # dense returned nothing here; the point is that it did not raise
+    assert request_session.statements == 1
+
+
+async def test_hybrid_retrieval_cancels_the_fulltext_query_when_the_dense_query_fails():
+    import asyncio
+
+    from app.services.retrieval import retrieve_hybrid_chunks
+
+    class _Slow(_OneAtATimeSession):
+        cancelled = False
+
+        async def execute(self, *_args, **_kwargs):
+            try:
+                await asyncio.sleep(10)
+            except asyncio.CancelledError:
+                _Slow.cancelled = True
+                raise
+
+    class _Failing(_OneAtATimeSession):
+        async def execute(self, *_args, **_kwargs):
+            await asyncio.sleep(0.01)  # let the full-text side start first
+            raise RuntimeError("dense failed")
+
+    slow = _Slow()
+    with __import__("pytest").raises(RuntimeError, match="dense failed"):
+        await retrieve_hybrid_chunks(_Failing(), "q", [0.0] * 3, bm25_session_factory=lambda: slow)
+    await asyncio.sleep(0)
+    assert _Slow.cancelled
 
 
 async def test_failed_fulltext_query_does_not_poison_the_session(monkeypatch):
@@ -170,4 +226,30 @@ async def test_failed_fulltext_query_does_not_poison_the_session(monkeypatch):
     finally:
         # pytest-asyncio gives each test its own event loop; a pooled connection made in this one
         # would break the next test that touches the shared engine ("attached to a different loop").
+        await engine.dispose()
+
+
+async def test_fulltext_query_actually_runs_against_postgres_with_and_without_a_source_type():
+    # The full-text SQL used `(:source_type IS NULL OR e.source_type = :source_type)`, which asyncpg
+    # cannot type ("could not determine data type of parameter $2"). The error was swallowed, so the
+    # full-text half of hybrid search silently returned nothing, with or without a source type.
+    # Needs the local database with indexed embeddings; skipped otherwise.
+    import pytest
+    from sqlalchemy import text as real_text
+
+    from app.db import AsyncSessionLocal, check_database_connectivity, engine
+    from app.services import retrieval
+
+    if not await check_database_connectivity():
+        pytest.skip("Database is unavailable.")
+
+    try:
+        async with AsyncSessionLocal() as session:
+            if not (await session.execute(real_text("SELECT 1 FROM embeddings LIMIT 1"))).first():
+                pytest.skip("No embeddings are indexed locally.")
+            anywhere = await retrieval.retrieve_bm25_chunks(session, "choroideremia", limit=5)
+            only_trials = await retrieval.retrieve_bm25_chunks(session, "choroideremia", limit=5, source_type="trial")
+        assert anywhere, "full-text search returned nothing: the query is failing (and being swallowed)"
+        assert only_trials and all(chunk.source_type == "trial" for chunk in only_trials)
+    finally:
         await engine.dispose()
