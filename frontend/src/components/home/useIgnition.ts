@@ -23,6 +23,32 @@ export function ignitionNext(from: IgniteState, to: IgniteState): IgniteState {
 
 const START_VISIBLE_RATIO = 0.5; // begin once at least half of the observed element is on screen
 const NO_OBSERVER_START_MS = 600; // browsers without IntersectionObserver start shortly after load
+// If the intro has not started this long after mount (tab visible), show the finished page. This
+// bounds how long content can stay transparent under ANY viewport: at 400% zoom the logo may
+// never be half visible, and low-vision visitors must not be left with a blank page.
+const FALLBACK_TO_LIT_MS = 1500;
+const SEEN_KEY = "candle-intro-seen"; // sessionStorage: play once per browser session
+
+// Input that means "I am here, show me the page". Route-change focus (PageTransition focusing the
+// new <h1>, or <main>) is not user input and must not skip the intro.
+const SKIP_EVENTS = ["keydown", "pointerdown", "wheel", "touchstart"] as const;
+const isRouteFocus = (target: EventTarget | null) =>
+  target instanceof Element && (target.matches("[data-route-heading]") || target.id === "main-content");
+
+function readSeen() {
+  try {
+    return sessionStorage.getItem(SEEN_KEY) === "1";
+  } catch {
+    return false; // storage can be blocked; the intro simply plays
+  }
+}
+function writeSeen() {
+  try {
+    sessionStorage.setItem(SEEN_KEY, "1");
+  } catch {
+    // not remembered; harmless
+  }
+}
 
 /**
  * @param running false when the user paused or prefers reduced motion: start (and stay) lit.
@@ -30,8 +56,9 @@ const NO_OBSERVER_START_MS = 600; // browsers without IntersectionObserver start
  */
 export function useIgnition(running: boolean) {
   const observedRef = useRef<HTMLDivElement>(null);
-  // Paused / reduced-motion visitors start lit: they never see a dark frame.
-  const [ignite, setIgnite] = useState<IgniteState>(running ? "idle" : "lit");
+  // Paused, reduced-motion and already-seen visitors start lit: they never see a dark frame. Read in
+  // the initializer so the very first render carries the right state (no flash of hidden content).
+  const [ignite, setIgnite] = useState<IgniteState>(() => (running && !readSeen() ? "idle" : "lit"));
   const [offscreen, setOffscreen] = useState(false);
   const [visibleEnough, setVisibleEnough] = useState(false);
   const [tabVisible, setTabVisible] = useState(() => typeof document === "undefined" || !document.hidden);
@@ -70,6 +97,33 @@ export function useIgnition(running: boolean) {
   useEffect(() => {
     if (running && visibleEnough && tabVisible) setIgnite((state) => ignitionNext(state, "go"));
   }, [running, visibleEnough, tabVisible]);
+
+  // Played (or started) once: remember for the rest of the session.
+  useEffect(() => {
+    if (ignite === "go") writeSeen();
+  }, [ignite]);
+
+  // Never leave content hidden for long if the intro cannot start.
+  useEffect(() => {
+    if (ignite !== "idle" || !tabVisible) return;
+    const timer = window.setTimeout(() => setIgnite((state) => ignitionNext(state, "lit")), FALLBACK_TO_LIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [ignite, tabVisible]);
+
+  // Any real input skips to the finished page (so the first Tab press lands on a visible control).
+  useEffect(() => {
+    if (ignite === "lit") return;
+    const skip = () => setIgnite((state) => ignitionNext(state, "lit"));
+    const onFocusIn = (event: FocusEvent) => {
+      if (!isRouteFocus(event.target)) skip();
+    };
+    for (const type of SKIP_EVENTS) document.addEventListener(type, skip, { passive: true });
+    document.addEventListener("focusin", onFocusIn);
+    return () => {
+      for (const type of SKIP_EVENTS) document.removeEventListener(type, skip);
+      document.removeEventListener("focusin", onFocusIn);
+    };
+  }, [ignite]);
 
   return { ignite, offscreen, observedRef };
 }

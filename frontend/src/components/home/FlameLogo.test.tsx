@@ -14,6 +14,8 @@ vi.mock("framer-motion", async (importOriginal) => ({
 
 // Node's experimental global localStorage shadows jsdom's here; use a plain stub.
 const store = new Map<string, string>();
+// The ignition is remembered per browser session; every test needs a fresh session.
+let session = new Map<string, string>();
 
 // IntersectionObserver double: reports `entry` as soon as an element is observed.
 let entry = { isIntersecting: true, intersectionRatio: 1 };
@@ -64,6 +66,11 @@ beforeEach(() => {
   reduced = false;
   entry = { isIntersecting: true, intersectionRatio: 1 };
   store.clear();
+  session = new Map();
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => session.get(key) ?? null,
+    setItem: (key: string, value: string) => void session.set(key, value),
+  });
   window.IntersectionObserver = FakeIntersectionObserver as unknown as typeof IntersectionObserver;
   globalThis.IntersectionObserver = FakeIntersectionObserver as unknown as typeof IntersectionObserver;
   vi.stubGlobal("localStorage", {
