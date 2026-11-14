@@ -74,6 +74,12 @@ describe.each(Object.entries(themes))("%s theme contrast", (_name, tokens) => {
     expect(ratio(tokens[fg], tokens[bg])).toBeGreaterThanOrEqual(min);
   });
 
+  it("text, muted and accent hold on the frosted nav over the canvas (glass tint over canvas)", () => {
+    const [r, g, b] = tokens.glass;
+    const nav = blend([r, g, b], tokens.canvas, _name === "light" ? 0.6 : 0.07); // keep in sync with --glass-a in index.css
+    for (const fg of ["text", "muted", "accent"]) expect(ratio(tokens[fg], nav), fg).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("accent text stays readable on its own 12% tint (selected rows, source links)", () => {
     for (const surface of ["canvas", "panel"]) {
       const tinted = blend(tokens.accent, tokens[surface], 0.12);

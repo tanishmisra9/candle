@@ -48,6 +48,8 @@
   --flame-mid: 244 112 12;
   --flame-tip: 255 204 64;
   --flame-core: 255 243 190;
+  --glass: 255 252 244; /* frosted nav tint + alpha */
+  --glass-a: 0.6;
   --halo-head: 0.9;
   --halo-fill: 0.55;
   --nav-offset: 64px;
@@ -80,6 +82,8 @@
   --flame-line: 232 163 61;
   --flame-ghost: 124 124 134;
   --flame-core: 255 233 170;
+  --glass: 255 238 210;
+  --glass-a: 0.07;
   --halo-head: 0;
   --halo-fill: 0;
   --ember: 255 233 170;
@@ -497,6 +501,7 @@ html.theme-switching *::after {
 }
 
 /* The frosted nav needs backdrop-filter; without it keep the nav opaque so text never sits on busy content. */
+.site-nav { background-color: rgb(var(--glass) / var(--glass-a)); }
 @supports not (backdrop-filter: blur(1px)) {
   .site-nav { background-color: rgb(var(--canvas)); }
 }

@@ -33,7 +33,7 @@ src/
 
 A restrained take on the Telogify language: paper-like, square, no pills. Keep it clinical, not poster-brutalist.
 
-- **Shape**: `rounded-panel` (2px) on all interactive elements, 1px hairlines, no glass, blur or soft shadows (one deliberate exception: the fixed top nav is frosted, `bg-canvas/80` + `backdrop-blur-xl`, so the landing glow shows through; it falls back to opaque `bg-canvas` without `backdrop-filter`). The only offset shadow is the tooltip. Tabs are underlines (`tabClass` in `lib/ui.ts`). Labels such as status, phase, NCT/PMID are mono uppercase (`.kicker`).
+- **Shape**: `rounded-panel` (2px) on all interactive elements, 1px hairlines, no glass, blur or soft shadows (one deliberate exception: the fixed top nav is frosted, `--glass`/`--glass-a` tint + `backdrop-blur-xl`, so the landing glow shows through; it falls back to opaque `bg-canvas` without `backdrop-filter`). The only offset shadow is the tooltip. Tabs are underlines (`tabClass` in `lib/ui.ts`). Labels such as status, phase, NCT/PMID are mono uppercase (`.kicker`).
 - **Themes** are class-based (`.dark` on `<html>`). Colours are RGB-channel CSS variables in `src/index.css` (`:root` = light paper, `:root.dark`) exposed as Tailwind tokens with alpha support (`bg-accent/10`).
   - `text`, `muted`, `canvas`, `panel`: content and surfaces.
   - `line` is decorative hairlines; **control borders use `line-strong`** (>= 3:1).
