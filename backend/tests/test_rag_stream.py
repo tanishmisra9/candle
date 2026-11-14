@@ -305,3 +305,39 @@ def test_extract_partial_answer_text_is_prefix_stable_across_unicode_escapes() -
         assert text.startswith(current), (end, current)
         previous = current
     assert previous == text
+
+
+def test_incremental_advice_scan_matches_a_full_scan_for_every_chunking() -> None:
+    # The stream scans only the new tail of the growing answer (plus a phrase-length overlap). That
+    # must find exactly what a full scan finds, wherever a prohibited phrase is split.
+    import random
+
+    from app.services.rag import (
+        OUTPUT_PROHIBITED_PHRASES,
+        STREAM_HOLDBACK_CHARS,
+        advice_language_in_new_text,
+        contains_advice_language,
+    )
+
+    rng = random.Random(7)
+    fillers = ["The trial recruits adults. ", "In this study of 12 participants, ", "Status: Completed. ", "é ünï "]
+    for _ in range(400):
+        phrase = rng.choice(sorted(OUTPUT_PROHIBITED_PHRASES))
+        phrase = phrase.upper() if rng.random() < 0.3 else phrase
+        text = "".join(rng.choices(fillers, k=rng.randint(0, 4))) + phrase + "".join(rng.choices(fillers, k=rng.randint(0, 3)))
+        expected = contains_advice_language(text)
+
+        found, scanned, i = False, 0, 0
+        while i < len(text):
+            i = min(len(text), i + rng.randint(1, 9))
+            current = text[:i]
+            if advice_language_in_new_text(current, scanned):
+                found = True
+                break
+            scanned = len(current)
+        assert found == expected, (phrase, text)
+
+    # And the work per call is bounded by the new text plus the overlap, not the answer length.
+    long_clean = "word " * 5000
+    assert not advice_language_in_new_text(long_clean + "x", len(long_clean))
+    assert STREAM_HOLDBACK_CHARS < 100

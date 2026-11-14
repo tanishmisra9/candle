@@ -216,6 +216,17 @@ def contains_advice_language(answer: str) -> bool:
     return any(phrase in lowered for phrase in OUTPUT_PROHIBITED_PHRASES)
 
 
+def advice_language_in_new_text(text: str, scanned: int) -> bool:
+    """`contains_advice_language(text)` for a text that only ever grows by appending, scanning just the part not yet seen.
+
+    `scanned` is how many leading characters earlier calls already covered (and found clean). A
+    prohibited phrase of length L that straddles that boundary has at most L - 1 characters before it,
+    so rescanning `STREAM_HOLDBACK_CHARS` (= longest phrase - 1) characters of overlap plus the new
+    text finds exactly the matches a full scan would, at a cost that does not grow with the answer.
+    """
+    return contains_advice_language(text[max(0, scanned - STREAM_HOLDBACK_CHARS) :])
+
+
 DISTRESS_PATTERNS = [
     r"\b(suicid|end my life|don't want to live|not worth living)\b",
     r"\b(no reason to (live|go on))\b",
@@ -754,6 +765,8 @@ async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
     settings = get_settings()
     buffer = ""
     emitted = ""
+    scanned = 0  # characters of the answer text already checked for advice language
+    response_type: str | None = None  # the first key of the strict schema; known once it has arrived
     blocked = False
     parsed: StructuredAskOutput | None = None
 
@@ -784,11 +797,16 @@ async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
             current = extract_partial_answer_text(buffer)
             # Only `answer` responses are advice-guarded (as in the non-streaming path); the
             # type is the first key of the strict schema, so it is known before answer_text.
-            type_match = _RESPONSE_TYPE_RE.search(buffer)
-            guarded = type_match is None or type_match.group(1) == "answer"
-            if guarded and contains_advice_language(current):
-                blocked = True
-                break
+            if response_type is None:
+                type_match = _RESPONSE_TYPE_RE.search(buffer)
+                response_type = type_match.group(1) if type_match else None
+            guarded = response_type is None or response_type == "answer"
+            if guarded:
+                # Only the new tail (plus the phrase-length overlap) is scanned each time.
+                if advice_language_in_new_text(current, scanned):
+                    blocked = True
+                    break
+                scanned = len(current)
             visible = current[:-STREAM_HOLDBACK_CHARS] if guarded else current
             if len(visible) > len(emitted):
                 new_text = visible[len(emitted) :]
