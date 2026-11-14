@@ -31,7 +31,10 @@ const AskView = lazy(() =>
 
 function RouteFallback() {
   return (
-    <div className="flex min-h-[40vh] items-center justify-center pt-32 text-[15px] text-muted">
+    // Full viewport tall on purpose: the footer sits below this, so while a lazy route loads the
+    // footer ("Data last synced") stays below the fold instead of showing mid-screen and then
+    // jumping to the bottom of the real page (a ~0.08 layout shift on first load).
+    <div className="flex min-h-dvh items-start justify-center pt-32 text-[15px] text-muted">
       Loading view…
     </div>
   );
