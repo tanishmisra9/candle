@@ -32,6 +32,24 @@ SCHEMA_RECONCILIATION_STATEMENTS = (
         ADD COLUMN IF NOT EXISTS ai_summary TEXT,
         ADD COLUMN IF NOT EXISTS ai_summary_generated_at TIMESTAMPTZ
     """,
+    # A summary always has an attempt time (see SummaryState in app/ingest/summarise.py). Rows from before
+    # the attempt column existed have a summary and no time: give them one (they then wait out the normal
+    # 7-day window instead of being regenerated at once), so the CHECK below can never trip an upsert of
+    # an old row. NOT VALID: the table may already hold rows; it is enforced for every new write.
+    """
+    UPDATE trials SET ai_summary_generated_at = NOW()
+    WHERE ai_summary IS NOT NULL AND ai_summary_generated_at IS NULL
+    """,
+    """
+    DO $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trials_ai_summary_attempt_check') THEN
+            ALTER TABLE trials ADD CONSTRAINT trials_ai_summary_attempt_check
+                CHECK (ai_summary IS NULL OR ai_summary_generated_at IS NOT NULL) NOT VALID;
+        END IF;
+    END
+    $$
+    """,
     """
     CREATE TABLE IF NOT EXISTS sync_log (
         id SERIAL PRIMARY KEY,

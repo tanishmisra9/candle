@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -39,9 +39,12 @@ class DummySummarySession:
             (value for value in reversed(list(params.values())) if isinstance(value, int)),
             len(self.trials),
         )
-        # Mirrors stale_trial_stmt: never attempted (the 7-day-old branch is not modelled).
+        # Mirrors stale_trial_stmt: never attempted, or last attempted over 7 days ago.
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
         stale_trials = [
-            trial for trial in self.trials if trial.ai_summary_generated_at is None
+            trial
+            for trial in self.trials
+            if trial.ai_summary_generated_at is None or trial.ai_summary_generated_at < cutoff
         ]
         return DummyExecuteResult(stale_trials[:limit])
 
@@ -271,7 +274,11 @@ async def test_empty_model_response_is_not_counted_and_does_not_loop(monkeypatch
 async def test_empty_model_response_keeps_an_existing_summary(monkeypatch):
     # A stale trial that already has a good summary must not be overwritten with NULL when the
     # model returns nothing; only the attempt time moves so it is retried after the window.
-    trial = make_trial("NCT00000001", ai_summary="Old summary", ai_summary_generated_at=None)
+    trial = make_trial(
+        "NCT00000001",
+        ai_summary="Old summary",
+        ai_summary_generated_at=datetime.now(timezone.utc) - timedelta(days=8),
+    )
     session = DummySummarySession([trial])
 
     async def fake_generate_trial_summary_text(_trial):
@@ -291,3 +298,101 @@ async def test_empty_model_response_keeps_an_existing_summary(monkeypatch):
     assert count == 0
     assert trial.ai_summary == "Old summary"
     assert isinstance(trial.ai_summary_generated_at, datetime)
+
+
+# --- the summary lifecycle is one enum + one edge table + one writer -------------------------------
+
+NOW = datetime(2026, 11, 14, tzinfo=timezone.utc)
+
+
+def _trial_in(state):
+    from app.ingest.summarise import SummaryState
+
+    return {
+        SummaryState.NEVER_ATTEMPTED: make_trial("T1"),
+        SummaryState.ATTEMPTED_EMPTY: make_trial("T1", ai_summary_generated_at=NOW - timedelta(days=8)),
+        SummaryState.SUMMARISED: make_trial("T1", ai_summary="Old", ai_summary_generated_at=NOW - timedelta(days=8)),
+    }[state]
+
+
+@pytest.mark.parametrize(
+    ("start", "summary", "expected"),
+    [
+        ("NEVER_ATTEMPTED", "New", "SUMMARISED"),
+        ("NEVER_ATTEMPTED", None, "ATTEMPTED_EMPTY"),
+        ("ATTEMPTED_EMPTY", "New", "SUMMARISED"),
+        ("ATTEMPTED_EMPTY", None, "ATTEMPTED_EMPTY"),
+        ("SUMMARISED", "New", "SUMMARISED"),
+        ("SUMMARISED", None, "SUMMARISED"),  # an empty response keeps the existing summary
+    ],
+)
+def test_every_allowed_summary_transition(start, summary, expected):
+    from app.ingest.summarise import SummaryState, record_summary_attempt, summary_state
+
+    trial = _trial_in(SummaryState[start])
+    before = trial.ai_summary
+    result = record_summary_attempt(trial, summary, NOW)
+
+    assert result is SummaryState[expected]
+    assert summary_state(trial) is SummaryState[expected]
+    assert trial.ai_summary == (summary if summary is not None else before)
+    assert trial.ai_summary_generated_at == NOW  # the attempt time always moves
+
+
+def test_forbidden_summary_edges_are_not_in_the_edge_table():
+    from app.ingest.summarise import SUMMARY_EDGES, SummaryState
+
+    # Nothing returns to NEVER_ATTEMPTED (an attempt time is never cleared) ...
+    assert all(SummaryState.NEVER_ATTEMPTED not in targets for targets in SUMMARY_EDGES.values())
+    # ... and a summary never disappears.
+    assert SummaryState.ATTEMPTED_EMPTY not in SUMMARY_EDGES[SummaryState.SUMMARISED]
+    # Every state has an entry, and none is terminal (any trial is retried after the stale window).
+    assert set(SUMMARY_EDGES) == set(SummaryState)
+    assert all(SUMMARY_EDGES[state] for state in SummaryState)
+
+
+def test_a_summary_without_an_attempt_time_is_rejected_loudly():
+    from app.ingest.summarise import InvalidSummaryTransition, record_summary_attempt
+
+    legacy = make_trial("T1", ai_summary="Old", ai_summary_generated_at=None)  # impossible since the CHECK
+    with pytest.raises(InvalidSummaryTransition):
+        record_summary_attempt(legacy, "New", NOW)
+
+
+def test_a_disallowed_edge_is_refused_by_the_writer(monkeypatch):
+    # If someone edits the edge table (or the target logic) so an illegal edge is requested, the
+    # writer must refuse rather than write. Remove the guard and this fails.
+    from app.ingest import summarise
+    from app.ingest.summarise import InvalidSummaryTransition, SummaryState, record_summary_attempt
+
+    monkeypatch.setitem(summarise.SUMMARY_EDGES, SummaryState.NEVER_ATTEMPTED, frozenset({SummaryState.SUMMARISED}))
+    trial = make_trial("T1")
+    with pytest.raises(InvalidSummaryTransition):
+        record_summary_attempt(trial, None, NOW)  # NEVER_ATTEMPTED -> ATTEMPTED_EMPTY was removed
+    assert trial.ai_summary_generated_at is None  # nothing was written
+
+
+async def test_the_database_refuses_a_summary_without_an_attempt_time():
+    # The CHECK `trials_ai_summary_attempt_check` is the database's side of the same rule. Needs the
+    # local database; skipped without it.
+    from sqlalchemy import text
+    from sqlalchemy.exc import IntegrityError
+
+    from app.db import AsyncSessionLocal, check_database_connectivity, engine, reconcile_database_schema
+
+    if not await check_database_connectivity():
+        pytest.skip("Database is unavailable.")
+    try:
+        await reconcile_database_schema()  # idempotent: applies the backfill + constraint if missing
+        async with AsyncSessionLocal() as session:
+            row = (await session.execute(text("SELECT id FROM trials LIMIT 1"))).first()
+            if row is None:
+                pytest.skip("No trials are loaded locally.")
+            with pytest.raises(IntegrityError):
+                await session.execute(
+                    text("UPDATE trials SET ai_summary = 'x', ai_summary_generated_at = NULL WHERE id = :id"),
+                    {"id": row[0]},
+                )
+            await session.rollback()
+    finally:
+        await engine.dispose()

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
+from enum import Enum
 
 from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +25,68 @@ TRIAL_SUMMARY_SYSTEM_PROMPT = (
     "primary endpoint is, and the current status. Be factual and calm in tone."
 )
 SUMMARY_COMMIT_BATCH_SIZE = 20
+
+
+class SummaryState(str, Enum):
+    """Where a trial is in the summary lifecycle. Derived from two columns, never stored on its own:
+
+    NEVER_ATTEMPTED  ai_summary NULL,     ai_summary_generated_at NULL
+    ATTEMPTED_EMPTY  ai_summary NULL,     ai_summary_generated_at set   (the model returned nothing)
+    SUMMARISED       ai_summary set,      ai_summary_generated_at set
+
+    A summary without an attempt time is impossible (the database CHECK
+    `trials_ai_summary_attempt_check` in app/db.py enforces it). No state is terminal: any trial is
+    retried once its last attempt is over 7 days old (`stale_trial_stmt`).
+    """
+
+    NEVER_ATTEMPTED = "never_attempted"
+    ATTEMPTED_EMPTY = "attempted_empty"
+    SUMMARISED = "summarised"
+
+
+# The ONLY allowed transitions. Forbidden (and tested): anything -> NEVER_ATTEMPTED (an attempt time
+# is never cleared), and SUMMARISED -> ATTEMPTED_EMPTY (an existing summary never disappears: an
+# empty model response keeps it and only moves the attempt time).
+SUMMARY_EDGES: dict[SummaryState, frozenset[SummaryState]] = {
+    SummaryState.NEVER_ATTEMPTED: frozenset({SummaryState.SUMMARISED, SummaryState.ATTEMPTED_EMPTY}),
+    SummaryState.ATTEMPTED_EMPTY: frozenset({SummaryState.SUMMARISED, SummaryState.ATTEMPTED_EMPTY}),
+    SummaryState.SUMMARISED: frozenset({SummaryState.SUMMARISED}),
+}
+
+
+class InvalidSummaryTransition(Exception):
+    pass
+
+
+def summary_state(trial: Trial) -> SummaryState:
+    """The trial's current state; raises on the impossible combination (summary without an attempt time)."""
+    if trial.ai_summary_generated_at is None:
+        if trial.ai_summary is not None:
+            raise InvalidSummaryTransition(
+                f"Trial {trial.id} has a summary but no attempt time (violates trials_ai_summary_attempt_check)"
+            )
+        return SummaryState.NEVER_ATTEMPTED
+    return SummaryState.SUMMARISED if trial.ai_summary is not None else SummaryState.ATTEMPTED_EMPTY
+
+
+def record_summary_attempt(trial: Trial, summary: str | None, now: datetime) -> SummaryState:
+    """The single writer of `ai_summary` / `ai_summary_generated_at`. Returns the new state.
+
+    A real summary replaces the stored one; an empty response (`None`) keeps any existing summary and
+    only moves the attempt time. Every write is checked against `SUMMARY_EDGES` first.
+    """
+    current = summary_state(trial)
+    target = (
+        SummaryState.SUMMARISED
+        if summary is not None
+        else (current if current is SummaryState.SUMMARISED else SummaryState.ATTEMPTED_EMPTY)
+    )
+    if target not in SUMMARY_EDGES[current]:
+        raise InvalidSummaryTransition(f"{current.value} -> {target.value} is not allowed for trial {trial.id}")
+    if summary is not None:
+        trial.ai_summary = summary
+    trial.ai_summary_generated_at = now
+    return target
 
 
 def stale_trial_stmt(limit: int):
@@ -91,12 +154,11 @@ async def generate_trial_summaries(session: AsyncSession) -> int:
         # but commit each completed summary so partial progress survives upstream failures.
         for index, trial in enumerate(trials, start=1):
             summary = await generate_trial_summary_text(trial)
-            trial.ai_summary_generated_at = datetime.now(timezone.utc)
+            record_summary_attempt(trial, summary, datetime.now(timezone.utc))
             if summary is None:
                 # Keep any existing summary; only the attempt time moves.
                 logger.warning("Empty trial summary for %s; will retry after the stale window", trial.id)
             else:
-                trial.ai_summary = summary
                 generated_count += 1
             await session.commit()
 
