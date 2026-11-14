@@ -11,7 +11,7 @@ describe("the logo is the original logo", () => {
 
     const { container } = render(<FlameLogo logoRef={() => {}} />);
     const layers = Object.fromEntries(
-      ["fill", "halo", "core", "outline", "ghost"].map((name) => [name, container.querySelector(`.flame-${name}`)!]),
+      ["fill", "halo", "core", "outline"].map((name) => [name, container.querySelector(`.flame-${name}`)!]),
     );
     for (const [name, path] of Object.entries(layers)) {
       expect(path.getAttribute("d"), name).toBe(FLAME_PATH);

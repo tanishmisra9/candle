@@ -50,7 +50,6 @@ describe("intro safety limits", () => {
         "flame-appear",
         "flame-veil-out",
         "flame-ignite",
-        "flame-ghost-out",
         "flame-core-sway",
         "flame-flicker",
       ]),
@@ -77,7 +76,6 @@ describe("intro safety limits", () => {
     expect(durationsOf("flame-veil-out").length).toBeGreaterThan(0);
     for (const d of durationsOf("flame-veil-out")) expect(d).toBeGreaterThanOrEqual(1.2);
     for (const d of durationsOf("flame-appear")) expect(d).toBeGreaterThanOrEqual(0.4);
-    for (const d of durationsOf("flame-ghost-out")) expect(d).toBeGreaterThanOrEqual(0.3); // a hairline outline
     for (const d of durationsOf("flame-ignite")) expect(d).toBeGreaterThanOrEqual(0.8); // the zoom
   });
 

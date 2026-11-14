@@ -39,10 +39,9 @@
   --dusk: 58 49 40;
   /* Landing room glow (decorative; max alpha 0.12, checked against text/muted/accent/line/focus
      in contrast.test.ts) and the logo's colours: ember and flame gradient base -> tip. The hero
-     follows the page theme (light page = lit flame on paper). strokes must hold 3:1 on the canvas (outline) or on the dusk (ghost, draw-in). */
+     follows the page theme (light page = lit flame on paper). strokes must hold 3:1 on the canvas (outline). */
   --flame-glow: 217 119 6;
   --flame-line: 190 45 10;
-  --flame-ghost: 184 164 138;
   --flame-base: 200 32 22;
   --flame-mid: 244 112 12;
   --flame-tip: 255 204 64;
@@ -77,7 +76,6 @@
   --flame-glow: 232 163 61;
   --dusk: 11 11 15;
   --flame-line: 232 163 61;
-  --flame-ghost: 124 124 134;
   --flame-core: 255 233 170;
   --glass: 255 238 210;
   --glass-a: 0.07;
@@ -348,7 +346,6 @@ html[data-ignite]::before {
 .flame-logo { --logo-fade: stop-color 0.6s ease, stroke 0.6s ease, fill 0.6s ease; }
 .flame-logo * { transition: var(--logo-fade); }
 html.theme-switching .flame-logo * { transition: var(--logo-fade) !important; }
-.flame-ghost,
 .flame-outline {
   fill: none;
   stroke-linecap: round;
@@ -356,11 +353,9 @@ html.theme-switching .flame-logo * { transition: var(--logo-fade) !important; }
   stroke-width: 1.6;
 }
 .flame-outline { stroke: rgb(var(--flame-line)); }
-.flame-ghost { stroke: rgb(var(--flame-ghost)); opacity: 0; }
-/* idle: the room is in deep dusk and the flame is an unlit outline (--flame-ghost, >= 3:1 on dusk:
-   never invisible). Gated content is transparent only. */
+/* idle: the room is in deep dusk and nothing else is drawn yet (no placeholder outline: it read as a
+   crossfade). Gated content is transparent only; idle lasts well under a second. */
 html[data-ignite="idle"]::before { opacity: 1; }
-.intro[data-ignite="idle"] .flame-ghost { opacity: 1; }
 .intro[data-ignite="idle"] .night-stage::before,
 .intro[data-ignite="idle"] .flame-zoom,
 .intro[data-ignite="idle"] .stage-light,
@@ -369,7 +364,6 @@ html[data-ignite="idle"]::before { opacity: 1; }
 /* go: see the timeline above. */
 html[data-ignite="go"]::before { opacity: 1; animation: flame-veil-out 1.2s ease-in-out 0.35s forwards; }
 .intro[data-ignite="go"] .night-stage::before { animation: flame-appear 0.6s ease-out 1.2s backwards; }
-.intro[data-ignite="go"] .flame-ghost { opacity: 1; animation: flame-ghost-out 0.4s linear 0.2s forwards; }
 .intro[data-ignite="go"] .flame-zoom { animation: flame-ignite 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards; }
 .intro[data-ignite="go"] .stage-light { animation: flame-appear 1s ease-out 0.5s backwards; }
 .intro[data-ignite="go"] .reveal-1 { animation: flame-appear 0.6s ease-out 0.9s backwards; }
@@ -391,7 +385,6 @@ html[data-ignite="go"]::before { opacity: 1; animation: flame-veil-out 1.2s ease
 
 @keyframes flame-appear { from { opacity: 0; } to { opacity: 1; } }
 @keyframes flame-veil-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes flame-ghost-out { to { opacity: 0; } }
 /* The flame zooms in: from a smaller, transparent flame to full size, about its base. */
 @keyframes flame-ignite {
   from { opacity: 0; transform: scale(0.7); }
@@ -408,11 +401,11 @@ html[data-ignite="go"]::before { opacity: 1; animation: flame-veil-out 1.2s ease
 }
 
 /* Scrolled out of view mid-sequence: hold, then continue when it returns. */
-.intro[data-candle-offscreen="true"] :is(.flame-ghost, .flame-zoom, .flame-core-live, .flame-flicker, .stage-light, .stage-light::after, .night-stage::before, .reveal) {
+.intro[data-candle-offscreen="true"] :is(.flame-zoom, .flame-core-live, .flame-flicker, .stage-light, .stage-light::after, .night-stage::before, .reveal) {
   animation-play-state: paused;
 }
 /* Reduced motion (data-candle-motion="paused"): every animation stops, leaving the finished page. */
-.intro[data-candle-motion="paused"] :is(.flame-ghost, .flame-zoom, .flame-core-live, .flame-flicker, .stage-light, .stage-light::after, .night-stage::before, .reveal) {
+.intro[data-candle-motion="paused"] :is(.flame-zoom, .flame-core-live, .flame-flicker, .stage-light, .stage-light::after, .night-stage::before, .reveal) {
   animation: none;
 }
 
@@ -445,7 +438,6 @@ html[data-ignite="go"]::before { opacity: 1; animation: flame-veil-out 1.2s ease
   .night-stage { background: Canvas; color: CanvasText; }
   .night-stage::before { border-color: CanvasText; }
   .flame-body { display: none; }
-  .flame-ghost { opacity: 0 !important; }
   .flame-outline { stroke: CanvasText; opacity: 1 !important; }
 }
 

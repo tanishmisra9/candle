@@ -108,9 +108,8 @@ describe.each(Object.entries(themes))("%s theme contrast", (_name, tokens) => {
 describe.each(Object.entries(themes))("%s landing hero", (_name, t) => {
   const POOL_ALPHA = 0.28;
 
-  it("the lit outline holds 3:1 on the canvas and the unlit outline holds 3:1 on the dusk start", () => {
+  it("the lit outline holds 3:1 on the canvas", () => {
     expect(ratio(t["flame-line"], t.canvas), "lit outline on canvas").toBeGreaterThanOrEqual(3);
-    expect(ratio(t["flame-ghost"], t.dusk), "unlit outline on dusk").toBeGreaterThanOrEqual(3);
   });
 
 

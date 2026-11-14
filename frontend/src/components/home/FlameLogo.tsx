@@ -52,7 +52,6 @@ export function FlameLogo({ logoRef }: { logoRef: Ref<HTMLDivElement> }) {
             <path className="flame-outline" d={FLAME_PATH} />
           </g>
         </g>
-        <path className="flame-ghost" d={FLAME_PATH} />
       </svg>
     </div>
   );
