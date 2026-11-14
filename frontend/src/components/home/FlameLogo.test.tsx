@@ -2,15 +2,8 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Flame } from "lucide-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  FLAME_PATH,
-  FlameLogo,
-  IGNITE_EDGES,
-  IGNITE_STATES,
-  PauseAnimationButton,
-  ignitionNext,
-  type IgniteState,
-} from "./FlameLogo";
+import { FLAME_PATH, FlameLogo, PauseAnimationButton } from "./FlameLogo";
+import { IGNITE_EDGES, IGNITE_STATES, ignitionNext, type IgniteState } from "./useIgnition";
 import { useCandleMotion } from "./useCandleMotion";
 
 let reduced = false;
