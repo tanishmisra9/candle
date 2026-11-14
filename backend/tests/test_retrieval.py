@@ -97,6 +97,17 @@ class _OneAtATimeSession:
     overlap instead so the test can assert on it.
     """
 
+    def begin_nested(self):
+        # The full-text query runs inside a SAVEPOINT; a no-op context manager is enough here.
+        class _Savepoint:
+            async def __aenter__(self_inner):
+                return self_inner
+
+            async def __aexit__(self_inner, *_exc):
+                return False
+
+        return _Savepoint()
+
     def __init__(self) -> None:
         self.in_flight = 0
         self.max_in_flight = 0
@@ -130,3 +141,33 @@ async def test_hybrid_retrieval_never_overlaps_queries_on_one_session():
 
     assert session.statements == 2  # both searches ran
     assert session.max_in_flight == 1
+
+
+async def test_failed_fulltext_query_does_not_poison_the_session(monkeypatch):
+    # On PostgreSQL a failed statement aborts the whole transaction. retrieve_bm25_chunks swallows
+    # its errors so hybrid search can fall back to dense-only, which is only true if the session
+    # stays usable afterwards: the next query in the same Ask request (CHM filter, explicit NCT
+    # lookups, source enrichment) must still work. Needs the local database; skipped without it.
+    import pytest
+    from sqlalchemy import text as real_text
+
+    from app.db import AsyncSessionLocal, check_database_connectivity
+    from app.services import retrieval
+
+    if not await check_database_connectivity():
+        pytest.skip("Database is unavailable.")
+
+    from app.db import engine
+
+    try:
+        async with AsyncSessionLocal() as session:
+            monkeypatch.setattr(retrieval, "text", lambda *_a, **_k: real_text("SELECT * FROM no_such_table_xyz"))
+            assert await retrieval.retrieve_bm25_chunks(session, "choroideremia") == []
+            monkeypatch.undo()
+
+            # Before the fix this raised InFailedSQLTransactionError ("current transaction is aborted").
+            assert (await session.execute(real_text("SELECT 1"))).scalar() == 1
+    finally:
+        # pytest-asyncio gives each test its own event loop; a pooled connection made in this one
+        # would break the next test that touches the shared engine ("attached to a different loop").
+        await engine.dispose()

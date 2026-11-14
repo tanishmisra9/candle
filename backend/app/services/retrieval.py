@@ -78,7 +78,7 @@ async def retrieve_bm25_chunks(
     limit: int = 50,
     source_type: str | None = None,
 ) -> list[RetrievedChunk]:
-    """Full-text search (`websearch_to_tsquery`, `ts_rank_cd`). Returns [] on empty input or any database error so hybrid search degrades to dense-only."""
+    """Full-text search (`websearch_to_tsquery`, `ts_rank_cd`). Returns [] on empty input or any database error (rolled back to a savepoint, so the session stays usable) and hybrid search degrades to dense-only."""
     if not query or not query.strip():
         return []
 
@@ -99,11 +99,16 @@ async def retrieve_bm25_chunks(
     )
 
     try:
-        result = await session.execute(
-            stmt,
-            {"query": query, "source_type": source_type, "limit": limit},
-        )
-        fetched = result.all()
+        # A SAVEPOINT, not the bare session: on PostgreSQL a failed statement aborts the whole
+        # transaction, so without it swallowing the error below would leave the request's session
+        # unusable and the very next query (CHM filter, NCT lookups, source enrichment) would fail
+        # with "current transaction is aborted". The savepoint rolls back only this query.
+        async with session.begin_nested():
+            result = await session.execute(
+                stmt,
+                {"query": query, "source_type": source_type, "limit": limit},
+            )
+            fetched = result.all()
     except Exception:
         logger.warning("Full-text search failed; continuing with dense results only", exc_info=True)
         return []
