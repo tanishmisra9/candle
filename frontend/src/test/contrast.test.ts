@@ -102,10 +102,19 @@ describe.each(Object.entries(themes))("%s theme contrast", (_name, tokens) => {
 describe.each(Object.entries(themes))("%s landing hero", (_name, t) => {
   const POOL_ALPHA = 0.28;
 
-  it("the unlit outline, the lit stroke and the ember hold 3:1 on the canvas", () => {
-    expect(ratio(t["line-strong"], t.canvas), "unlit outline").toBeGreaterThanOrEqual(3);
-    expect(ratio(t.accent, t.canvas), "lit stroke").toBeGreaterThanOrEqual(3);
-    expect(ratio(t.ember, t.canvas), "ember").toBeGreaterThanOrEqual(3);
+  it("the unlit outline, the lit stroke and the ember hold 3:1 on the canvas and on the dusk veil", () => {
+    for (const [surface, bg] of [["canvas", t.canvas], ["dusk", t.dusk]] as const) {
+      expect(ratio(t["flame-ghost"], bg), `unlit outline on ${surface}`).toBeGreaterThanOrEqual(3);
+      expect(ratio(t["flame-line"], bg), `lit stroke on ${surface}`).toBeGreaterThanOrEqual(3);
+      expect(ratio(t.ember, bg), `ember on ${surface}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("text, muted, accent and the focus ring hold on the dusk veil (visible while content fades in)", () => {
+    expect(ratio(t.text, t.dusk), "text").toBeGreaterThanOrEqual(4.5);
+    expect(ratio(t.muted, t.dusk), "muted").toBeGreaterThanOrEqual(4.5);
+    expect(ratio(t.accent, t.dusk), "accent").toBeGreaterThanOrEqual(4.5);
+    expect(ratio(t.focus, t.dusk), "focus").toBeGreaterThanOrEqual(3);
   });
 
   it("text, muted, accent and the focus ring hold on the canvas lit by the pool at full alpha", () => {
