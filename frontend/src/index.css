@@ -48,6 +48,8 @@
   --flame-mid: 244 112 12;
   --flame-tip: 255 204 64;
   --flame-core: 255 243 190;
+  --halo-head: 0.9;
+  --halo-fill: 0.55;
   --nav-offset: 64px;
 }
 
@@ -78,6 +80,8 @@
   --flame-line: 232 163 61;
   --flame-ghost: 124 124 134;
   --flame-core: 255 233 170;
+  --halo-head: 0;
+  --halo-fill: 0;
   --ember: 255 233 170;
   --flame-base: 194 65 12;
   --flame-mid: 240 150 30;
@@ -287,6 +291,20 @@ a {
 .flame-stop-mid { stop-color: rgb(var(--flame-mid)); }
 .flame-stop-tip { stop-color: rgb(var(--flame-tip)); }
 .flame-fill { stroke: none; }
+.flame-fill, .flame-core-live { transform-origin: 12px 22px; transform-box: view-box; }
+/* A wider, fainter second bloom, a ring around the pool (opacity follows the pool's; it is ~0 where the
+   pool is brightest, so the combined alpha stays under the 0.28 the contrast test assumes). */
+.stage-light::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 170%;
+  height: 170%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, transparent 30%, rgb(var(--flame-glow) / 0.08) 55%, transparent);
+}
+.flame-spark { fill: rgb(var(--flame-mid)); opacity: 0; }
 .flame-core { fill: rgb(var(--flame-core)); opacity: 0.9; stroke: none; }
 .flame-flicker { transform-origin: 12px 22px; transform-box: view-box; }
 .flame-ghost,
@@ -303,9 +321,16 @@ a {
   stroke-dasharray: 100 200; /* the gap is longer than the path, so the dash never repeats */
   stroke-dashoffset: 0;
 }
-/* Light theme only: a soft halo so the ember and the lit flame read on paper (static filter, not animated). */
-:root:not(.dark) .flame-head { filter: drop-shadow(0 0 1.4px rgb(var(--ember) / 0.9)); }
-:root:not(.dark) .flame-fill { filter: drop-shadow(0 0 3px rgb(var(--flame-mid) / 0.55)); }
+/* A soft halo so the ember and the lit flame read on paper (alpha 0 in the dark theme; the filter
+   transitions with the theme, see --logo-fade). */
+.flame-head { filter: drop-shadow(0 0 1.4px rgb(var(--ember) / var(--halo-head))); }
+.flame-fill { filter: drop-shadow(0 0 3px rgb(var(--flame-mid) / var(--halo-fill))); }
+/* The logo's colours cross-fade when the theme flips instead of cutting. The global theme-switch
+   rule below turns every other transition off (so controls don't fade behind the page); the logo
+   re-asserts its own, with higher specificity. Reduced motion collapses it to ~0 below. */
+.flame-logo { --logo-fade: stop-color 0.6s ease, stroke 0.6s ease, fill 0.6s ease, filter 0.6s ease; }
+.flame-logo * { transition: var(--logo-fade); }
+html.theme-switching .flame-logo * { transition: var(--logo-fade) !important; }
 .flame-head {
   stroke: rgb(var(--ember));
   stroke-width: 2.4;
@@ -339,8 +364,14 @@ a {
     flame-head-fade 3.3s linear 0.6s backwards,
     flame-travel 2.3s ease-in-out 1.3s backwards;
 }
-.intro[data-ignite="go"] .flame-fill { animation: flame-appear 1.2s ease-in-out 3.5s backwards; }
+.intro[data-ignite="go"] .flame-fill {
+  animation:
+    flame-appear 1.2s ease-in-out 3.5s backwards,
+    flame-grow 1.5s cubic-bezier(0.16, 1, 0.3, 1) 3.5s backwards;
+}
 .intro[data-ignite="go"] .flame-core { animation: flame-appear-core 1.2s ease-in-out 3.7s backwards; }
+.intro[data-ignite="go"] .flame-core-live { animation: flame-grow 1.5s cubic-bezier(0.16, 1, 0.3, 1) 3.7s backwards; }
+.intro[data-ignite="go"] .flame-spark { animation: flame-spark-rise 1s ease-out calc(3.9s + var(--i) * 0.1s) backwards; }
 .intro[data-ignite="go"] .stage-light { animation: flame-appear 1.6s ease-in-out 3.2s backwards; }
 .intro[data-ignite="go"] .reveal-1 { animation: flame-appear 0.8s ease-out 3.7s backwards; }
 .intro[data-ignite="go"] .reveal-2 { animation: flame-appear 0.8s ease-out 3.85s backwards; }
@@ -361,6 +392,14 @@ a {
 .intro[data-candle-motion="running"][data-ignite="lit"] .stage-light {
   animation: flame-breathe 7.4s ease-in-out infinite alternate;
 }
+.intro[data-candle-motion="running"][data-ignite="go"] .flame-core-live {
+  animation:
+    flame-grow 1.5s cubic-bezier(0.16, 1, 0.3, 1) 3.7s backwards,
+    flame-core-sway 4.2s ease-in-out 5.2s infinite alternate;
+}
+.intro[data-candle-motion="running"][data-ignite="lit"] .flame-core-live {
+  animation: flame-core-sway 4.2s ease-in-out infinite alternate;
+}
 .intro[data-candle-motion="running"][data-ignite="lit"] .flame-flicker {
   animation: flame-flicker 4.6s ease-in-out infinite alternate;
 }
@@ -377,18 +416,30 @@ a {
   100% { opacity: 0; }
 }
 @keyframes flame-ghost-out { to { opacity: 0; } }
+/* The flame rises from the wick as it catches (scale about its base), and sparks lift off it. */
+@keyframes flame-grow { from { transform: scale(0.5); } to { transform: scale(1); } }
+@keyframes flame-spark-rise {
+  0% { opacity: 0; transform: translate(0, 0); }
+  20% { opacity: 0.95; }
+  100% { opacity: 0; transform: translate(var(--dx), -7px); }
+}
 @keyframes flame-breathe { from { opacity: 1; } to { opacity: 0.88; } }
+/* The inner flame is alive: it slowly stretches and leans against the outer flame's flicker. */
+@keyframes flame-core-sway {
+  from { transform: scale(1, 1) skewX(0deg); }
+  to { transform: scale(0.94, 1.08) skewX(-2deg); }
+}
 @keyframes flame-flicker {
   from { transform: scale(1, 1) skewX(0deg); }
   to { transform: scale(0.994, 1.015) skewX(0.6deg); }
 }
 
 /* Scrolled out of view mid-sequence: hold, then continue when it returns. */
-.intro[data-candle-offscreen="true"] :is(.stage-veil, .flame-ghost, .flame-trail, .flame-head, .flame-fill, .flame-core, .flame-flicker, .stage-light, .reveal) {
+.intro[data-candle-offscreen="true"] :is(.stage-veil, .flame-ghost, .flame-trail, .flame-head, .flame-fill, .flame-core, .flame-core-live, .flame-spark, .flame-flicker, .stage-light, .reveal) {
   animation-play-state: paused;
 }
 /* User pressed "Pause animation": every animation stops, leaving the finished page. */
-.intro[data-candle-motion="paused"] :is(.stage-veil, .flame-ghost, .flame-trail, .flame-head, .flame-fill, .flame-core, .flame-flicker, .stage-light, .reveal) {
+.intro[data-candle-motion="paused"] :is(.stage-veil, .flame-ghost, .flame-trail, .flame-head, .flame-fill, .flame-core, .flame-core-live, .flame-spark, .flame-flicker, .stage-light, .reveal) {
   animation: none;
 }
 
@@ -418,7 +469,7 @@ a {
   .intro * { animation: none !important; }
   .intro .reveal { opacity: 1 !important; }
   .night-stage { background: Canvas; color: CanvasText; border-color: CanvasText; }
-  .stage-veil, .flame-fill, .flame-core, .flame-head { display: none; }
+  .stage-veil, .flame-fill, .flame-core, .flame-head, .flame-spark { display: none; }
   .flame-ghost { opacity: 0 !important; }
   .flame-trail { stroke: CanvasText; opacity: 1 !important; stroke-dashoffset: 0 !important; }
 }
@@ -440,4 +491,12 @@ html.theme-switching *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+  /* The logo's theme cross-fade (higher specificity than the rule above) is off too. */
+  .flame-logo *,
+  html.theme-switching .flame-logo * { transition: none !important; }
+}
+
+/* The frosted nav needs backdrop-filter; without it keep the nav opaque so text never sits on busy content. */
+@supports not (backdrop-filter: blur(1px)) {
+  .site-nav { background-color: rgb(var(--canvas)); }
 }

@@ -67,7 +67,7 @@ describe("setTheme transition suppression", () => {
 describe("stylesheet", () => {
   it("disables every transition while the theme switches (and only transitions)", () => {
     const css = readFileSync(resolve(__dirname, "../index.css"), "utf8");
-    const rule = css.match(/html\.theme-switching[^{]*\{([^}]*)\}/)?.[1] ?? "";
+    const rule = css.match(/html\.theme-switching \*,[^{]*\{([^}]*)\}/)?.[1] ?? "";
     expect(rule).toMatch(/transition:\s*none\s*!important/);
     expect(rule).not.toMatch(/animation/);
     expect(css).toMatch(/html\.theme-switching \*::before/);

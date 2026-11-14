@@ -69,7 +69,7 @@ describe("intro safety limits", () => {
 
   it("the only loops are the flicker and the breath: period >= 4s and alternating", () => {
     const looping = animations.filter((a) => a.infinite);
-    expect([...new Set(looping.map((a) => a.name))].sort()).toEqual(["flame-breathe", "flame-flicker"]);
+    expect([...new Set(looping.map((a) => a.name))].sort()).toEqual(["flame-breathe", "flame-core-sway", "flame-flicker"]);
     for (const { part, duration } of looping) {
       expect(duration, part).toBeGreaterThanOrEqual(4);
       expect(part, part).toMatch(/\balternate\b/);
@@ -95,7 +95,10 @@ describe("intro safety limits", () => {
 
   it("keyframes only touch opacity, stroke-dashoffset and the flicker's transform", () => {
     for (const { name, body } of keyframes) {
-      const allowed = name === "flame-flicker" ? ["transform"] : ["opacity", "stroke-dashoffset"];
+      // transform is allowed only where motion is bounded and tested below: the flicker, the flame
+      // growing from its wick, and the sparks.
+      const transformed = ["flame-flicker", "flame-core-sway", "flame-grow", "flame-spark-rise"].includes(name);
+      const allowed = transformed ? ["opacity", "transform"] : ["opacity", "stroke-dashoffset"];
       for (const [, prop] of body.matchAll(/([a-z-]+)\s*:/g)) {
         expect(allowed, `${name}: ${prop}`).toContain(prop);
       }
@@ -156,6 +159,29 @@ describe("motion preferences", () => {
     expect(glow.body).toMatch(/pointer-events:\s*none/);
     expect(glow.body).toMatch(/z-index:\s*-1/);
     expect(glow.body).toMatch(/rgb\(var\(--flame-glow\) \/ 0\.12\)/); // keep in sync with contrast.test.ts
+  });
+
+  it("the inner flame's sway stays within 10% scale and 3 degrees", () => {
+    const sway = keyframes.find((k) => k.name === "flame-core-sway")!;
+    const scales = [...sway.body.matchAll(/scale\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/g)].flatMap(([, x, y]) => [+x, +y]);
+    for (const v of scales) expect(Math.abs(v - 1)).toBeLessThanOrEqual(0.1);
+    const skews = [...sway.body.matchAll(/skewX\(\s*(-?[\d.]+)deg\s*\)/g)].map(([, d]) => Math.abs(+d));
+    expect(Math.max(...skews)).toBeLessThanOrEqual(3);
+  });
+
+  it("grow and sparks are bounded: the flame starts at >= 0.5 scale, sparks rise <= 8px, once", () => {
+    const grow = keyframes.find((k) => k.name === "flame-grow")!;
+    const scales = [...grow.body.matchAll(/scale\(\s*([\d.]+)\s*\)/g)].map(([, v]) => +v);
+    expect(Math.min(...scales)).toBeGreaterThanOrEqual(0.5);
+    const spark = keyframes.find((k) => k.name === "flame-spark-rise")!;
+    const rises = [...spark.body.matchAll(/,\s*(-?[\d.]+)px\)/g)].map(([, v]) => Math.abs(+v));
+    expect(Math.max(...rises)).toBeLessThanOrEqual(8);
+    expect(animations.filter((a) => /flame-(grow|spark-rise)/.test(a.name)).every((a) => !a.infinite)).toBe(true);
+  });
+
+  it("the logo cross-fades its colours on a theme flip, and reduced motion turns that off", () => {
+    expect(css).toMatch(/html\.theme-switching \.flame-logo \* \{ transition: var\(--logo-fade\) !important; \}/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*html\.theme-switching \.flame-logo \* \{ transition: none !important; \}/);
   });
 
   it("the light pool never captures input and its alpha is capped at 0.28", () => {
