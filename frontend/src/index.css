@@ -34,15 +34,20 @@
   --tl-terminated: 168 32 32;
   --tl-other: 110 104 94;
   --tl-text: 255 254 248;
-  /* Landing logo (decorative: no text sits on these). --flame-glow tints the room glow (max alpha
-     0.12, checked against text/muted/accent/line/focus in contrast.test.ts); --ember is the head
-     of the ignition and must hold 3:1 on the canvas and the accent tile. */
+  /* The page's own canvas as a colour. Inherited as a resolved value, so it stays the PAGE's
+     canvas inside .night-stage, which re-scopes --canvas to the dark palette. */
+  --paper: rgb(var(--canvas));
+  /* Landing room glow (decorative; max alpha 0.12, checked against text/muted/accent/line/focus
+     in contrast.test.ts). The logo's own colours live in the dark block below (the stage is
+     always dark). */
   --flame-glow: 217 119 6;
-  --ember: 205 98 15;
   --nav-offset: 64px;
 }
 
-:root.dark {
+:root.dark,
+.night-stage {
+  /* Dark palette. .night-stage (the landing hero) re-scopes it, so the hero is always dark whatever
+     the user's theme, and its text, contrast and colours come from this one block. */
   color-scheme: dark;
   --canvas: 11 11 15;
   --panel: 21 21 27;
@@ -65,7 +70,12 @@
   --tl-other: 182 178 172;
   --tl-text: 11 11 15;
   --flame-glow: 232 163 61;
+  /* Logo (decorative, only ever drawn on the dark stage): the ignition ember, and the lit flame's
+     gradient from base to tip. --ember must hold 3:1 on the stage; see contrast.test.ts. */
   --ember: 255 233 170;
+  --flame-base: 194 65 12;
+  --flame-mid: 240 150 30;
+  --flame-tip: 255 233 170;
 }
 
 html,
@@ -186,15 +196,94 @@ a {
 }
 
 /*
- * Landing logo: the original Candle flame (lucide Flame, one path) igniting once. Decorative and
- * fully stoppable. Safety limits, enforced by src/test/candle-motion.test.ts:
- *  - the only loop is the slow glow breath: period >= 4s, alternating, opacity swing <= 0.15
- *  - the ember travels once, over >= 4s; every fade takes >= 0.7s (no abrupt luminance steps)
- *  - keyframes only touch opacity and stroke-dashoffset (an <= 80px SVG, no layout)
- * The base styles (no data-ignite state) ARE the finished, lit logo, so "paused", reduced motion,
- * forced colours and no-JS all fall back to a calm still image. data-ignite: idle (unlit, waiting
- * for the logo to be visible) -> go (plays) -> lit (terminal); see FlameLogo.tsx.
+ * Landing hero: the original Candle flame (the exact lucide Flame path), huge, lighting a dark stage
+ * like a candle being lit, then the rest of the page appearing in its light. Decorative and fully
+ * stoppable. Safety limits, enforced by src/test/candle-motion.test.ts:
+ *  - everything finishes by 5.4s (delay + duration of every non-looping animation <= 5.5s)
+ *  - the ember travels once over >= 2s; the veil takes >= 0.8s; every fade takes >= 0.7s
+ *  - the only loops are the flame flicker and the glow breath: period >= 4s, alternating,
+ *    flicker amplitude <= 2%, breath swing <= 0.15
+ *  - keyframes only touch opacity, stroke-dashoffset and the flicker's transform
+ * The base styles (no data-ignite state) ARE the finished, lit page, so "paused", reduced motion,
+ * forced colours, no-JS and "seen this session" all show everything immediately. Gated content is
+ * only ever made transparent (opacity), never display:none/visibility:hidden/aria-hidden: it stays
+ * in the accessibility tree and in layout from the first frame. data-ignite: idle (waiting for the
+ * logo to be visible) -> go (plays) -> lit (terminal); see useIgnition.ts.
  */
+.night-stage {
+  --logo: min(42svh, 78vw, 26rem);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  min-height: calc(100svh - var(--nav-offset) - 2rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  border: 1px solid rgb(var(--line));
+  border-radius: 2px;
+  background: rgb(var(--canvas));
+  color: rgb(var(--text));
+}
+.stage-content {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+/* The "lights go down": a veil in the PAGE's own canvas colour fades out over the dark stage. In the
+   dark theme it equals the stage colour (nothing visible); in the light theme the panel starts
+   cream like the page and darkens gradually, so there is never a cream-to-dark jump at first paint.
+   It covers the stage border too (inset -1px). */
+.stage-veil {
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  pointer-events: none;
+  background: var(--paper);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.flame-logo {
+  position: relative;
+  width: var(--logo);
+  height: var(--logo);
+  flex: none;
+}
+.flame-svg {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  shape-rendering: geometricPrecision;
+}
+/* The light pool the flame casts on the stage: a soft radial gradient, max alpha 0.28. */
+.stage-light {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: calc(var(--logo) * 2.7);
+  height: calc(var(--logo) * 2.7);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    rgb(var(--flame-glow) / 0.28),
+    rgb(var(--flame-glow) / 0.09) 55%,
+    transparent
+  );
+}
+.flame-stop-base { stop-color: rgb(var(--flame-base)); }
+.flame-stop-mid { stop-color: rgb(var(--flame-mid)); }
+.flame-stop-tip { stop-color: rgb(var(--flame-tip)); }
+.flame-fill { stroke: none; }
+.flame-core { fill: rgb(var(--flame-tip)); opacity: 0.9; stroke: none; }
+.flame-flicker { transform-origin: 12px 22px; transform-box: view-box; }
 .flame-ghost,
 .flame-trail,
 .flame-head {
@@ -216,66 +305,82 @@ a {
   stroke-dashoffset: 0;
   opacity: 0;
 }
-.flame-glow { box-shadow: 0 0 28px rgb(var(--accent) / 0.14); }
 
-/* idle: the unlit logo. A dim but visible outline (line-strong, >= 3:1) so the page never has an
-   invisible logo; everything lit is hidden. */
-.flame-logo[data-ignite="idle"] .flame-ghost { opacity: 1; }
-.flame-logo[data-ignite="idle"] .flame-trail,
-.flame-logo[data-ignite="idle"] .flame-tile,
-.flame-logo[data-ignite="idle"] .flame-glow { opacity: 0; }
+/* idle: the room is dark and the flame is an unlit outline (line-strong, >= 3:1: never invisible).
+   Gated content is transparent only. */
+.intro[data-ignite="idle"] .stage-veil { opacity: 1; }
+.intro[data-ignite="idle"] .flame-ghost { opacity: 1; }
+.intro[data-ignite="idle"] .flame-trail,
+.intro[data-ignite="idle"] .flame-fill,
+.intro[data-ignite="idle"] .flame-core,
+.intro[data-ignite="idle"] .stage-light,
+.intro[data-ignite="idle"] .reveal { opacity: 0; }
 
-/* go: ember seed 1.5-2.2s, travel 2.2-6.2s leaving amber behind, tile and glow warm 6.2-8s. */
-.flame-logo[data-ignite="go"] .flame-ghost { opacity: 1; animation: flame-ghost-out 0.4s linear 6.2s forwards; }
-.flame-logo[data-ignite="go"] .flame-trail {
+/* go: lights down 0-0.9s, ember seeds 0.6-1.3s, travels 1.3-3.6s leaving amber and fades just
+   before the flame fills and the light pool blooms (3.2-4.9s), then the page appears in its light
+   3.7-5.4s. */
+.intro[data-ignite="go"] .stage-veil { opacity: 1; animation: flame-veil-out 0.9s ease-in-out forwards; }
+.intro[data-ignite="go"] .flame-ghost { opacity: 1; animation: flame-ghost-out 0.4s linear 3.4s forwards; }
+.intro[data-ignite="go"] .flame-trail {
   animation:
-    flame-appear 0.7s ease-out 1.5s backwards,
-    flame-draw 4s ease-in-out 2.2s backwards;
+    flame-appear 0.7s ease-out 0.6s backwards,
+    flame-draw 2.3s ease-in-out 1.3s backwards;
 }
-.flame-logo[data-ignite="go"] .flame-head {
+.intro[data-ignite="go"] .flame-head {
   animation:
-    flame-head-fade 5.4s linear 1.5s backwards,
-    flame-travel 4s ease-in-out 2.2s backwards;
+    flame-head-fade 3.3s linear 0.6s backwards,
+    flame-travel 2.3s ease-in-out 1.3s backwards;
 }
-.flame-logo[data-ignite="go"] .flame-tile { animation: flame-appear 1.8s ease-in-out 6.2s backwards; }
-.flame-logo[data-ignite="go"] .flame-glow { animation: flame-appear 1.8s ease-in-out 6.2s backwards; }
+.intro[data-ignite="go"] .flame-fill { animation: flame-appear 1.2s ease-in-out 3.5s backwards; }
+.intro[data-ignite="go"] .flame-core { animation: flame-appear-core 1.2s ease-in-out 3.7s backwards; }
+.intro[data-ignite="go"] .stage-light { animation: flame-appear 1.6s ease-in-out 3.2s backwards; }
+.intro[data-ignite="go"] .reveal-1 { animation: flame-appear 0.8s ease-out 3.7s backwards; }
+.intro[data-ignite="go"] .reveal-2 { animation: flame-appear 0.8s ease-out 3.85s backwards; }
+.intro[data-ignite="go"] .reveal-3 { animation: flame-appear 0.8s ease-out 4s backwards; }
+.intro[data-ignite="go"] .reveal-4 { animation: flame-appear 0.8s ease-out 4.15s backwards; }
+.intro[data-ignite="go"] .reveal-5 { animation: flame-appear 0.8s ease-out 4.3s backwards; }
+.intro[data-ignite="go"] .reveal-6 { animation: flame-appear 0.8s ease-out 4.6s backwards; }
 
-/* After lighting: a very slow breath of the glow. */
-.flame-logo[data-candle-motion="running"][data-ignite="go"] .flame-glow {
+/* Alive afterwards: a barely-there flicker of the flame and a slow breath of the light pool. */
+.intro[data-candle-motion="running"][data-ignite="go"] .stage-light {
   animation:
-    flame-appear 1.8s ease-in-out 6.2s backwards,
-    flame-breathe 7.4s ease-in-out 8s infinite alternate;
+    flame-appear 1.6s ease-in-out 3.2s backwards,
+    flame-breathe 7.4s ease-in-out 4.8s infinite alternate;
 }
-.flame-logo[data-candle-motion="running"][data-ignite="lit"] .flame-glow {
+.intro[data-candle-motion="running"][data-ignite="go"] .flame-flicker {
+  animation: flame-flicker 4.6s ease-in-out 4.6s infinite alternate;
+}
+.intro[data-candle-motion="running"][data-ignite="lit"] .stage-light {
   animation: flame-breathe 7.4s ease-in-out infinite alternate;
+}
+.intro[data-candle-motion="running"][data-ignite="lit"] .flame-flicker {
+  animation: flame-flicker 4.6s ease-in-out infinite alternate;
 }
 
 @keyframes flame-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes flame-appear-core { from { opacity: 0; } to { opacity: 0.9; } }
+@keyframes flame-veil-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes flame-draw { from { stroke-dashoffset: 93; } to { stroke-dashoffset: 0; } }
 @keyframes flame-travel { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -93; } }
 @keyframes flame-head-fade {
   0% { opacity: 0; }
-  13% { opacity: 1; }
-  87% { opacity: 1; }
+  21% { opacity: 1; }
+  79% { opacity: 1; }
   100% { opacity: 0; }
 }
 @keyframes flame-ghost-out { to { opacity: 0; } }
-@keyframes flame-breathe { from { opacity: 1; } to { opacity: 0.86; } }
+@keyframes flame-breathe { from { opacity: 1; } to { opacity: 0.88; } }
+@keyframes flame-flicker {
+  from { transform: scale(1, 1) skewX(0deg); }
+  to { transform: scale(0.994, 1.015) skewX(0.6deg); }
+}
 
 /* Scrolled out of view mid-sequence: hold, then continue when it returns. */
-.candle[data-candle-offscreen="true"] .flame-ghost,
-.candle[data-candle-offscreen="true"] .flame-trail,
-.candle[data-candle-offscreen="true"] .flame-head,
-.candle[data-candle-offscreen="true"] .flame-tile,
-.candle[data-candle-offscreen="true"] .flame-glow {
+.intro[data-candle-offscreen="true"] :is(.stage-veil, .flame-ghost, .flame-trail, .flame-head, .flame-fill, .flame-core, .flame-flicker, .stage-light, .reveal) {
   animation-play-state: paused;
 }
-/* User pressed "Pause animation": every logo animation stops, leaving the lit logo. */
-.candle[data-candle-motion="paused"] .flame-ghost,
-.candle[data-candle-motion="paused"] .flame-trail,
-.candle[data-candle-motion="paused"] .flame-head,
-.candle[data-candle-motion="paused"] .flame-tile,
-.candle[data-candle-motion="paused"] .flame-glow {
+/* User pressed "Pause animation": every animation stops, leaving the finished page. */
+.intro[data-candle-motion="paused"] :is(.stage-veil, .flame-ghost, .flame-trail, .flame-head, .flame-fill, .flame-core, .flame-flicker, .stage-light, .reveal) {
   animation: none;
 }
 
@@ -292,19 +397,22 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .flame-logo * { animation: none; }
+  .intro * { animation: none; }
 }
 
-/* Windows High Contrast / "more contrast": no room glow, and the logo becomes a still outline in
-   the system text colour (no ember, tile or glow). */
+/* Windows High Contrast / "more contrast": no room glow, no light pool. */
 @media (forced-colors: active), (prefers-contrast: more) {
-  .candle-room-glow { display: none; }
+  .candle-room-glow, .stage-light { display: none; }
 }
+/* Forced colours: the stage is the system canvas; the logo is a still CanvasText outline with no
+   ember, fill, veil or glow; nothing is hidden or animated. */
 @media (forced-colors: active) {
-  .flame-logo * { animation: none !important; }
+  .intro * { animation: none !important; }
+  .intro .reveal { opacity: 1 !important; }
+  .night-stage { background: Canvas; color: CanvasText; border-color: CanvasText; }
+  .stage-veil, .flame-fill, .flame-core, .flame-head { display: none; }
   .flame-ghost { opacity: 0 !important; }
   .flame-trail { stroke: CanvasText; opacity: 1 !important; stroke-dashoffset: 0 !important; }
-  .flame-head, .flame-glow, .flame-tile { display: none; }
 }
 
 /* setTheme() adds this class around a theme flip so transition-colors controls change with the

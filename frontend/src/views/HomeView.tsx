@@ -1,54 +1,76 @@
 /** Landing page (`/`): a warm welcome, three audience paths, a live status sentence, a short guide, what Candle does and doesn't do, and a note from the builder. Single column, rem-based type, calm stoppable motion (see components/home/FlameLogo.tsx). */
+import { useRef } from "react";
 import { Link } from "react-router-dom";
 
 import { FlameLogo, PauseAnimationButton } from "../components/home/FlameLogo";
 import { CandleToday } from "../components/home/CandleToday";
 import { StartPaths } from "../components/home/StartPaths";
 import { TrialGlossary } from "../components/home/TrialGlossary";
-import { useCandleMotion } from "../components/home/useCandleMotion";
+import { useCandleMotion, useScrollGlow } from "../components/home/useCandleMotion";
+import { useIgnition } from "../components/home/useIgnition";
 import { linkButtonClass } from "../lib/ui";
 
 export function HomeView() {
   const motion = useCandleMotion();
+  const { ignite, offscreen, observedRef } = useIgnition(motion.running);
+  const glowRef = useRef<HTMLDivElement>(null);
+  useScrollGlow(glowRef, motion.running);
 
   return (
-    <div className="mx-auto w-full max-w-[40rem] pb-8 pt-24 md:pt-32">
-      <section aria-labelledby="welcome-heading" className="flex flex-col items-center text-center">
-        <FlameLogo running={motion.running} />
-        <h1
-          id="welcome-heading"
-          className="mt-6 text-[2.5rem] font-semibold leading-[1.05] tracking-tight sm:text-[3.25rem]"
-        >
-          Welcome to Candle
-        </h1>
-        <p className="mt-3 text-[1.375rem] font-medium leading-snug text-muted">
-          A small light for a long journey.
-        </p>
-        <p className="mt-6 text-[1.125rem] leading-[1.7]">
-          Candle brings every choroideremia (CHM) clinical trial and research paper together in
-          one calm place, explained in plain language and linked to its sources.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link to="/trials" className={linkButtonClass("primary")}>
-            Browse clinical trials
-          </Link>
-          <Link to="/literature" className={linkButtonClass()}>
-            Read the research
-          </Link>
-          <Link to="/ask" className={linkButtonClass()}>
-            Ask a question
-          </Link>
-        </div>
-        <div className="mt-4">
-          <PauseAnimationButton
-            paused={motion.paused}
-            reduced={motion.reduced}
-            onToggle={motion.togglePaused}
-          />
-        </div>
-        <CandleToday />
-      </section>
+    // data-ignite drives the whole page: the dark stage, the flame, and the content that appears in
+    // its light. Gated elements (.reveal) are only made transparent, never removed or hidden.
+    <div
+      className="candle intro"
+      data-candle-motion={motion.running ? "running" : "paused"}
+      data-candle-offscreen={offscreen}
+      data-ignite={ignite}
+    >
+      <div ref={glowRef} aria-hidden="true" className="candle-room-glow" />
+      <div className="pt-[calc(var(--nav-offset)+1rem)]">
+        <section aria-labelledby="welcome-heading" className="night-stage">
+          <div className="stage-veil" aria-hidden="true" />
+          {/* First in the stage, visible from the first frame, never gated: the stop control. */}
+          <div className="absolute right-3 top-3 z-[4]">
+            <PauseAnimationButton
+              paused={motion.paused}
+              reduced={motion.reduced}
+              onToggle={motion.togglePaused}
+            />
+          </div>
+          <div className="stage-content">
+            <FlameLogo logoRef={observedRef} />
+            <h1
+              id="welcome-heading"
+              className="reveal reveal-1 mt-8 text-[2.5rem] font-semibold leading-[1.05] tracking-tight sm:text-[3.25rem]"
+            >
+              Welcome to Candle
+            </h1>
+            <p className="reveal reveal-2 mt-3 text-[1.375rem] font-medium leading-snug text-muted">
+              A small light for a long journey.
+            </p>
+            <p className="reveal reveal-3 mt-6 max-w-[36rem] text-[1.125rem] leading-[1.7]">
+              Candle brings every choroideremia (CHM) clinical trial and research paper together in
+              one calm place, explained in plain language and linked to its sources.
+            </p>
+            <div className="reveal reveal-4 mt-8 flex flex-wrap justify-center gap-3">
+              <Link to="/trials" className={linkButtonClass("primary")}>
+                Browse clinical trials
+              </Link>
+              <Link to="/literature" className={linkButtonClass()}>
+                Read the research
+              </Link>
+              <Link to="/ask" className={linkButtonClass()}>
+                Ask a question
+              </Link>
+            </div>
+            <div className="reveal reveal-5">
+              <CandleToday />
+            </div>
+          </div>
+        </section>
+      </div>
 
+      <div className="reveal reveal-6 mx-auto w-full max-w-[40rem] pb-8">
       <StartPaths />
       <TrialGlossary />
 
@@ -97,6 +119,7 @@ export function HomeView() {
           </a>
         </p>
       </section>
+      </div>
     </div>
   );
 }

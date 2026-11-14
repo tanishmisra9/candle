@@ -21,7 +21,8 @@ function readTokens(selector: RegExp): Record<string, RGB> {
 
 const themes = {
   light: readTokens(/:root\s*\{([^}]*)\}/),
-  dark: { ...readTokens(/:root\s*\{([^}]*)\}/), ...readTokens(/:root\.dark\s*\{([^}]*)\}/) },
+  // .night-stage (the landing hero) shares the dark block, so it is always the dark palette.
+  dark: { ...readTokens(/:root\s*\{([^}]*)\}/), ...readTokens(/:root\.dark,\s*\.night-stage\s*\{([^}]*)\}/) },
 };
 
 function luminance([r, g, b]: RGB) {
@@ -61,9 +62,6 @@ const pairs: Array<[string, string, number]> = [
   ["focus", "canvas", 3],
   ["focus", "panel", 3],
   ["accent-fill", "canvas", 3],
-  // The ember head of the logo ignition (a non-text graphic).
-  ["ember", "canvas", 3],
-  ["ember", "panel", 3],
   ...["recruiting", "active", "terminated", "other"].flatMap((k): Array<[string, string, number]> => [
     [`tl-${k}`, "panel", 3],
     ["tl-text", `tl-${k}`, 4.5],
@@ -85,17 +83,6 @@ describe.each(Object.entries(themes))("%s theme contrast", (_name, tokens) => {
     }
   });
 
-  // The logo sits on a tile tinted with 10% accent (and starts as a dim outline before it lights):
-  // the unlit outline, the lit stroke and the ember must all stay visible on it (graphics, 3:1).
-  it("the logo outline, lit stroke and ember hold 3:1 on the accent tile tint", () => {
-    for (const surface of ["canvas", "panel"]) {
-      const tile = blend(tokens.accent, tokens[surface], 0.1);
-      expect(ratio(tokens["line-strong"], tile), `unlit outline on ${surface}+tile`).toBeGreaterThanOrEqual(3);
-      expect(ratio(tokens.accent, tile), `lit stroke on ${surface}+tile`).toBeGreaterThanOrEqual(3);
-      expect(ratio(tokens.ember, tile), `ember on ${surface}+tile`).toBeGreaterThanOrEqual(3);
-    }
-  });
-
   // The landing page's room glow tints the canvas at up to this alpha (see .candle-room-glow in
   // index.css), so text and UI colours must still pass on the tinted surface.
   it("text, muted, accent, borders and focus still pass on the room glow at its maximum alpha", () => {
@@ -108,5 +95,36 @@ describe.each(Object.entries(themes))("%s theme contrast", (_name, tokens) => {
       expect(ratio(tokens["line-strong"], lit), `line-strong on ${surface}+glow`).toBeGreaterThanOrEqual(3);
       expect(ratio(tokens.focus, lit), `focus on ${surface}+glow`).toBeGreaterThanOrEqual(3);
     }
+  });
+});
+
+// The landing hero is a dark stage in BOTH themes (it re-scopes the dark palette), so its colours are
+// always the dark tokens. The flame casts a light pool tinted by --flame-glow at up to this alpha
+// (see .stage-light in index.css; candle-motion.test.ts pins the alpha).
+describe("night stage (always the dark palette)", () => {
+  const t = themes.dark;
+  const POOL_ALPHA = 0.28;
+
+  it("the unlit outline, the lit stroke and the ember hold 3:1 on the stage", () => {
+    expect(ratio(t["line-strong"], t.canvas), "unlit outline").toBeGreaterThanOrEqual(3);
+    expect(ratio(t.accent, t.canvas), "lit stroke").toBeGreaterThanOrEqual(3);
+    expect(ratio(t.ember, t.canvas), "ember").toBeGreaterThanOrEqual(3);
+  });
+
+  it("text, muted, accent and the focus ring hold on the stage lit by the pool at full alpha", () => {
+    // Not checked here: line-strong borders. Every bordered control on the stage (buttons, the
+    // pause toggle) has its own opaque background, so its border never sits directly on the pool
+    // (without that, a border on the brightest pool would be only ~2.8:1). The real-browser audit
+    // asserts those controls have opaque backgrounds.
+    const lit = blend(t["flame-glow"], t.canvas, POOL_ALPHA);
+    expect(ratio(t.text, lit), "text").toBeGreaterThanOrEqual(4.5);
+    expect(ratio(t.muted, lit), "muted").toBeGreaterThanOrEqual(4.5);
+    expect(ratio(t.accent, lit), "accent").toBeGreaterThanOrEqual(4.5);
+    expect(ratio(t.focus, lit), "focus").toBeGreaterThanOrEqual(3);
+  });
+
+  it("the primary button (accent fill + on-accent text) stays legible on the stage", () => {
+    expect(ratio(t["accent-on"], t["accent-fill"])).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(t["accent-fill"], t.canvas)).toBeGreaterThanOrEqual(3);
   });
 });
