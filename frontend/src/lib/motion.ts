@@ -31,18 +31,21 @@ export function overlayPanelMotion(prefersReducedMotion: boolean | null) {
   };
 }
 
+// Opacity only, on purpose: a transform on the page wrapper becomes the containing block for
+// `position: fixed` descendants (the Ask composer, the scroll-to-top button), which then render
+// against the wrapper and jump to the viewport when the transform clears. See motion.test.ts.
 export function routeTransitionMotion(prefersReducedMotion: boolean | null) {
   if (prefersReducedMotion) {
     return {
-      initial: { opacity: 1, y: 0 },
-      animate: { opacity: 1, y: 0 },
-      exit: { opacity: 1, y: 0 },
+      initial: { opacity: 1 },
+      animate: { opacity: 1 },
+      exit: { opacity: 1 },
     };
   }
 
   return {
-    initial: { opacity: 0, y: 6 },
-    animate: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const } },
+    initial: { opacity: 0 },
+    animate: { opacity: 1, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const } },
     exit: { opacity: 0, transition: { duration: 0.12 } },
   };
 }
