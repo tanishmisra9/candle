@@ -60,11 +60,10 @@ describe("HomeView", () => {
     expect(document.getElementById("how-to-read-a-trial")).toBeInTheDocument();
   });
 
-  it("states the live counts as a sentence, pluralised, with the last update", async () => {
+  it("states the live counts as one sentence, pluralised, without the sync date (that is in the footer)", async () => {
     renderHome();
-    expect(
-      await screen.findByText(/Right now Candle follows 12 clinical trials and 1 publication\./),
-    ).toHaveTextContent(/Last updated Nov 12, 2026\./);
+    const sentence = await screen.findByText(/Right now Candle follows 12 clinical trials and 1 publication\./);
+    expect(sentence).not.toHaveTextContent(/Last updated/);
   });
 
   it("shows nothing (never zeros) while loading or when the API is down", async () => {
