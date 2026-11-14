@@ -1,7 +1,7 @@
-/** Landing page (`/`): a warm welcome, three audience paths, a live status sentence, a short guide, what Candle does and doesn't do, and a note from the builder. Single column, rem-based type, calm stoppable motion (see components/home/Candle.tsx). */
+/** Landing page (`/`): a warm welcome, three audience paths, a live status sentence, a short guide, what Candle does and doesn't do, and a note from the builder. Single column, rem-based type, calm stoppable motion (see components/home/FlameLogo.tsx). */
 import { Link } from "react-router-dom";
 
-import { CandleArt, PauseAnimationButton } from "../components/home/Candle";
+import { FlameLogo, PauseAnimationButton } from "../components/home/FlameLogo";
 import { CandleToday } from "../components/home/CandleToday";
 import { StartPaths } from "../components/home/StartPaths";
 import { TrialGlossary } from "../components/home/TrialGlossary";
@@ -14,7 +14,7 @@ export function HomeView() {
   return (
     <div className="mx-auto w-full max-w-[40rem] pb-8 pt-24 md:pt-32">
       <section aria-labelledby="welcome-heading" className="flex flex-col items-center text-center">
-        <CandleArt running={motion.running} />
+        <FlameLogo running={motion.running} />
         <h1
           id="welcome-heading"
           className="mt-6 text-[2.5rem] font-semibold leading-[1.05] tracking-tight sm:text-[3.25rem]"

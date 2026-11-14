@@ -34,13 +34,11 @@
   --tl-terminated: 168 32 32;
   --tl-other: 110 104 94;
   --tl-text: 255 254 248;
-  /* Candle art (landing page). Decorative: no text sits on these. --flame-glow is the room-glow
-     tint; its max alpha (0.12) is checked against text/muted/accent/line/focus in contrast.test.ts. */
-  --flame-outer: 214 105 20;
-  --flame-mid: 240 150 30;
-  --flame-core: 253 220 110;
+  /* Landing logo (decorative: no text sits on these). --flame-glow tints the room glow (max alpha
+     0.12, checked against text/muted/accent/line/focus in contrast.test.ts); --ember is the head
+     of the ignition and must hold 3:1 on the canvas and the accent tile. */
   --flame-glow: 217 119 6;
-  --wax: 246 236 214;
+  --ember: 205 98 15;
   --nav-offset: 64px;
 }
 
@@ -66,11 +64,8 @@
   --tl-terminated: 193 138 138;
   --tl-other: 182 178 172;
   --tl-text: 11 11 15;
-  --flame-outer: 232 140 40;
-  --flame-mid: 247 185 70;
-  --flame-core: 255 233 170;
   --flame-glow: 232 163 61;
-  --wax: 58 52 46;
+  --ember: 255 233 170;
 }
 
 html,
@@ -191,67 +186,96 @@ a {
 }
 
 /*
- * Candle (landing page). Decorative and fully stoppable.
- * Safety limits, enforced by src/test/candle-motion.test.ts: every infinite animation has a period
- * of at least 4s and alternates (each half-cycle >= 2s, far below WCAG 2.3.1's three flashes per
- * second), the glow's opacity swing is <= 0.15, and keyframes only touch transform/opacity.
- * The base (no-animation) styles are the fully lit candle, so "paused", reduced motion and
- * forced colours all fall back to a calm still image.
+ * Landing logo: the original Candle flame (lucide Flame, one path) igniting once. Decorative and
+ * fully stoppable. Safety limits, enforced by src/test/candle-motion.test.ts:
+ *  - the only loop is the slow glow breath: period >= 4s, alternating, opacity swing <= 0.15
+ *  - the ember travels once, over >= 4s; every fade takes >= 0.7s (no abrupt luminance steps)
+ *  - keyframes only touch opacity and stroke-dashoffset (an <= 80px SVG, no layout)
+ * The base styles (no data-ignite state) ARE the finished, lit logo, so "paused", reduced motion,
+ * forced colours and no-JS all fall back to a calm still image. data-ignite: idle (unlit, waiting
+ * for the logo to be visible) -> go (plays) -> lit (terminal); see FlameLogo.tsx.
  */
-.candle-flame-outer { fill: rgb(var(--flame-outer)); }
-.candle-flame-mid { fill: rgb(var(--flame-mid)); }
-.candle-flame-core { fill: rgb(var(--flame-core)); }
-.candle-wax { fill: rgb(var(--wax)); stroke: rgb(var(--line-strong)); stroke-width: 2; }
-.candle-wick { stroke: rgb(var(--text)); stroke-width: 3; stroke-linecap: round; }
-.candle-halo-stop { stop-color: rgb(var(--flame-glow)); }
-
-.candle-rise,
-.candle-flicker-outer,
-.candle-flicker-mid {
-  transform-origin: 80px 106px;
-  transform-box: view-box;
+.flame-ghost,
+.flame-trail,
+.flame-head {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-.candle-rise { animation: candle-rise 2.4s cubic-bezier(0.22, 1, 0.36, 1) 0.3s backwards; }
-.candle-flicker-outer { animation: candle-flicker-a 4.8s ease-in-out 2.7s infinite alternate; }
-.candle-flicker-mid { animation: candle-flicker-b 6.2s ease-in-out 2.7s infinite alternate; }
-.candle-halo {
+.flame-ghost { stroke: rgb(var(--line-strong)); stroke-width: 1.6; opacity: 0; }
+.flame-trail {
+  stroke: rgb(var(--accent));
+  stroke-width: 1.6;
+  stroke-dasharray: 100 200; /* the gap is longer than the path, so the dash never repeats */
+  stroke-dashoffset: 0;
+}
+.flame-head {
+  stroke: rgb(var(--ember));
+  stroke-width: 2.4;
+  stroke-dasharray: 7 200;
+  stroke-dashoffset: 0;
+  opacity: 0;
+}
+.flame-glow { box-shadow: 0 0 28px rgb(var(--accent) / 0.14); }
+
+/* idle: the unlit logo. A dim but visible outline (line-strong, >= 3:1) so the page never has an
+   invisible logo; everything lit is hidden. */
+.flame-logo[data-ignite="idle"] .flame-ghost { opacity: 1; }
+.flame-logo[data-ignite="idle"] .flame-trail,
+.flame-logo[data-ignite="idle"] .flame-tile,
+.flame-logo[data-ignite="idle"] .flame-glow { opacity: 0; }
+
+/* go: ember seed 1.5-2.2s, travel 2.2-6.2s leaving amber behind, tile and glow warm 6.2-8s. */
+.flame-logo[data-ignite="go"] .flame-ghost { opacity: 1; animation: flame-ghost-out 0.4s linear 6.2s forwards; }
+.flame-logo[data-ignite="go"] .flame-trail {
   animation:
-    candle-bloom 2.4s ease-out 0.3s backwards,
-    candle-pulse 7.4s ease-in-out 2.7s infinite alternate;
+    flame-appear 0.7s ease-out 1.5s backwards,
+    flame-draw 4s ease-in-out 2.2s backwards;
+}
+.flame-logo[data-ignite="go"] .flame-head {
+  animation:
+    flame-head-fade 5.4s linear 1.5s backwards,
+    flame-travel 4s ease-in-out 2.2s backwards;
+}
+.flame-logo[data-ignite="go"] .flame-tile { animation: flame-appear 1.8s ease-in-out 6.2s backwards; }
+.flame-logo[data-ignite="go"] .flame-glow { animation: flame-appear 1.8s ease-in-out 6.2s backwards; }
+
+/* After lighting: a very slow breath of the glow. */
+.flame-logo[data-candle-motion="running"][data-ignite="go"] .flame-glow {
+  animation:
+    flame-appear 1.8s ease-in-out 6.2s backwards,
+    flame-breathe 7.4s ease-in-out 8s infinite alternate;
+}
+.flame-logo[data-candle-motion="running"][data-ignite="lit"] .flame-glow {
+  animation: flame-breathe 7.4s ease-in-out infinite alternate;
 }
 
-@keyframes candle-rise {
-  from { opacity: 0; transform: scale(0.2, 0.05); }
-  to { opacity: 1; transform: none; }
+@keyframes flame-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes flame-draw { from { stroke-dashoffset: 93; } to { stroke-dashoffset: 0; } }
+@keyframes flame-travel { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -93; } }
+@keyframes flame-head-fade {
+  0% { opacity: 0; }
+  13% { opacity: 1; }
+  87% { opacity: 1; }
+  100% { opacity: 0; }
 }
-@keyframes candle-flicker-a {
-  from { transform: scale(1, 1) skewX(0deg); }
-  to { transform: scale(0.985, 1.045) skewX(1.2deg); }
-}
-@keyframes candle-flicker-b {
-  from { transform: scale(1, 1) skewX(0deg); }
-  to { transform: scale(1.02, 0.96) skewX(-1deg); }
-}
-@keyframes candle-bloom {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes candle-pulse {
-  from { opacity: 1; }
-  to { opacity: 0.86; }
-}
+@keyframes flame-ghost-out { to { opacity: 0; } }
+@keyframes flame-breathe { from { opacity: 1; } to { opacity: 0.86; } }
 
-/* Off-screen: stop spending frames. The still candle remains. */
-.candle[data-candle-offscreen="true"] .candle-flicker-outer,
-.candle[data-candle-offscreen="true"] .candle-flicker-mid,
-.candle[data-candle-offscreen="true"] .candle-halo {
+/* Scrolled out of view mid-sequence: hold, then continue when it returns. */
+.candle[data-candle-offscreen="true"] .flame-ghost,
+.candle[data-candle-offscreen="true"] .flame-trail,
+.candle[data-candle-offscreen="true"] .flame-head,
+.candle[data-candle-offscreen="true"] .flame-tile,
+.candle[data-candle-offscreen="true"] .flame-glow {
   animation-play-state: paused;
 }
-/* User pressed "Pause animation": everything settles into the lit, still candle. */
-.candle[data-candle-motion="paused"] .candle-rise,
-.candle[data-candle-motion="paused"] .candle-flicker-outer,
-.candle[data-candle-motion="paused"] .candle-flicker-mid,
-.candle[data-candle-motion="paused"] .candle-halo {
+/* User pressed "Pause animation": every logo animation stops, leaving the lit logo. */
+.candle[data-candle-motion="paused"] .flame-ghost,
+.candle[data-candle-motion="paused"] .flame-trail,
+.candle[data-candle-motion="paused"] .flame-head,
+.candle[data-candle-motion="paused"] .flame-tile,
+.candle[data-candle-motion="paused"] .flame-glow {
   animation: none;
 }
 
@@ -268,23 +292,19 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .candle-rise,
-  .candle-flicker-outer,
-  .candle-flicker-mid,
-  .candle-halo {
-    animation: none;
-  }
+  .flame-logo * { animation: none; }
 }
 
-/* Windows High Contrast / "more contrast": no glow, and the candle becomes a clean line drawing in
-   the system text colour. */
+/* Windows High Contrast / "more contrast": no room glow, and the logo becomes a still outline in
+   the system text colour (no ember, tile or glow). */
 @media (forced-colors: active), (prefers-contrast: more) {
   .candle-room-glow { display: none; }
 }
 @media (forced-colors: active) {
-  .candle-art * { fill: none; stroke: CanvasText; }
-  .candle-art [class*="candle-flame"] { stroke-width: 3; }
-  .candle-halo { display: none; }
+  .flame-logo * { animation: none !important; }
+  .flame-ghost { opacity: 0 !important; }
+  .flame-trail { stroke: CanvasText; opacity: 1 !important; stroke-dashoffset: 0 !important; }
+  .flame-head, .flame-glow, .flame-tile { display: none; }
 }
 
 /* setTheme() adds this class around a theme flip so transition-colors controls change with the

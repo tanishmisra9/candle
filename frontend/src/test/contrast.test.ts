@@ -61,6 +61,9 @@ const pairs: Array<[string, string, number]> = [
   ["focus", "canvas", 3],
   ["focus", "panel", 3],
   ["accent-fill", "canvas", 3],
+  // The ember head of the logo ignition (a non-text graphic).
+  ["ember", "canvas", 3],
+  ["ember", "panel", 3],
   ...["recruiting", "active", "terminated", "other"].flatMap((k): Array<[string, string, number]> => [
     [`tl-${k}`, "panel", 3],
     ["tl-text", `tl-${k}`, 4.5],
@@ -79,6 +82,17 @@ describe.each(Object.entries(themes))("%s theme contrast", (_name, tokens) => {
       const tinted = blend(tokens.accent, tokens[surface], 0.12);
       expect(ratio(tokens.accent, tinted)).toBeGreaterThanOrEqual(4.5);
       expect(ratio(tokens.text, tinted)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  // The logo sits on a tile tinted with 10% accent (and starts as a dim outline before it lights):
+  // the unlit outline, the lit stroke and the ember must all stay visible on it (graphics, 3:1).
+  it("the logo outline, lit stroke and ember hold 3:1 on the accent tile tint", () => {
+    for (const surface of ["canvas", "panel"]) {
+      const tile = blend(tokens.accent, tokens[surface], 0.1);
+      expect(ratio(tokens["line-strong"], tile), `unlit outline on ${surface}+tile`).toBeGreaterThanOrEqual(3);
+      expect(ratio(tokens.accent, tile), `lit stroke on ${surface}+tile`).toBeGreaterThanOrEqual(3);
+      expect(ratio(tokens.ember, tile), `ember on ${surface}+tile`).toBeGreaterThanOrEqual(3);
     }
   });
 
