@@ -74,11 +74,24 @@ describe.each(Object.entries(themes))("%s theme contrast", (_name, tokens) => {
     expect(ratio(tokens[fg], tokens[bg])).toBeGreaterThanOrEqual(min);
   });
 
-  it("text, muted and accent hold on the frosted nav over the canvas (glass tint over canvas)", () => {
-    const [r, g, b] = tokens.glass;
-    const nav = blend([r, g, b], tokens.canvas, _name === "light" ? 0.6 : 0.07); // keep in sync with --glass-a in index.css
-    for (const fg of ["text", "muted", "accent"]) expect(ratio(tokens[fg], nav), fg).toBeGreaterThanOrEqual(4.5);
+  // The liquid-glass nav (index.css `.site-nav`): a tint lighter at the top than the bottom, plus a
+  // diagonal sheen, over whatever scrolls beneath. Worst case: strong content (the accent fill, a
+  // primary button) covering COVERAGE of the blurred backdrop, over the canvas. Raise the glass alphas
+  // in index.css, never the text colour, if this fails.
+  it("text, muted and accent hold on the glass nav at both gradient stops over worst-case content", () => {
+    const COVERAGE = 0.35;
+    const read = (name: string) => Number(css.match(new RegExp(`--${name}:\\s*([\\d.]+);`, "g"))![_name === "light" ? 0 : 1].match(/[\d.]+(?=;)/)![0]);
+    const [top, bottom, sheen] = [read("glass-top"), read("glass-bottom"), read("glass-sheen")];
+    const backdrop = blend(tokens["accent-fill"], tokens.canvas, COVERAGE);
+    for (const [label, alpha] of [["top", top], ["bottom", bottom]] as const) {
+      const tinted = blend(tokens.glass, backdrop, alpha);
+      const lit = blend([255, 255, 255], tinted, label === "top" ? sheen : 0); // the sheen is strongest at the top-left
+      for (const fg of ["text", "muted", "accent"]) {
+        expect(ratio(tokens[fg], lit), `${fg} at the ${label}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
+
 
   it("accent text stays readable on its own 12% tint (selected rows, source links)", () => {
     for (const surface of ["canvas", "panel"]) {

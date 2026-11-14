@@ -46,8 +46,15 @@
   --flame-mid: 244 112 12;
   --flame-tip: 255 204 64;
   --flame-core: 255 243 190;
-  --glass: 255 252 244; /* frosted nav tint + alpha */
-  --glass-a: 0.6;
+  /* Liquid-glass nav (see .site-nav below): tint rgb + alpha at the top and bottom of the bar (glass is
+     lighter at the top), specular sheen, and the bottom hairline. contrast.test.ts checks text on it
+     over a worst-case backdrop; raise the alphas (never the text colour) if that fails. */
+  --glass: 255 255 255;
+  --glass-top: 0.7;
+  --glass-bottom: 0.58;
+  --glass-sheen: 0.3;
+  --glass-edge: 0 0 0 / 0.14;
+  --glass-shadow: 0 0 0 / 0.08;
   --nav-offset: 72px;
 }
 
@@ -77,8 +84,12 @@
   --dusk: 11 11 15;
   --flame-line: 232 163 61;
   --flame-core: 255 233 170;
-  --glass: 255 238 210;
-  --glass-a: 0.07;
+  --glass: 44 44 52;
+  --glass-top: 0.68;
+  --glass-bottom: 0.56;
+  --glass-sheen: 0.07;
+  --glass-edge: 255 255 255 / 0.16;
+  --glass-shadow: 0 0 0 / 0.4;
   --flame-base: 194 65 12;
   --flame-mid: 240 150 30;
   --flame-tip: 255 233 170;
@@ -464,19 +475,56 @@ html.theme-switching *::after {
   html.theme-switching .flame-logo * { transition: none !important; }
 }
 
-/* The frosted nav needs backdrop-filter; without it keep the nav opaque so text never sits on busy content. */
-.site-nav::before {
+/*
+ * Apple "Liquid Glass" appearance for the nav (material only: it stays a full-width, square bar).
+ * Layers, back to front, all behind the nav content so text and the active-tab underline stay crisp:
+ *  ::before  the glass: backdrop blur + saturation + a tint that is lighter at the top, a specular rim
+ *            (bright 1px lines inside the top and bottom edges) and a faint inner glow
+ *  ::after   a static diagonal sheen (the light catching the surface); nothing animates
+ *  header    a thin dark hairline at the very bottom (crisp, not a soft fade) and a soft shadow below
+ * Chromium also bends the content behind the bottom edge (SVG displacement, html[data-refract], set by
+ * index.html); Safari and Firefox cannot do that inside backdrop-filter, so they get the material only.
+ * Opaque when the user asks for it (reduced transparency / more contrast / forced colours) or when
+ * backdrop-filter is missing.
+ */
+.site-nav {
+  border-bottom: 1px solid rgb(var(--glass-edge));
+  box-shadow: 0 8px 28px -10px rgb(var(--glass-shadow));
+}
+.site-nav::before,
+.site-nav::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-color: rgb(var(--glass) / var(--glass-a));
-  backdrop-filter: blur(24px) saturate(1.5);
-  -webkit-backdrop-filter: blur(24px) saturate(1.5);
 }
-/* A crisp 1px edge (not a soft fade, not thick): a hairline on the bar's bottom edge. */
-.site-nav { border-bottom: 1px solid rgb(var(--line-strong) / 0.55); }
-@supports not (backdrop-filter: blur(1px)) {
-  .site-nav::before { background-color: rgb(var(--canvas)); }
+.site-nav::before {
+  background: linear-gradient(to bottom, rgb(var(--glass) / var(--glass-top)), rgb(var(--glass) / var(--glass-bottom)));
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    inset 0 -1px 0 rgb(255 255 255 / 0.28),
+    inset 0 0 22px rgb(255 255 255 / 0.1);
+}
+.site-nav::after {
+  background: linear-gradient(115deg, rgb(255 255 255 / var(--glass-sheen)), rgb(255 255 255 / 0) 42%);
+}
+html[data-refract] .site-nav::before {
+  backdrop-filter: url(#liquid-glass) blur(18px) saturate(180%);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .site-nav::before { background: rgb(var(--canvas)); box-shadow: none; }
+  .site-nav::after { display: none; }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  .site-nav { box-shadow: none; border-bottom-color: rgb(var(--line-strong)); }
+  .site-nav::before {
+    background: rgb(var(--canvas));
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none;
+  }
+  .site-nav::after { display: none; }
 }

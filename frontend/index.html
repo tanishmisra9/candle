@@ -40,6 +40,11 @@
         var meta = document.querySelector('meta[name="theme-color"]');
         if (meta) meta.setAttribute("content", theme === "dark" ? "#0b0b0f" : "#fbf8ef");
 
+        // Chromium can bend content behind the glass nav (SVG displacement inside backdrop-filter);
+        // Safari and Firefox accept that syntax but render nothing, and @supports cannot tell, so
+        // gate it on the engine. iOS Chrome (CriOS) is WebKit and has no "Chrome/" token.
+        if (/Chrome\//.test(navigator.userAgent)) root.setAttribute("data-refract", "");
+
         // Will the landing intro play? Same conditions as the app (home route, motion allowed).
         var calm = function (q) {
           return window.matchMedia(q).matches;
