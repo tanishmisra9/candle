@@ -312,3 +312,49 @@ def test_body_limit_matches_only_llm_post_routes():
     assert not is_llm_endpoint("GET", "/ask/stream")
     assert not is_llm_endpoint("POST", "/ask/stream/extra")
     assert not is_llm_endpoint("POST", "/trials")
+
+
+async def _run_middleware(inner_app):
+    from app.middleware import LLMRequestBodyLimitMiddleware
+
+    sent: list[dict] = []
+
+    async def receive():
+        return {"type": "http.request", "body": b"{}", "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {"type": "http", "method": "POST", "path": "/ask", "headers": [(b"content-length", b"2")]}
+    middleware = LLMRequestBodyLimitMiddleware(inner_app)
+    return middleware, scope, receive, send, sent
+
+
+async def test_body_too_large_before_the_response_starts_is_a_413():
+    from app.middleware import LLMRequestBodyTooLarge
+
+    async def inner(scope, receive, send):
+        raise LLMRequestBodyTooLarge
+
+    middleware, scope, receive, send, sent = await _run_middleware(inner)
+    await middleware(scope, receive, send)
+
+    assert sent[0]["type"] == "http.response.start"
+    assert sent[0]["status"] == 413
+
+
+async def test_body_too_large_after_the_response_started_is_re_raised_not_a_second_response():
+    import pytest
+
+    from app.middleware import LLMRequestBodyTooLarge
+
+    async def inner(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        raise LLMRequestBodyTooLarge
+
+    middleware, scope, receive, send, sent = await _run_middleware(inner)
+    with pytest.raises(LLMRequestBodyTooLarge):
+        await middleware(scope, receive, send)
+
+    # Exactly one response start: sending a 413 on top would break the ASGI protocol.
+    assert [m["type"] for m in sent].count("http.response.start") == 1

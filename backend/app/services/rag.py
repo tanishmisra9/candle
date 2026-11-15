@@ -735,6 +735,16 @@ async def answer_question(question: str, session) -> AskResponse:
     return await _render_structured_response(parsed, sources, session)
 
 
+async def _close_openai_stream(stream) -> None:
+    close = getattr(stream, "close", None)
+    if close is None:
+        return
+    try:
+        await close()
+    except Exception:  # closing is best effort; it must never mask the real outcome
+        logger.debug("Closing the OpenAI stream failed", exc_info=True)
+
+
 async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
     """Yield JSON event strings for `POST /ask/stream`: `delta` events while generating, then one authoritative `done` event (or a fixed reply for routed/empty cases). Fails closed to the refusal on timeout or parse failure."""
     routed = await _route_by_intent(question)
@@ -769,6 +779,7 @@ async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
     response_type: str | None = None  # the first key of the strict schema; known once it has arrived
     blocked = False
     parsed: StructuredAskOutput | None = None
+    stream = None  # closed in the `finally` below however this generator ends
 
     try:
         stream = await asyncio.wait_for(
@@ -813,9 +824,6 @@ async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
                 emitted = visible
                 yield json.dumps({"type": "delta", "delta": new_text})
         if blocked:
-            close = getattr(stream, "close", None)
-            if close is not None:
-                await close()
             logger.warning("Streamed answer contained advice language, replacing with refusal")
             yield json.dumps({"type": "done", "answer": ADVICE_REFUSAL, "sources": []})
             return
@@ -834,6 +842,11 @@ async def answer_question_stream(question: str, session) -> AsyncIterator[str]:
         logger.warning("Structured ask stream failed, failing closed: %s", exc)
         yield json.dumps({"type": "done", "answer": ADVICE_REFUSAL, "sources": []})
         return
+    finally:
+        # However the generator ends (finished, blocked by the advice guard, failed, or the client
+        # disconnected and it was cancelled/closed), release the upstream OpenAI connection so an
+        # abandoned answer does not keep generating tokens (and holding capacity) in the background.
+        await _close_openai_stream(stream)
 
     if parsed.response_type in ("refusal", "insufficient_context"):
         yield json.dumps(

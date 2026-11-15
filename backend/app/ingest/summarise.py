@@ -153,6 +153,14 @@ async def generate_trial_summaries(session: AsyncSession) -> int:
         # Keep the stale-trial batch fetch to avoid loading the full table at once,
         # but commit each completed summary so partial progress survives upstream failures.
         for index, trial in enumerate(trials, start=1):
+            if trial.ai_summary is not None and trial.ai_summary_generated_at is None:
+                # Impossible once the database CHECK is in place, but a skipped/failed schema step
+                # (development tolerates that) must not abort the whole run: stamp an attempt time
+                # (-> SUMMARISED, retried after the normal window) and move on without a model call.
+                logger.warning("Trial %s had a summary but no attempt time; repairing", trial.id)
+                trial.ai_summary_generated_at = datetime.now(timezone.utc)
+                await session.commit()
+                continue
             summary = await generate_trial_summary_text(trial)
             record_summary_attempt(trial, summary, datetime.now(timezone.utc))
             if summary is None:

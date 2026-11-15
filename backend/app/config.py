@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     read_rate_limit_per_minute: int = 60
     read_rate_limit_burst: int = 0
     llm_concurrency_limit: int = 8
+    # Connection pool (per process). Each in-flight Ask holds TWO connections (its request session and
+    # the short-lived full-text session), so size it for 2 x llm_concurrency_limit plus headroom for read
+    # routes (the test in test_retrieval.py pins this relation). Mind Postgres max_connections x workers.
+    db_pool_size: int = 12
+    db_max_overflow: int = 12
     llm_request_body_max_bytes: int = 8 * 1024
     ask_question_max_chars: int = 2000
     ask_openai_timeout_seconds: int = 15

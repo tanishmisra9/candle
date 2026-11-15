@@ -204,7 +204,10 @@ async def retrieve_hybrid_chunks(
             session, embedding, limit=capped_limit, source_type=source_type
         )
     except BaseException:
-        bm25_task.cancel()  # do not leave the sibling query running after the request has failed
+        # Do not leave the sibling query running after the request has failed, and wait for it to
+        # unwind so its session is closed (its connection returned) before we propagate.
+        bm25_task.cancel()
+        await asyncio.gather(bm25_task, return_exceptions=True)
         raise
     bm25 = await bm25_task
     return _fuse_rankings([dense, bm25], capped_limit)

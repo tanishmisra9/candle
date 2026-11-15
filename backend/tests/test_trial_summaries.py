@@ -396,3 +396,31 @@ async def test_the_database_refuses_a_summary_without_an_attempt_time():
             await session.rollback()
     finally:
         await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_a_summary_without_an_attempt_time_is_repaired_instead_of_aborting_the_run(monkeypatch):
+    # Impossible once the database CHECK exists, but if the schema step was skipped the whole batch must
+    # not die on one bad row: it is stamped (-> summarised), no model call is wasted, and the rest go on.
+    bad = make_trial("NCT00000001", ai_summary="Old summary", ai_summary_generated_at=None)
+    good = make_trial("NCT00000002")
+    session = DummySummarySession([bad, good])
+    called: list[str] = []
+
+    async def fake_generate_trial_summary_text(trial):
+        called.append(trial.id)
+        return f"Summary for {trial.id}"
+
+    async def fake_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr("app.ingest.summarise.generate_trial_summary_text", fake_generate_trial_summary_text)
+    monkeypatch.setattr("app.ingest.summarise.asyncio.sleep", fake_sleep)
+
+    count = await generate_trial_summaries(session)
+
+    assert called == ["NCT00000002"]  # no model call for the repaired row
+    assert count == 1
+    assert bad.ai_summary == "Old summary"
+    assert isinstance(bad.ai_summary_generated_at, datetime)
+    assert good.ai_summary == "Summary for NCT00000002"

@@ -179,6 +179,12 @@ async def test_hybrid_retrieval_cancels_the_fulltext_query_when_the_dense_query_
 
     class _Slow(_OneAtATimeSession):
         cancelled = False
+        exited = False
+
+        async def __aexit__(self, *_exc):
+            await asyncio.sleep(0)  # closing a session takes a loop turn, as a real one does
+            _Slow.exited = True
+            return False
 
         async def execute(self, *_args, **_kwargs):
             try:
@@ -195,8 +201,10 @@ async def test_hybrid_retrieval_cancels_the_fulltext_query_when_the_dense_query_
     slow = _Slow()
     with __import__("pytest").raises(RuntimeError, match="dense failed"):
         await retrieve_hybrid_chunks(_Failing(), "q", [0.0] * 3, bm25_session_factory=lambda: slow)
-    await asyncio.sleep(0)
+    # No extra loop turn here on purpose: the failure must not propagate until the cancelled
+    # full-text side has unwound and closed its session (its connection is back in the pool).
     assert _Slow.cancelled
+    assert _Slow.exited
 
 
 async def test_failed_fulltext_query_does_not_poison_the_session(monkeypatch):
@@ -253,3 +261,13 @@ async def test_fulltext_query_actually_runs_against_postgres_with_and_without_a_
         assert only_trials and all(chunk.source_type == "trial" for chunk in only_trials)
     finally:
         await engine.dispose()
+
+
+def test_connection_pool_covers_two_connections_per_concurrent_ask_plus_headroom():
+    # Each in-flight Ask holds its request session AND the full-text session. If the pool is smaller
+    # than that, checkouts block (30s) and the full-text side silently degrades to dense-only.
+    from app.config import get_settings
+
+    settings = get_settings()
+    capacity = settings.db_pool_size + settings.db_max_overflow
+    assert capacity >= 2 * settings.llm_concurrency_limit + 4

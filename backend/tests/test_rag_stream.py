@@ -341,3 +341,49 @@ def test_incremental_advice_scan_matches_a_full_scan_for_every_chunking() -> Non
     long_clean = "word " * 5000
     assert not advice_language_in_new_text(long_clean + "x", len(long_clean))
     assert STREAM_HOLDBACK_CHARS < 100
+
+
+@pytest.mark.asyncio
+async def test_stream_releases_the_openai_connection_when_the_client_goes_away(monkeypatch) -> None:
+    # A user who navigates away closes the SSE generator mid-answer. The upstream OpenAI stream used to
+    # be closed only when the advice guard blocked, so abandoned answers kept generating.
+    answer = "According to NCT02435940, the trial is recruiting adults with CHM. " * 3
+    stream = _ClosableStream(
+        _chunked({"response_type": "answer", "answer_text": answer, "cited_ids": []}, 5)
+    )
+    _patch_stream(monkeypatch, stream)
+
+    generator = answer_question_stream("What is recruiting?", _FakeSession())
+    first = json.loads(await generator.__anext__())
+    assert first["type"] == "delta"
+    assert stream.closed is False  # still streaming
+
+    await generator.aclose()  # the client disconnected
+
+    assert stream.closed is True
+
+
+@pytest.mark.asyncio
+async def test_stream_closes_the_openai_connection_on_a_normal_finish_too(monkeypatch) -> None:
+    answer = "According to NCT02435940, the trial is recruiting adults with CHM."
+    stream = _ClosableStream(
+        _chunked({"response_type": "answer", "answer_text": answer, "cited_ids": []}, 5)
+    )
+    _patch_stream(monkeypatch, stream)
+
+    events = await _collect_stream_events("What is recruiting?", monkeypatch)
+
+    assert events[-1]["type"] == "done"
+    assert stream.closed is True
+
+
+def test_the_response_type_is_the_first_key_of_the_streamed_schema() -> None:
+    # The stream decides whether to advice-guard from the first `response_type` it sees, which is only
+    # correct while the strict schema puts it before `answer_text`. If this order ever changes, the
+    # guard would treat refusals/insufficient-context text as an answer (over-blocking), so pin it.
+    from app.services.openai_schema import strict_json_schema
+
+    schema = strict_json_schema(StructuredAskOutput, name="structured_ask_output")
+    properties = list(schema["json_schema"]["schema"]["properties"])
+    assert properties[0] == "response_type"
+    assert properties.index("response_type") < properties.index("answer_text")

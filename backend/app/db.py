@@ -21,7 +21,12 @@ from app.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger("candle.api")
-engine = create_async_engine(settings.async_database_url, pool_pre_ping=True)
+engine = create_async_engine(
+    settings.async_database_url,
+    pool_pre_ping=True,
+    pool_size=settings.db_pool_size,
+    max_overflow=settings.db_max_overflow,
+)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 PG_TRGM_EXTENSION_STATEMENT = "CREATE EXTENSION IF NOT EXISTS pg_trgm"
 
@@ -33,17 +38,17 @@ SCHEMA_RECONCILIATION_STATEMENTS = (
         ADD COLUMN IF NOT EXISTS ai_summary_generated_at TIMESTAMPTZ
     """,
     # A summary always has an attempt time (see SummaryState in app/ingest/summarise.py). Rows from before
-    # the attempt column existed have a summary and no time: give them one (they then wait out the normal
-    # 7-day window instead of being regenerated at once), so the CHECK below can never trip an upsert of
-    # an old row. NOT VALID: the table may already hold rows; it is enforced for every new write.
-    """
-    UPDATE trials SET ai_summary_generated_at = NOW()
-    WHERE ai_summary IS NOT NULL AND ai_summary_generated_at IS NULL
-    """,
+    # the attempt column existed have a summary and no time: the first boot gives them one (they then
+    # wait out the normal 7-day window instead of being regenerated at once), so the CHECK can never trip
+    # an upsert of an old row. NOT VALID: the table may already hold rows; it is enforced for every new write.
+    # One DO block, so on every later boot (the constraint exists) neither the table scan nor the
+    # ACCESS EXCLUSIVE lock of ADD CONSTRAINT happens.
     """
     DO $$
     BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trials_ai_summary_attempt_check') THEN
+            UPDATE trials SET ai_summary_generated_at = NOW()
+            WHERE ai_summary IS NOT NULL AND ai_summary_generated_at IS NULL;
             ALTER TABLE trials ADD CONSTRAINT trials_ai_summary_attempt_check
                 CHECK (ai_summary IS NULL OR ai_summary_generated_at IS NOT NULL) NOT VALID;
         END IF;
