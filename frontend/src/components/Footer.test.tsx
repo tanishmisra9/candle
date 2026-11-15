@@ -29,9 +29,11 @@ describe("Footer", () => {
     expect(screen.getByText("Candle does not give medical advice.")).toBeInTheDocument();
   });
 
-  it("is on the landing page too", () => {
+  it("on the landing page keeps the disclaimer but not the two links (the NextSteps band has them)", () => {
     renderFooter("/");
-    expect(screen.getByRole("navigation", { name: "Footer" })).toBeInTheDocument();
+    expect(screen.getByText("Candle does not give medical advice.")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Footer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("renders nothing on the Ask page (it has its own sync label under the composer)", () => {

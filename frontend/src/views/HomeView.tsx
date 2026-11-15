@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 import { FlameLogo } from "../components/home/FlameLogo";
 import { CandleToday } from "../components/home/CandleToday";
+import { NextSteps } from "../components/home/NextSteps";
 import { useCandleMotion, useScrollGlow } from "../components/home/useCandleMotion";
 import { useIgnition } from "../components/home/useIgnition";
 import { linkButtonClass } from "../lib/ui";
@@ -40,7 +41,7 @@ export function HomeView() {
           <FlameLogo logoRef={observedRef} />
           <h1
             id="welcome-heading"
-            className="reveal reveal-1 mt-8 text-[2.25rem] font-semibold leading-[1.05] tracking-tight sm:text-[3.25rem]"
+            className="reveal reveal-1 mt-8 text-[2.25rem] sm:mt-10 font-semibold leading-[1.05] tracking-tight sm:text-[3.25rem]"
           >
             Welcome to Candle
           </h1>
@@ -51,7 +52,7 @@ export function HomeView() {
             Candle brings every choroideremia (CHM) clinical trial and research paper together in
             one calm place, explained in plain language and linked to its sources.
           </p>
-          <div className="reveal reveal-4 mt-8 flex w-full max-w-[20rem] flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center">
+          <div className="reveal reveal-4 mt-8 sm:mt-10 flex w-full max-w-[20rem] flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center">
             <Link to="/trials" className={`${linkButtonClass("primary")} ${FULL}`}>
               Browse clinical trials
             </Link>
@@ -67,6 +68,7 @@ export function HomeView() {
           </div>
         </div>
       </section>
+      <NextSteps />
     </div>
   );
 }

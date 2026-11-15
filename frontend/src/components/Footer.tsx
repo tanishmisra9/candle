@@ -21,22 +21,28 @@ export function Footer() {
     return null;
   }
 
+  // On the landing page the same two links are the NextSteps band right above, so they are not repeated.
+  const onHome = location.pathname === "/";
+
   return (
-    <footer className="mx-auto w-full max-w-[1360px] px-4 pb-6 pt-2 text-center sm:px-5 md:px-10">
-      <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-4">
-        {FOOTER_LINKS.map(({ to, label }) => (
-          <Link
-            key={to}
-            to={to}
-            className={linkClass}
-            onPointerEnter={() => prefetchRoute(to)}
-            onFocus={() => prefetchRoute(to)}
-            onTouchStart={() => prefetchRoute(to)}
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
+    // footer-reveal: fades in AFTER the page above it (see index.css), never before it.
+    <footer className="footer-reveal mx-auto w-full max-w-[1360px] px-4 pb-6 pt-2 text-center sm:px-5 md:px-10">
+      {onHome ? null : (
+        <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-4">
+          {FOOTER_LINKS.map(({ to, label }) => (
+            <Link
+              key={to}
+              to={to}
+              className={linkClass}
+              onPointerEnter={() => prefetchRoute(to)}
+              onFocus={() => prefetchRoute(to)}
+              onTouchStart={() => prefetchRoute(to)}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+      )}
       <p className="text-xs text-muted">Candle does not give medical advice.</p>
       <LastSyncedLabel className="mt-1" />
     </footer>
