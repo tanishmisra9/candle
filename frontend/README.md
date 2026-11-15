@@ -16,9 +16,9 @@ If you edit `package.json`, regenerate `pnpm-lock.yaml` in the same change (`pnp
 ```text
 src/
 ├── main.tsx, App.tsx      # entry; shell, routes, stacked snapshot overlays
-├── views/                 # route-level (Home is bundled with the shell; Dashboard=/trials, Literature, Ask are lazy)
+├── views/                 # route-level (Home is bundled with the shell; Dashboard=/trials, Literature, Ask, Guide, About are lazy)
 ├── components/            # shared UI (cards, dialogs, filters, timeline, Ask panel)
-│   ├── home/              # the landing page: FlameLogo, useIgnition (intro state), glossary, guided paths
+│   ├── home/              # the landing page: FlameLogo, useIgnition (intro state), the live counts sentence
 │   └── ui/                # primitives: Button, Input, ToggleButton, Tooltip, ThemeToggle
 ├── lib/                   # api (sole API client), routes (lazy chunks + prefetch), a11y, motion, theme, mobile, formatters, ...
 ├── hooks/                 # usePageTitle, useLastSynced
@@ -47,9 +47,11 @@ A restrained take on the Telogify language: paper-like, square, no pills. Keep i
 
 ## Landing page
 
-`views/HomeView.tsx` composes `components/home/*`: a hero **stage** (follows the page theme) with the huge logo, the three audience paths, a live "Candle today" sentence (reuses the Trials/Literature total queries), a glossary built from the same formatters/badges as the Trials page, a "what Candle does and doesn't do" section and a builder's note. Type is rem-based so it scales with the user's text-size setting.
+`views/HomeView.tsx` composes `components/home/*` into **one screen**: a hero **stage** (follows the page theme) with the logo, a welcome, the three main destinations and a live "Candle today" sentence (reuses the Trials/Literature total queries). Everything else lives on its own page: the CHM and trial-terms guide on `/guide` (`views/GuideView.tsx`, built from the same formatters/badges as the Trials page) and the limits and builder's note on `/about`; both are linked from the footer, which also carries the "does not give medical advice" line on every page that has a footer. There are no in-page hash links. Type is rem-based so it scales with the user's text-size setting.
 
-**The intro.** The hero is Candle's original flame (the exact lucide `Flame` path, byte-compared in `FlameLogo.test.tsx`) at about 42svh. One simple sequence of about 2.1s plays on every page load (not on an in-app return to `/`): the flame zooms in while the room lifts out of a dusk veil (light theme: deep warm umber to paper; dark theme: dusk equals the canvas), a soft light pool blooms, and the page fades in top to bottom. Afterwards only a barely-there flicker and the inner flame's slow sway remain. The veil is `html[data-ignite]::before`; `index.html` starts it before first paint so the nav never flashes bright.
+**One screen, no magic height.** The app shell is a flex column (root > page content > `<main>`), and the stage is `flex: 1`, so it fills whatever the nav and footer leave; nothing hard-codes their heights. The flame is sized from the screen height (about 28svh, about 15svh on phones, never under 7rem). Measured in a real browser: it does not scroll at 1280x800, 1440x900 or 390x844, with the API up or down. Shorter screens (about 700px tall and under) scroll; nothing is clipped.
+
+**The intro.** The hero is Candle's original flame (the exact lucide `Flame` path, byte-compared in `FlameLogo.test.tsx`). One simple sequence of about 2.1s plays on every page load (not on an in-app return to `/`): the flame zooms in while the room lifts out of a dusk veil (light theme: deep warm umber to paper; dark theme: dusk equals the canvas), a soft light pool blooms, and the page fades in top to bottom. Afterwards only a barely-there flicker and the inner flame's slow sway remain. The veil is `html[data-ignite]::before`; `index.html` starts it before first paint so the nav never flashes bright.
 
 State and gating (`components/home/useIgnition.ts`, `data-ignite` on the `.intro` wrapper and on `<html>`):
 - `IGNITE_STATES` `idle -> go -> lit` (`lit` terminal), with `ignitionNext()` as the only writer. The base CSS (no `data-ignite`) is the finished page, so every no-animation path is lit.
@@ -64,7 +66,7 @@ State and gating (`components/home/useIgnition.ts`, `data-ignite` on the `.intro
 - **Do not put a CSS `transform` on the route wrapper** (`PageTransition` is opacity-only, pinned by `lib/motion.test.ts`): a transform makes it the containing block for `position: fixed` children, so the Ask composer and the scroll-to-top button rendered mid-screen and then jumped.
 - Real-browser axe scans must wait for `data-ignite="lit"` (about 2.5s): mid-intro the content is deliberately transparent.
 - **Loading**: Home is bundled eagerly; other routes are lazy but prefetched (`lib/routes.ts`: nav hover/focus/touch and an idle pass). The route fallback shows nothing for 250ms and never text. Pages fade in top to bottom (`.page-cascade`, opacity only). Inter is self-hosted (`@fontsource-variable/inter`) with a metrics-matched fallback.
-- Disease background and glossary wording are cited/derived from MedlinePlus Genetics and NEI and should be reviewed by the owner before changes.
+- Disease background and glossary wording (now in `views/GuideView.tsx`) are cited/derived from MedlinePlus Genetics and NEI and should be reviewed by the owner before changes.
 
 ## Accessibility rules
 

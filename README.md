@@ -9,7 +9,9 @@ Candle is a quiet research dashboard for Choroideremia (CHM). It pulls clinical 
 - **Trials** (`/trials`) — Browse CHM trials in grid or timeline view; open detailed trial snapshots with AI summaries, locations, and linked publications.
 - **Literature** (`/literature`) — Search and paginate publications; open reader snapshots with persisted AI overviews and trial links.
 - **Ask** (`/ask`) — Ask grounded questions across trials and publications via retrieval-augmented generation (RAG).
-- **Home** (`/`) — A welcoming landing page: a short flame-lighting intro (about 2s, every page load, skippable by any input), three guided paths for people with CHM, families and researchers, a live "Candle follows N trials and M publications" line, a glossary of trial terms, what Candle does and doesn't do, and a note from the builder.
+- **Home** (`/`) — A one-screen landing page: a short flame-lighting intro (about 2s, every page load, skippable by any input), a welcome, the three main destinations and a live "Candle follows N trials and M publications" line.
+- **Guide** (`/guide`) — What choroideremia is and how to read a trial's phase and status (labels and markers match the Trials page). Linked from the footer and from the Trials page.
+- **About** (`/about`) — What Candle does and doesn't do, and a note from the builder. Linked from the footer.
 
 Publication overviews and trial summaries are stored in Postgres after first generation so repeat visits stay fast.
 

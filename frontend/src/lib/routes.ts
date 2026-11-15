@@ -7,6 +7,8 @@ const loaders = {
   "/trials": () => import("../views/DashboardView"),
   "/literature": () => import("../views/LiteratureView"),
   "/ask": () => import("../views/AskView"),
+  "/guide": () => import("../views/GuideView"),
+  "/about": () => import("../views/AboutView"),
 } as const;
 
 export type LazyRoute = keyof typeof loaders;
@@ -14,6 +16,8 @@ export type LazyRoute = keyof typeof loaders;
 export const loadDashboard = loaders["/trials"];
 export const loadLiterature = loaders["/literature"];
 export const loadAsk = loaders["/ask"];
+export const loadGuide = loaders["/guide"];
+export const loadAbout = loaders["/about"];
 
 /** Start loading a route's chunk now. Safe to call repeatedly; failures surface on real navigation. */
 export function prefetchRoute(to: string) {

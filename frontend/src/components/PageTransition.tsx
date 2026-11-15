@@ -1,4 +1,5 @@
 /** Route enter/exit animation wrapper that also moves focus to the new page heading after client-side navigation. */
+import clsx from "clsx";
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, type ReactNode } from "react";
 
@@ -8,8 +9,17 @@ import { routeTransitionMotion } from "../lib/motion";
 let hasNavigated = false;
 
 // cascade: the page's top-level blocks fade in top to bottom (opacity only). Home has its own intro,
-// and Ask has a fixed composer that owns its own entrance, so those two opt out.
-export function PageTransition({ children, cascade = true }: { children: ReactNode; cascade?: boolean }) {
+// and Ask has a fixed composer that owns its own entrance, so those two opt out. className lets a
+// page take part in the app shell's flex column (Home fills the screen that way).
+export function PageTransition({
+  children,
+  cascade = true,
+  className,
+}: {
+  children: ReactNode;
+  cascade?: boolean;
+  className?: string;
+}) {
   const prefersReducedMotion = useReducedMotion();
   const variants = routeTransitionMotion(prefersReducedMotion);
   const ref = useRef<HTMLDivElement>(null);
@@ -49,7 +59,7 @@ export function PageTransition({ children, cascade = true }: { children: ReactNo
   return (
     <motion.div
       ref={ref}
-      className={cascade ? "page-cascade" : undefined}
+      className={clsx(cascade && "page-cascade", className) || undefined}
       initial={variants.initial}
       animate={variants.animate}
       exit={variants.exit}

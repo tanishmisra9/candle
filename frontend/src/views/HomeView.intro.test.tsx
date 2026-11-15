@@ -120,7 +120,7 @@ describe("gated content stays available while the room is dark", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Welcome to Candle" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Browse clinical trials" }).length).toBeGreaterThan(0);
     const gated = [...container.querySelectorAll(".reveal")];
-    expect(gated.length).toBeGreaterThanOrEqual(6);
+    expect(gated.length).toBeGreaterThanOrEqual(5);
     for (const element of gated) {
       expect(element.closest("[hidden], [aria-hidden='true'], [inert]")).toBeNull();
       expect((element as HTMLElement).style.display).not.toBe("none");
