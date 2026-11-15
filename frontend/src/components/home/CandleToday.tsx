@@ -29,7 +29,7 @@ export function CandleToday() {
   const ready = trialTotal !== undefined && publicationTotal !== undefined;
 
   return (
-    <p className="mt-10 min-h-[3.5rem] text-[1.125rem] leading-[1.7] text-muted">
+    <p className="mt-4 min-h-[3.5rem] text-[1.0625rem] leading-[1.6] text-muted sm:mt-6 sm:min-h-[1.75rem] sm:text-[1.125rem] sm:leading-[1.7]">
       {ready ? (
         <>
           Right now Candle follows {plural(trialTotal, "clinical trial", "clinical trials")} and{" "}

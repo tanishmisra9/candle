@@ -6,7 +6,7 @@ Closure pass for remaining WCAG gaps flagged after the tiered ADA work (`d5dbbb8
 
 | Check | Result | Notes |
 | --- | --- | --- |
-| `vitest-axe` (`src/components/*.a11y.test.tsx` and `src/views/HomeView.a11y.test.tsx`, 6 files / 7 tests) | **passing** | Component-level coverage only (~30–40% of real-world issues). `color-contrast` disabled in jsdom. **Not sufficient for full conformance sign-off.** |
+| `vitest-axe` (`src/components/*.a11y.test.tsx` and `src/views/HomeView.a11y.test.tsx` and `src/views/InfoViews.a11y.test.tsx` for /guide and /about, 7 files / 9 tests) | **passing** | Component-level coverage only (~30–40% of real-world issues). `color-contrast` disabled in jsdom. **Not sufficient for full conformance sign-off.** |
 | `src/test/contrast.test.ts` | **passing** | Reads the real tokens from `index.css` and asserts WCAG ratios per theme (text ≥4.5:1, focus/borders/status fills ≥3:1, timeline fills + labels). Fails if a token drifts (e.g. dark amber used on cream = ~2:1). |
 | Real-browser axe (all rules incl. contrast, wcag2a–wcag22aa + best-practice) | **0 violations** (re-run after the intro rewrite, the liquid-glass nav and the lazy-route changes) | `/`, `/trials`, `/literature`, `/ask` (empty state); light and dark; 1280, 390 and 320px; scrolled to 0 and 500px (so content passes under the glass nav), real local API data, no horizontal overflow at any combination. **Not re-run since the earlier pass:** the trials timeline view, `/ask` with an answer and the trial dialog (they were clean then). Wait >= 1.5s after scrolling before scanning: cards reveal on scroll, and axe samples them mid-fade (a false contrast failure). Not in CI (Playwright is not a project dependency). |
 
@@ -65,6 +65,6 @@ Automated checks in this closure pass do **not** establish full WCAG conformance
 - [x] Tab through `/trials`: every stop shows a 2px solid outline
 - [x] Tooltips: open on keyboard focus and mouse hover (delayed), Escape dismisses, hoverable, never open on touch
 - [x] Theme: persists across reload; stored light beats a dark OS with no flash before JS loads
-- [ ] Landing: no pause control (owner decision; see 2.2.2); reduced motion, forced colours and `prefers-contrast: more` handled; guide link lands below the fixed nav; no CLS; API-down state clean; axe clean in both themes at 0/50/100% scroll
+- [ ] Landing: no pause control (owner decision; see 2.2.2); reduced motion, forced colours and `prefers-contrast: more` handled; the landing page fits one screen at 1280x800 / 1440x900 / 390x844 and /guide and /about are axe clean (no in-page hash links, so no anchor-below-the-nav case); no CLS; API-down state clean; axe clean in both themes at 0/50/100% scroll
 - [x] Ask: follows the stream, rests at the real bottom, does not drag after scrolling up, Jump to latest resumes
 - [x] Trial → publication stacked overlay: background inert, focus in top dialog

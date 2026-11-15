@@ -7,6 +7,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/trials": "Trials — Candle",
   "/literature": "Literature — Candle",
   "/ask": "Ask — Candle",
+  "/guide": "Guide — Candle",
+  "/about": "About — Candle",
 };
 
 export function usePageTitle() {

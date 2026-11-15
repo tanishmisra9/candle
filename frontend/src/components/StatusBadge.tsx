@@ -2,7 +2,7 @@
 import { formatStatusLabel, normalizeStatus } from "../lib/formatters";
 import clsx from "clsx";
 
-function statusTier(status: string | null): "active" | "completed" | "terminated" | "unknown" {
+export function statusTier(status: string | null): "active" | "completed" | "terminated" | "unknown" {
   const normalized = normalizeStatus(status);
 
   if (

@@ -243,17 +243,22 @@ a {
  * light blooms | 0.9-2.1 the page fades in top to bottom.
  */
 .night-stage {
-  --logo: min(42svh, 78vw, 26rem);
+  /* The landing page is one screen, so the flame is sized from the screen height: ~28svh on larger
+     screens, ~15svh on phones (where three stacked buttons take the room), never under 7rem. Measured
+     fits: 1280x800, 1440x900 and 390x844 do not scroll (see CLAUDE.md "Landing page"). */
+  --logo: clamp(7rem, min(28svh, 60vw), 20rem);
   position: relative;
   isolation: isolate;
   display: flex;
-  /* The stage runs up under the frosted nav (no strip of bare page between them), so the flame's glow
-     shows through the glass. */
-  min-height: calc(100svh - 2rem);
+  /* Fills whatever the nav and footer leave (the shell is a flex column, see App.tsx), so there is no
+     height to keep in sync with them. Shorter screens simply scroll; nothing is clipped. The stage
+     runs up under the frosted nav (no strip of bare page between them), so the flame's glow shows
+     through the glass. */
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: calc(var(--nav-offset) + 2rem) 1rem 3rem;
+  padding: calc(var(--nav-offset) + 1rem) 1rem 1rem;
   /* Transparent and frameless: the hero is part of the page, not a box on it. */
   background: transparent;
   color: rgb(var(--text));
@@ -288,6 +293,9 @@ html[data-ignite]::before {
   background: rgb(var(--dusk));
   opacity: 0;
   transition: opacity 0.35s ease;
+}
+@media (max-width: 639px) {
+  .night-stage { --logo: clamp(7rem, 15svh, 10rem); }
 }
 .flame-logo {
   position: relative;
@@ -370,7 +378,6 @@ html[data-ignite="go"]::before { opacity: 1; animation: flame-veil-out 1.2s ease
 .intro[data-ignite="go"] .reveal-3 { animation: flame-appear 0.6s ease-out 1.14s backwards; }
 .intro[data-ignite="go"] .reveal-4 { animation: flame-appear 0.6s ease-out 1.26s backwards; }
 .intro[data-ignite="go"] .reveal-5 { animation: flame-appear 0.6s ease-out 1.38s backwards; }
-.intro[data-ignite="go"] .reveal-6 { animation: flame-appear 0.6s ease-out 1.5s backwards; }
 
 /* Alive afterwards: a barely-there flicker of the whole flame and a slow sway of the inner flame. The
    declarations are IDENTICAL in `go` and `lit` (one rule, anything but `idle`), so the move from the

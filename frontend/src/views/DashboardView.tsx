@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
+import { Link } from "react-router-dom";
+
 import { FilterBar } from "../components/FilterBar";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
 import { ToggleButton } from "../components/ui/ToggleButton";
@@ -323,6 +325,15 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
             ? `Showing ${trialTotal} of ${unfilteredTrialTotal} trials`
             : `${trialTotal} trials tracked`}
         </h1>
+        <p className="text-[14px] text-muted">
+          New to trial terms?{" "}
+          <Link
+            to="/guide"
+            className="inline-flex min-h-11 items-center font-medium text-accent underline underline-offset-4 hover:text-text"
+          >
+            Read the guide
+          </Link>
+        </p>
       </header>
 
       <div className="space-y-4">

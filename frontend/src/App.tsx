@@ -11,7 +11,14 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Footer } from "./components/Footer";
 import { SiteNav } from "./components/SiteNav";
 import { PageTransition } from "./components/PageTransition";
-import { loadAsk, loadDashboard, loadLiterature, prefetchAllRoutesWhenIdle } from "./lib/routes";
+import {
+  loadAbout,
+  loadAsk,
+  loadDashboard,
+  loadGuide,
+  loadLiterature,
+  prefetchAllRoutesWhenIdle,
+} from "./lib/routes";
 import { HomeView } from "./views/HomeView";
 import { PublicationSnapshot } from "./components/PublicationSnapshot";
 import { TrialSnapshot } from "./components/TrialSnapshot";
@@ -23,6 +30,8 @@ import type { PublicationSummary } from "./types";
 const DashboardView = lazy(() => loadDashboard().then((module) => ({ default: module.DashboardView })));
 const LiteratureView = lazy(() => loadLiterature().then((module) => ({ default: module.LiteratureView })));
 const AskView = lazy(() => loadAsk().then((module) => ({ default: module.AskView })));
+const GuideView = lazy(() => loadGuide().then((module) => ({ default: module.GuideView })));
+const AboutView = lazy(() => loadAbout().then((module) => ({ default: module.AboutView })));
 
 /**
  * Shown only if a lazy route is still loading. It renders nothing for the first 250ms (so a fast load
@@ -99,16 +108,20 @@ export default function App() {
   useEffect(() => prefetchAllRoutesWhenIdle(), []);
 
   return (
-    <div className="min-h-dvh">
+    // The shell is a flex column (root > page content > main) so the landing page's stage can fill
+    // exactly the screen left over by the nav and the footer: no hard-coded heights to keep in sync.
+    <div className="flex min-h-svh flex-col">
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
       <SiteNav />
-      <div ref={pageContentRef} aria-hidden={isOverlayOpen ? true : undefined}>
+      <div ref={pageContentRef} aria-hidden={isOverlayOpen ? true : undefined} className="flex flex-1 flex-col">
         <main
           id="main-content"
           tabIndex={-1}
-          className="mx-auto max-w-[1360px] px-4 pb-20 sm:px-5 md:px-10 outline-none"
+          className={`mx-auto flex w-full max-w-[1360px] flex-1 flex-col px-4 sm:px-5 md:px-10 outline-none ${
+            location.pathname === "/" ? "" : "pb-20"
+          }`}
         >
           <AnimatePresence mode="wait" initial>
             <Suspense fallback={<RouteFallback />}>
@@ -117,8 +130,24 @@ export default function App() {
                   <Route
                     path="/"
                     element={
-                      <PageTransition cascade={false}>
+                      <PageTransition cascade={false} className="flex flex-1 flex-col">
                         <HomeView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/guide"
+                    element={
+                      <PageTransition>
+                        <GuideView />
+                      </PageTransition>
+                    }
+                  />
+                  <Route
+                    path="/about"
+                    element={
+                      <PageTransition>
+                        <AboutView />
                       </PageTransition>
                     }
                   />
