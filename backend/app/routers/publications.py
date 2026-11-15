@@ -8,6 +8,7 @@ import base64
 import binascii
 import hashlib
 import json
+import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -35,6 +36,8 @@ from app.services.publication_overviews import (
     get_or_generate_publication_overview,
 )
 
+
+logger = logging.getLogger("candle.api")
 
 router = APIRouter(prefix="/publications", tags=["publications"])
 
@@ -228,9 +231,12 @@ async def publication_overview(
             status_code=503,
             detail="Publication overview service is temporarily unavailable.",
         ) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-    except Exception as exc:  # pragma: no cover - exercised via API smoke test
+    except HTTPException:
+        # The concurrency slot's own 503 ("too many requests right now"): do not turn it into a 500.
+        raise
+    except Exception as exc:
+        # Includes RuntimeError (config and driver messages): log it, keep the text out of the response.
+        logger.exception("Unexpected failure while generating a publication overview")
         raise HTTPException(
             status_code=500, detail="Unable to generate publication overview."
         ) from exc

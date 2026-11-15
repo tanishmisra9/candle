@@ -34,6 +34,9 @@ logger = logging.getLogger("candle.api")
 
 router = APIRouter(tags=["ask"])
 
+# What the browser is told for any failure we did not anticipate; the real cause goes to the log only.
+GENERIC_ANSWER_ERROR = "Something went wrong while answering. Please try again."
+
 
 @router.post("/ask", response_model=AskResponse)
 async def ask(
@@ -60,8 +63,14 @@ async def ask(
             status_code=503,
             detail="The AI service is temporarily unavailable.",
         ) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except HTTPException:
+        # The concurrency slot's own 503 ("too many requests right now"): already the right answer.
+        raise
+    except Exception as exc:
+        # Includes RuntimeError (config and driver messages): log it, but keep the text out of the
+        # response, exactly as the streaming route does.
+        logger.exception("Unexpected failure while answering")
+        raise HTTPException(status_code=500, detail=GENERIC_ANSWER_ERROR) from exc
 
 
 @router.post("/ask/stream")
@@ -97,14 +106,12 @@ async def ask_stream(
                 )
                 + "\n\n"
             )
-        except RuntimeError as exc:
-            yield f"data: {json.dumps({'type': 'error', 'detail': str(exc)})}\n\n"
         except Exception:
-            # The response has already started, so an unexpected failure (a database error, a bug)
-            # cannot become an HTTP status. End the stream with an `error` event instead of cutting
-            # it off, and keep the internals out of the message.
+            # The response has already started, so an unexpected failure (a database error, a bug, a
+            # RuntimeError with a config or driver message) cannot become an HTTP status. End the stream
+            # with an `error` event instead of cutting it off, and keep the internals out of the message.
             logger.exception("Unexpected failure while streaming an answer")
-            yield f"data: {json.dumps({'type': 'error', 'detail': 'Something went wrong while answering. Please try again.'})}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'detail': GENERIC_ANSWER_ERROR})}\n\n"
 
     return StreamingResponse(
         event_generator(),

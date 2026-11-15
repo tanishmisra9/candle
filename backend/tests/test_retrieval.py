@@ -172,6 +172,43 @@ async def test_hybrid_retrieval_degrades_to_dense_when_the_fulltext_session_cann
     assert request_session.statements == 1
 
 
+async def test_hybrid_retrieval_does_not_wait_on_a_fulltext_side_stuck_waiting_for_a_connection(monkeypatch):
+    # Under load the full-text query's own pooled connection can take up to the pool timeout (30s by
+    # default) to arrive. The dense results were ready, but the request blocked on `await bm25_task`:
+    # latency instead of the "degrades to dense-only" the function promises.
+    import asyncio
+
+    from app.services import retrieval
+
+    class _StuckWaitingForAConnection:
+        cancelled = False
+
+        async def __aenter__(self):
+            try:
+                await asyncio.sleep(30)
+            except asyncio.CancelledError:
+                _StuckWaitingForAConnection.cancelled = True
+                raise
+
+        async def __aexit__(self, *_exc):
+            return False
+
+    monkeypatch.setattr(retrieval, "FULL_TEXT_TIMEOUT_SECONDS", 0.05)
+    request_session = _OneAtATimeSession()
+
+    # wait_for turns a regression (waiting out the 30s) into a failure instead of a hung test.
+    result = await asyncio.wait_for(
+        retrieval.retrieve_hybrid_chunks(
+            request_session, "q", [0.0] * 3, limit=10, bm25_session_factory=_StuckWaitingForAConnection
+        ),
+        timeout=2,
+    )
+
+    assert result == []  # dense ran and returned nothing here; the point is that it came back at all
+    assert request_session.statements == 1
+    assert _StuckWaitingForAConnection.cancelled  # the stuck task was cancelled, not abandoned
+
+
 async def test_hybrid_retrieval_cancels_the_fulltext_query_when_the_dense_query_fails():
     import asyncio
 

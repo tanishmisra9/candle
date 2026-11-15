@@ -89,6 +89,20 @@ def record_summary_attempt(trial: Trial, summary: str | None, now: datetime) -> 
     return target
 
 
+def repair_missing_attempt_time(trial: Trial, now: datetime) -> SummaryState:
+    """The only OTHER writer of `ai_summary_generated_at`: gives a summary that has no attempt time one.
+
+    That combination is impossible once the database CHECK exists, but a skipped or failed schema step
+    (development tolerates that) can leave it behind, and it must not abort a whole run. The trial goes
+    to SUMMARISED (retried after the normal window); the summary itself is never touched. Anything that
+    is not that broken state is refused rather than stamped, so a bug cannot hide behind a "repair".
+    """
+    if trial.ai_summary is None or trial.ai_summary_generated_at is not None:
+        raise InvalidSummaryTransition(f"Trial {trial.id} is not missing an attempt time; nothing to repair")
+    trial.ai_summary_generated_at = now
+    return SummaryState.SUMMARISED
+
+
 def stale_trial_stmt(limit: int):
     """Trials never attempted or last attempted over 7 days ago, oldest first (keyed on the attempt timestamp, so an empty response is not re-selected)."""
     return (
@@ -154,11 +168,9 @@ async def generate_trial_summaries(session: AsyncSession) -> int:
         # but commit each completed summary so partial progress survives upstream failures.
         for index, trial in enumerate(trials, start=1):
             if trial.ai_summary is not None and trial.ai_summary_generated_at is None:
-                # Impossible once the database CHECK is in place, but a skipped/failed schema step
-                # (development tolerates that) must not abort the whole run: stamp an attempt time
-                # (-> SUMMARISED, retried after the normal window) and move on without a model call.
+                # See repair_missing_attempt_time: no model call, one guarded write, move on.
                 logger.warning("Trial %s had a summary but no attempt time; repairing", trial.id)
-                trial.ai_summary_generated_at = datetime.now(timezone.utc)
+                repair_missing_attempt_time(trial, datetime.now(timezone.utc))
                 await session.commit()
                 continue
             summary = await generate_trial_summary_text(trial)
