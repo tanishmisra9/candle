@@ -243,22 +243,24 @@ a {
  * light blooms | 0.9-2.1 the page fades in top to bottom.
  */
 .night-stage {
-  /* The landing page is one screen, so the flame is sized from the screen height: ~28svh on larger
-     screens, ~15svh on phones (where three stacked buttons take the room), never under 7rem. Measured
-     fits: 1280x800, 1440x900 and 390x844 do not scroll (see CLAUDE.md "Landing page"). */
-  --logo: clamp(7rem, min(28svh, 60vw), 20rem);
+  /* The hero fills at least one screen (min-height 100svh) with generous spacing; if its content is
+     taller (short screens, phones) the stage simply grows and the page scrolls. The NextSteps band
+     (Guide / About) follows below the fold. The flame is sized from the screen height (~33svh, ~20svh
+     on phones where three stacked buttons take the room), floor 7rem (see CLAUDE.md "Landing page"). */
+  --logo: clamp(8rem, min(33svh, 70vw), 24rem);
   position: relative;
   isolation: isolate;
   display: flex;
-  /* Fills whatever the nav and footer leave (the shell is a flex column, see App.tsx), so there is no
-     height to keep in sync with them. Shorter screens simply scroll; nothing is clipped. The stage
-     runs up under the frosted nav (no strip of bare page between them), so the flame's glow shows
-     through the glass. */
+  /* flex: 1 in the app shell (App.tsx) lets the stage grow if the screen is taller than 100svh; on
+     shorter screens it grows to its content and the page scrolls (nothing is clipped). The stage runs
+     up under the frosted nav (no strip of bare page between them), so the flame's glow shows through
+     the glass. */
   flex: 1 1 auto;
+  min-height: 100svh;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: calc(var(--nav-offset) + 1rem) 1rem 1rem;
+  padding: calc(var(--nav-offset) + 2rem) 1rem 4rem;
   /* Transparent and frameless: the hero is part of the page, not a box on it. */
   background: transparent;
   color: rgb(var(--text));
@@ -295,7 +297,7 @@ html[data-ignite]::before {
   transition: opacity 0.35s ease;
 }
 @media (max-width: 639px) {
-  .night-stage { --logo: clamp(7rem, 15svh, 10rem); }
+  .night-stage { --logo: clamp(7rem, 20svh, 12rem); }
 }
 .flame-logo {
   position: relative;
@@ -378,6 +380,18 @@ html[data-ignite="go"]::before { opacity: 1; animation: flame-veil-out 1.2s ease
 .intro[data-ignite="go"] .reveal-3 { animation: flame-appear 0.6s ease-out 1.14s backwards; }
 .intro[data-ignite="go"] .reveal-4 { animation: flame-appear 0.6s ease-out 1.26s backwards; }
 .intro[data-ignite="go"] .reveal-5 { animation: flame-appear 0.6s ease-out 1.38s backwards; }
+.intro[data-ignite="go"] .reveal-6 { animation: flame-appear 0.6s ease-out 1.5s backwards; }
+/* Footer, every page but Home: a short fade after the page's own cascade, so it never shows first.
+   Keep this rule BEFORE the long comment below: candle-motion.test.ts matches rules together with the
+   text in front of them, and that comment would make it parse this one as an intro animation. */
+.footer-reveal { animation: page-cascade 0.4s ease-out 0.5s backwards; }
+/* On Home the footer lives outside the intro wrapper (App.tsx), so it follows the same sequence
+   through the attribute HomeView mirrors onto <html>: hidden while idle, the LAST block to fade in
+   (after the Guide/About band), done by 2.22s, before the intro ends at 2.3s. `lit` drops the
+   animation (it has finished, and a different animation name there would restart it). */
+html[data-ignite="idle"] .footer-reveal { opacity: 0; animation: none; }
+html[data-ignite="go"] .footer-reveal { animation: flame-appear 0.6s ease-out 1.62s backwards; }
+html[data-ignite="lit"] .footer-reveal { animation: none; }
 
 /* Alive afterwards: a barely-there flicker of the whole flame and a slow sway of the inner flame. The
    declarations are IDENTICAL in `go` and `lit` (one rule, anything but `idle`), so the move from the
@@ -441,6 +455,7 @@ html[data-ignite="go"]::before { opacity: 1; animation: flame-veil-out 1.2s ease
 @media (forced-colors: active) {
   .intro *, .intro *::after { animation: none !important; }
   .intro .reveal { opacity: 1 !important; }
+  .footer-reveal { animation: none !important; opacity: 1 !important; }
   .night-stage { background: Canvas; color: CanvasText; }
   .flame-body { display: none; }
   .flame-outline { stroke: CanvasText; opacity: 1 !important; }
