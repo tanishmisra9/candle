@@ -40,18 +40,18 @@ export function HomeView() {
           <FlameLogo logoRef={observedRef} />
           <h1
             id="welcome-heading"
-            className="reveal reveal-1 mt-6 text-[2.25rem] font-semibold leading-[1.05] tracking-tight sm:text-[3.25rem]"
+            className="reveal reveal-1 mt-8 text-[2.25rem] font-semibold leading-[1.05] tracking-tight sm:text-[3.25rem]"
           >
             Welcome to Candle
           </h1>
-          <p className="reveal reveal-2 mt-2 text-[1.25rem] font-medium leading-snug text-muted sm:mt-3 sm:text-[1.375rem]">
+          <p className="reveal reveal-2 mt-3 text-[1.25rem] font-medium leading-snug text-muted sm:text-[1.375rem]">
             A small light for a long journey.
           </p>
-          <p className="reveal reveal-3 mt-4 max-w-[48rem] text-[1.0625rem] leading-[1.6] sm:mt-6 sm:text-[1.125rem] sm:leading-[1.7]">
+          <p className="reveal reveal-3 mt-5 max-w-[38rem] text-[1.0625rem] leading-[1.65] sm:mt-6 sm:text-[1.125rem] sm:leading-[1.7]">
             Candle brings every choroideremia (CHM) clinical trial and research paper together in
             one calm place, explained in plain language and linked to its sources.
           </p>
-          <div className="reveal reveal-4 mt-6 flex w-full max-w-[22rem] flex-col gap-2 sm:mt-8 sm:w-auto sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center sm:gap-3">
+          <div className="reveal reveal-4 mt-8 flex w-full max-w-[20rem] flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center">
             <Link to="/trials" className={`${linkButtonClass("primary")} ${FULL}`}>
               Browse clinical trials
             </Link>

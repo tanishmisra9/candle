@@ -65,6 +65,6 @@ Automated checks in this closure pass do **not** establish full WCAG conformance
 - [x] Tab through `/trials`: every stop shows a 2px solid outline
 - [x] Tooltips: open on keyboard focus and mouse hover (delayed), Escape dismisses, hoverable, never open on touch
 - [x] Theme: persists across reload; stored light beats a dark OS with no flash before JS loads
-- [ ] Landing: no pause control (owner decision; see 2.2.2); reduced motion, forced colours and `prefers-contrast: more` handled; the landing page fits one screen at 1280x800 / 1440x900 / 390x844 and /guide and /about are axe clean (no in-page hash links, so no anchor-below-the-nav case); no CLS; API-down state clean; axe clean in both themes at 0/50/100% scroll
+- [ ] Landing: no pause control (owner decision; see 2.2.2); reduced motion, forced colours and `prefers-contrast: more` handled; the landing hero fills (and its content fits inside) one screen at 1280x800 / 1440x900 / 390x844, with the footer below it, and /guide and /about are axe clean (no in-page hash links, so no anchor-below-the-nav case); no CLS; API-down state clean; axe clean in both themes at 0/50/100% scroll
 - [x] Ask: follows the stream, rests at the real bottom, does not drag after scrolling up, Jump to latest resumes
 - [x] Trial → publication stacked overlay: background inert, focus in top dialog
