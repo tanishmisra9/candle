@@ -108,7 +108,7 @@ export function AboutView() {
           <p>Getting to build Candle alongside the community has been truly rewarding.</p>
         </blockquote>
         {/* The public release: the press release itself and the builder's announcement post. */}
-        <ul className="mt-8 grid gap-4 md:grid-cols-2">
+        <ul className="mt-8 grid gap-6 md:grid-cols-2 md:gap-4">
           <li className="flex">
             <LinkTile
               href={PRESS_RELEASE}

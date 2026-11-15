@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 const TILE =
-  "group block w-full rounded-panel border border-line bg-panel px-8 py-9 text-left transition-[background-color,border-color,box-shadow] duration-200 hover:border-accent hover:bg-text/5 hover:ring-1 hover:ring-inset hover:ring-accent focus-visible:border-accent active:bg-text/10 motion-reduce:transition-none";
+  "group block w-full rounded-panel border border-line bg-panel px-6 py-8 text-left sm:px-8 sm:py-9 transition-[background-color,border-color,box-shadow] duration-200 hover:border-accent hover:bg-text/5 hover:ring-1 hover:ring-inset hover:ring-accent focus-visible:border-accent active:bg-text/10 motion-reduce:transition-none";
 
 type LinkTileProps = { title: string; body: string } & (
   | {

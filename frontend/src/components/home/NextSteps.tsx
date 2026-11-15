@@ -23,8 +23,10 @@ const STEPS = [
 export function NextSteps() {
   return (
     // reveal-6: part of the intro's top-to-bottom sequence (after the counts, before the footer).
-    <nav aria-label="More about Candle" className="reveal reveal-6 mx-auto w-full max-w-[56rem] pb-12 pt-2">
-      <ul className="grid gap-4 md:grid-cols-2">
+    <nav aria-label="More about Candle" className="reveal reveal-6 mx-auto w-full max-w-[56rem] px-4 pb-12 pt-2 sm:px-0">
+      {/* px-4 on phones lines the tiles up with the hero text and buttons above (they were 16px nearer the
+          screen edge); gap-6 gives the two tiles room to read as separate choices. */}
+      <ul className="grid gap-6 md:grid-cols-2 md:gap-4">
         {STEPS.map(({ to, title, body }) => (
           <li key={to} className="flex">
             <LinkTile to={to} title={title} body={body} onPrefetch={() => prefetchRoute(to)} />
