@@ -1,5 +1,7 @@
 # Candle
 
+![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) [![Lockfiles](https://github.com/tanishmisra9/candle/actions/workflows/lockfiles.yml/badge.svg)](https://github.com/tanishmisra9/candle/actions/workflows/lockfiles.yml) [![Live](https://img.shields.io/badge/live-candleforchm.org-2ea44f)](https://www.candleforchm.org)
+
 Candle is a quiet research dashboard for Choroideremia (CHM). It pulls clinical trials from ClinicalTrials.gov, publications from PubMed, links them where possible, generates persistent plain-language publication overviews and trial summaries, and lets you explore the corpus through a calmer interface for trials, literature, and grounded Q&A.
 
 **Live app:** [https://www.candleforchm.org](https://www.candleforchm.org)

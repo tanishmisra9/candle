@@ -16,3 +16,4 @@ frontend/*.tsbuildinfo
 *.log
 CLAUDE.md
 .claude/
+.pnpm-store/
