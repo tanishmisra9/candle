@@ -9,6 +9,7 @@ import clsx from "clsx";
 import { ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { BackHomeButton } from "../components/BackHomeButton";
 import { StatusMarker, statusTier } from "../components/StatusBadge";
 import { formatPhaseLabel, formatStatusLabel } from "../lib/formatters";
 import { linkButtonClass } from "../lib/ui";
@@ -38,11 +39,13 @@ const STATUS_GROUPS = [
   { tier: "terminated", title: "Ended early or paused" },
 ] as const;
 
-// Vertical hairline between columns from `sm`/`md` up; stacked (no rule) on phones.
+// Vertical hairline between columns from `sm`/`md` up; stacked (no rule) on phones. Padding on BOTH sides of
+// every rule (pr on all but the last column, pl on all but the first): with only pl, a line that exactly
+// filled a column ended against the next column's hairline.
 const columnRule = (bp: "sm" | "md") =>
   bp === "sm"
-    ? "sm:border-l sm:border-line sm:pl-6 sm:first:border-l-0 sm:first:pl-0"
-    : "md:border-l md:border-line md:pl-6 md:first:border-l-0 md:first:pl-0";
+    ? "sm:border-l sm:border-line sm:px-6 sm:first:border-l-0 sm:first:pl-0 sm:last:pr-0"
+    : "md:border-l md:border-line md:px-6 md:first:border-l-0 md:first:pl-0 md:last:pr-0";
 
 // inline-block (not flex) so a wrapped link keeps its arrow next to the last word; py-3 keeps the 44px target.
 const sourceLink =
@@ -53,8 +56,12 @@ const H2 = "text-[1.5rem] font-semibold leading-snug tracking-tight";
 
 export function GuideView() {
   return (
-    <div className="mx-auto max-w-[56rem] pt-28 md:pt-32">
-      <h1 className="text-balance text-[34px] font-medium leading-[1.1] tracking-[-0.03em] text-text md:text-[42px]">
+    // One column at the full shell width (the same 1280px as the nav and the Trials page, so the left edge
+    // lines up with the logo and the grids below use the room). Only the running prose is capped, to a
+    // readable line length.
+    <div className="pt-28 md:pt-32">
+      <BackHomeButton />
+      <h1 className="mt-6 text-balance text-[34px] font-medium leading-[1.1] tracking-[-0.03em] text-text md:text-[42px]">
         How to read a CHM trial
       </h1>
       <p className="mt-4 max-w-[40rem] text-balance text-[1.125rem] leading-[1.6] text-muted">
@@ -65,7 +72,7 @@ export function GuideView() {
         <h2 id="chm-heading" className={H2}>
           What is choroideremia?
         </h2>
-        <p className="mt-3 max-w-[38rem] text-[1.125rem] leading-[1.7]">
+        <p className="mt-3 max-w-[46rem] text-[1.125rem] leading-[1.7]">
           Choroideremia (CHM) is an inherited eye condition that causes progressive vision loss and
           mostly affects males. Night blindness is usually the first sign, and the field of vision
           narrows over time. It is caused by changes in the CHM gene.
@@ -86,7 +93,7 @@ export function GuideView() {
         <h2 id="phase-heading" className={H2}>
           What a trial&rsquo;s phase means
         </h2>
-        <p className="mt-3 max-w-[38rem] text-[1.125rem] leading-[1.7]">
+        <p className="mt-3 max-w-[46rem] text-[1.125rem] leading-[1.7]">
           A phase is a stage of testing, not a sign that the treatment works.
         </p>
         <ol className="mt-8 grid gap-8 sm:grid-cols-3 sm:gap-0">
@@ -103,7 +110,7 @@ export function GuideView() {
             </li>
           ))}
         </ol>
-        <p className="mt-8 max-w-[38rem] text-[0.9375rem] leading-[1.6] text-muted">
+        <p className="mt-8 max-w-[46rem] text-[0.9375rem] leading-[1.6] text-muted">
           <span className="font-medium text-text">{formatPhaseLabel("NA")}</span> means no phase
           applies, for example when a study is not testing a drug.
         </p>
@@ -131,7 +138,7 @@ export function GuideView() {
             </div>
           ))}
         </div>
-        <p className="mt-10 max-w-[38rem] text-[0.9375rem] leading-[1.6] text-muted">
+        <p className="mt-10 max-w-[46rem] text-[0.9375rem] leading-[1.6] text-muted">
           A trial&rsquo;s status can change, so always confirm it on the trial&rsquo;s
           ClinicalTrials.gov record, which every trial here links to.
         </p>

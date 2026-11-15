@@ -13,23 +13,34 @@ const FOOTER_LINKS = [
   { to: "/about", label: "About Candle" },
 ] as const;
 
+// Pages whose footer carries the "Visit the CureCHM patient community" link (it used to sit in the About note).
+const CURECHM_PAGES = ["/", "/guide", "/about"];
+
 export function Footer() {
   const location = useLocation();
 
+  // ONE normalised path for every decision below. The router matches routes case-insensitively and with
+  // a trailing slash ("/Guide", "/ask/"), so the footer must see the same page the router rendered.
+  const path = location.pathname.replace(/\/+$/, "").toLowerCase() || "/";
+
   // On the Ask page the sync label is rendered below the fixed input bar instead.
-  if (location.pathname === "/ask") {
+  if (path === "/ask") {
     return null;
   }
 
-  // On the landing page the same two links are the NextSteps band right above, so they are not repeated.
-  const onHome = location.pathname === "/";
+  // A link to the page you are already on is noise, so it is left out: no "Read the guide" on the guide,
+  // no "About Candle" on the about page. On the landing page both go (the NextSteps band right above
+  // has them).
+  const links = path === "/" ? [] : FOOTER_LINKS.filter(({ to }) => to !== path);
+  // The foundation's community link sits in the footer of the landing page and the two inner pages.
+  const showCureChm = CURECHM_PAGES.includes(path);
 
   return (
     // footer-reveal: fades in AFTER the page above it (see index.css), never before it.
     <footer className="footer-reveal mx-auto w-full max-w-[1360px] px-4 pb-6 pt-2 text-center sm:px-5 md:px-10">
-      {onHome ? null : (
+      {links.length === 0 && !showCureChm ? null : (
         <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-4">
-          {FOOTER_LINKS.map(({ to, label }) => (
+          {links.map(({ to, label }) => (
             <Link
               key={to}
               to={to}
@@ -41,6 +52,12 @@ export function Footer() {
               {label}
             </Link>
           ))}
+          {showCureChm ? (
+            <a href="https://curechm.org" target="_blank" rel="noreferrer" className={linkClass}>
+              Visit the CureCHM patient community
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          ) : null}
         </nav>
       )}
       <p className="text-xs text-muted">Candle does not give medical advice.</p>

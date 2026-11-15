@@ -28,6 +28,15 @@ describe("GuideView", () => {
     expect(container.querySelectorAll('a[href^="#"]')).toHaveLength(0);
   });
 
+  it("has a back arrow to the landing page above the heading (icon only, named for screen readers)", () => {
+    renderGuide();
+    const back = screen.getByRole("link", { name: "Back to home" });
+    expect(back).toHaveAttribute("href", "/");
+    expect(back.textContent).toBe("");
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(back.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("explains every phase using the same labels as the Trials page", () => {
     renderGuide();
     const section = screen.getByRole("region", { name: /phase means/i });

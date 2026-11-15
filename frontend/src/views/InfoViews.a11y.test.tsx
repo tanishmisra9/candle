@@ -19,7 +19,11 @@ describe("Guide and About accessibility", () => {
   });
 
   it("the about page has no axe violations", async () => {
-    const { container } = render(<AboutView />);
+    const { container } = render(
+      <MemoryRouter>
+        <AboutView />
+      </MemoryRouter>,
+    );
     expect((await axe(container)).violations).toHaveLength(0);
   });
 });
