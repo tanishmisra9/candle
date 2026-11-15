@@ -108,10 +108,18 @@ export async function askQuestion(question: string) {
   });
 }
 
+/**
+ * Why an answer stream failed. "server": the backend refused or reported a failure (rate limit, too
+ * long, timeout, provider outage...), so asking again would just repeat it. "transport": the stream
+ * itself broke (dropped connection, proxy cut, garbled data), which a plain non-streaming request may
+ * get around.
+ */
+export type AskStreamErrorKind = "server" | "transport";
+
 type AskStreamHandlers = {
   onDelta: (delta: string) => void;
   onDone: (payload: AskResponse) => void;
-  onError: (message: string) => void;
+  onError: (message: string, kind: AskStreamErrorKind) => void;
 };
 
 export async function askQuestionStream(
@@ -128,7 +136,7 @@ export async function askQuestionStream(
 
   if (!response.ok || !response.body) {
     const errorText = await response.text();
-    handlers.onError(errorText || `Request failed with ${response.status}`);
+    handlers.onError(errorText || `Request failed with ${response.status}`, "server");
     return;
   }
 
@@ -139,6 +147,18 @@ export async function askQuestionStream(
   // the connection, a dropped network or a backend crash can all end it without either, and the
   // caller must still hear about that exactly once (otherwise the answer sits "generating" forever).
   let finished = false;
+  // True once one of the caller's own handlers has thrown. That is the caller's bug, not a broken
+  // stream: it must reach the caller as-is and never be reported through `onError` (which made the
+  // panel start a duplicate, paid request, or replace a finished answer with a failure message).
+  let handlerThrew = false;
+  const callHandler = (call: () => void) => {
+    try {
+      call();
+    } catch (error) {
+      handlerThrew = true;
+      throw error;
+    }
+  };
 
   const handle = (event: string) => {
     const dataLine = event.split("\n").find((line) => line.startsWith("data: "));
@@ -152,13 +172,13 @@ export async function askQuestionStream(
       | { type: "error"; detail: string };
 
     if (payload.type === "delta") {
-      handlers.onDelta(payload.delta);
+      callHandler(() => handlers.onDelta(payload.delta));
     } else if (payload.type === "done") {
       finished = true;
-      handlers.onDone({ answer: payload.answer, sources: payload.sources });
+      callHandler(() => handlers.onDone({ answer: payload.answer, sources: payload.sources }));
     } else if (payload.type === "error") {
       finished = true;
-      handlers.onError(payload.detail);
+      callHandler(() => handlers.onError(payload.detail, "server"));
     }
   };
 
@@ -181,19 +201,19 @@ export async function askQuestionStream(
       handle(buffer);
     }
   } catch (error) {
-    // A deliberate abort (a new question, leaving the page) is not a failure to report.
-    // An error thrown by our own handlers after a finished stream is a bug in the caller: surface it.
-    if (signal?.aborted || finished) {
+    // A deliberate abort (a new question, leaving the page) is not a failure to report. An error
+    // thrown by one of the caller's own handlers is the caller's bug: surface it, do not report it.
+    if (signal?.aborted || finished || handlerThrew) {
       throw error;
     }
     finished = true;
-    handlers.onError(error instanceof Error ? error.message : "The answer stream was interrupted.");
+    handlers.onError(error instanceof Error ? error.message : "The answer stream was interrupted.", "transport");
     return;
   }
 
   // A deliberate abort can also end the read cleanly: that is not a failure to report (reporting it
   // made the caller start a duplicate, paid, non-streaming request for a question already abandoned).
   if (!finished && !signal?.aborted) {
-    handlers.onError("The answer stream ended before the answer was complete.");
+    handlers.onError("The answer stream ended before the answer was complete.", "transport");
   }
 }

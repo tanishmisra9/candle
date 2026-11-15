@@ -122,3 +122,103 @@ describe("AskPanel streaming UI", () => {
     expect(api.askQuestion).not.toHaveBeenCalled(); // no second, paid request for an abandoned question
   });
 });
+
+type Handlers = {
+  onDelta: (delta: string) => void;
+  onDone: (payload: { answer: string; sources: [] }) => void;
+  onError: (message: string, kind: "server" | "transport") => void;
+};
+
+async function askWith(stream: (handlers: Handlers) => Promise<void>) {
+  const api = await import("../lib/api");
+  vi.mocked(api.askQuestion).mockReset();
+  vi.mocked(api.askQuestionStream).mockImplementationOnce(async (_q, handlers) => stream(handlers as Handlers));
+  render(<AskPanel />);
+  fireEvent.change(screen.getByLabelText(/ask a question about chm trials/i), {
+    target: { value: "What trials are recruiting?" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Send question" }));
+  return { api, conversation: screen.getByRole("log", { name: "Conversation" }) };
+}
+
+describe("AskPanel failures do not trigger a second, paid request unless a retry can help", () => {
+  it("an error the server reported after text had streamed is shown, with no fallback request", async () => {
+    const { api, conversation } = await askWith(async (h) => {
+      h.onDelta("Partial ");
+      h.onError("Ask request timed out.", "server");
+    });
+    await waitFor(() => expect(within(conversation).getByText(/couldn't complete that answer/i)).toBeInTheDocument());
+    expect(api.askQuestion).not.toHaveBeenCalled();
+  });
+
+  it("an error the server reported before any text (rate limit) is shown as such, with no fallback request", async () => {
+    const { api, conversation } = await askWith(async (h) => h.onError("Rate limit exceeded for this endpoint.", "server"));
+    await waitFor(() => expect(within(conversation).getByText(/too many requests/i)).toBeInTheDocument());
+    expect(api.askQuestion).not.toHaveBeenCalled();
+  });
+
+  it("a stream that broke before any text falls back to one plain request, which fills in the answer", async () => {
+    const api = await import("../lib/api");
+    vi.mocked(api.askQuestion).mockReset();
+    vi.mocked(api.askQuestion).mockResolvedValue({ answer: "Fallback answer.", sources: [] });
+    vi.mocked(api.askQuestionStream).mockImplementationOnce(async (_q, handlers) =>
+      (handlers as Handlers).onError("network error", "transport"),
+    );
+    render(<AskPanel />);
+    fireEvent.change(screen.getByLabelText(/ask a question about chm trials/i), {
+      target: { value: "What trials are recruiting?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send question" }));
+    const conversation = screen.getByRole("log", { name: "Conversation" });
+    await waitFor(() => expect(within(conversation).getByText("Fallback answer.")).toBeInTheDocument());
+    expect(api.askQuestion).toHaveBeenCalledTimes(1);
+  });
+
+  it("a stream that breaks AFTER text streamed does not retry (it would repeat a question already paid for)", async () => {
+    const { api, conversation } = await askWith(async (h) => {
+      h.onDelta("Partial ");
+      h.onError("The answer stream ended before the answer was complete.", "transport");
+    });
+    await waitFor(() => expect(within(conversation).getByText(/couldn't complete that answer/i)).toBeInTheDocument());
+    expect(api.askQuestion).not.toHaveBeenCalled();
+  });
+
+  it("a rejection that arrives after the answer finished does not replace the answer with a failure", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { conversation } = await askWith(async (h) => {
+      h.onDone({ answer: "Finished answer.", sources: [] });
+      throw new Error("a handler threw after done");
+    });
+    await waitFor(() => expect(within(conversation).getByText("Finished answer.")).toBeInTheDocument());
+    await waitFor(() => expect(consoleError).toHaveBeenCalled()); // it is logged, not shown
+    expect(within(conversation).queryByText(/couldn't complete that answer/i)).not.toBeInTheDocument();
+    consoleError.mockRestore();
+  });
+});
+
+describe("scrollToBottom (the follow-the-stream guard)", () => {
+  function pageAt(y: number, bottom: number) {
+    let current = y;
+    Object.defineProperty(window, "scrollY", { configurable: true, get: () => current });
+    window.scrollTo = vi.fn((_x: number, to: number) => {
+      current = Math.min(to, bottom); // the browser clamps to the real bottom
+    }) as unknown as typeof window.scrollTo;
+    Object.defineProperty(document.documentElement, "scrollHeight", { configurable: true, value: bottom });
+  }
+
+  it("arms the guard with the new position when the page really moved", async () => {
+    const { scrollToBottom } = await import("./AskPanel");
+    pageAt(0, 500);
+    const guard = { current: null as number | null };
+    scrollToBottom(guard);
+    expect(guard.current).toBe(500);
+  });
+
+  it("leaves the guard OFF when the page was already at the bottom (no scroll event will clear it)", async () => {
+    const { scrollToBottom } = await import("./AskPanel");
+    pageAt(500, 500);
+    const guard = { current: 123 as number | null };
+    scrollToBottom(guard);
+    expect(guard.current).toBeNull(); // an armed guard here swallowed the user's next small scroll
+  });
+});

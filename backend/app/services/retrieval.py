@@ -24,6 +24,11 @@ logger = logging.getLogger("candle.api")
 
 RRF_K = 60
 
+# How long hybrid search waits for the full-text side once the dense results are in. A normal full-text
+# query takes milliseconds; this only trips when the side is stuck (typically waiting for a pooled
+# connection), and then the answer is built from the dense results alone.
+FULL_TEXT_TIMEOUT_SECONDS = 5.0
+
 
 @dataclass
 class RetrievedChunk:
@@ -209,5 +214,15 @@ async def retrieve_hybrid_chunks(
         bm25_task.cancel()
         await asyncio.gather(bm25_task, return_exceptions=True)
         raise
-    bm25 = await bm25_task
+    try:
+        # Bounded: the dense results are already in hand, and the full-text side may be stuck waiting
+        # for its own pooled connection (up to the pool timeout, 30s, under load). wait_for cancels
+        # the task and waits for it to unwind, so its session/connection is released before we go on.
+        bm25 = await asyncio.wait_for(bm25_task, timeout=FULL_TEXT_TIMEOUT_SECONDS)
+    except asyncio.TimeoutError:
+        logger.warning(
+            "Full-text search did not answer within %.1fs; continuing with dense results only",
+            FULL_TEXT_TIMEOUT_SECONDS,
+        )
+        bm25 = []
     return _fuse_rankings([dense, bm25], capped_limit)

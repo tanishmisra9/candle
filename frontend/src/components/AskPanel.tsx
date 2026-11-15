@@ -40,6 +40,18 @@ const STICK_THRESHOLD_PX = 80;
 const distanceFromBottom = () =>
   document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
 
+/**
+ * Scroll to the true bottom and remember where we put the page, so the scroll event this causes is not
+ * mistaken for the user. The guard is armed ONLY if the page actually moved: when it was already at the
+ * bottom no scroll event fires, and a guard left armed would swallow the user's next real (small) scroll
+ * and keep following when they had scrolled away.
+ */
+export function scrollToBottom(guard: { current: number | null }) {
+  const before = window.scrollY;
+  window.scrollTo(0, document.documentElement.scrollHeight);
+  guard.current = window.scrollY !== before ? window.scrollY : null;
+}
+
 export function AskPanel({
   onOpenTrialSnapshot,
 }: {
@@ -95,7 +107,15 @@ export function AskPanel({
     // The one place a failed answer is reported: the message stops "streaming", says what happened
     // (keeping nothing half-finished), and the polite live region announces the outcome, so a screen
     // reader user is never left on "Generating answer.".
+    // True once the message has reached a final state (an answer, or the failure text), so a late
+    // rejection of the stream promise can never replace a finished answer with a failure message.
+    let settled = false;
+    // True once any answer text was streamed: a retry would then repeat a question the model has
+    // already spent tokens on, and replace text the reader has begun to read.
+    let streamed = false;
+
     const failAssistant = (id: string, error: unknown) => {
+      settled = true;
       const isRateLimited = /rate limit|too many/i.test(String((error as Error | undefined)?.message ?? ""));
       const text = isRateLimited
         ? "Too many requests. Please wait a moment and try again."
@@ -112,6 +132,7 @@ export function AskPanel({
       {
         onDelta: (delta) => {
           if (!isCurrent()) return;
+          streamed = true;
           setMessages((current) =>
             current.map((message) =>
               message.id === assistantId
@@ -122,6 +143,7 @@ export function AskPanel({
         },
         onDone: (data) => {
           if (!isCurrent()) return;
+          settled = true;
           setAnnouncement(markdownToPlainText(data.answer));
           setMessages((current) =>
             current.map((message) =>
@@ -137,11 +159,19 @@ export function AskPanel({
           );
           setIsPending(false);
         },
-        onError: () => {
+        onError: (message, kind) => {
           if (!isCurrent()) return;
+          // Retry without streaming ONLY when the stream itself broke before any text arrived. A
+          // failure the server reported (rate limit, too long, timeout, outage) would just repeat, and
+          // the retry would cost another model call, rate-limit slot and concurrency slot.
+          if (kind !== "transport" || streamed) {
+            failAssistant(assistantId, new Error(message));
+            return;
+          }
           void askQuestion(trimmed)
             .then((data) => {
               if (!isCurrent()) return;
+              settled = true;
               setAnnouncement(markdownToPlainText(data.answer));
               setMessages((current) =>
                 current.map((message) =>
@@ -167,10 +197,15 @@ export function AskPanel({
       controller.signal,
     ).catch((error) => {
       // Aborted on purpose (a newer question or leaving the page): nothing to report. Anything else
-      // that escapes the stream reader must still finish the message instead of leaving it hanging.
-      if (!controller.signal.aborted) {
-        failAssistant(assistantId, error);
+      // that escapes the stream reader must still finish the message instead of leaving it hanging,
+      // unless the message already reached its final state (then it is a bug in a handler of ours:
+      // log it, do not wipe a finished answer).
+      if (controller.signal.aborted) return;
+      if (settled) {
+        console.error("Ask stream handler failed after the answer finished", error);
+        return;
       }
+      failAssistant(assistantId, error);
     });
   };
 
@@ -207,15 +242,13 @@ export function AskPanel({
     if (!hasConversation || !stickRef.current) {
       return;
     }
-    window.scrollTo(0, document.documentElement.scrollHeight);
-    programmaticYRef.current = window.scrollY;
+    scrollToBottom(programmaticYRef);
   }, [messages, isPending, hasConversation]);
 
   const jumpToLatest = () => {
     stickRef.current = true;
     setShowJumpToLatest(false);
-    window.scrollTo(0, document.documentElement.scrollHeight);
-    programmaticYRef.current = window.scrollY;
+    scrollToBottom(programmaticYRef);
   };
 
   return (

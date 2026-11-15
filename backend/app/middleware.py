@@ -96,21 +96,8 @@ class LLMRequestBodyLimitMiddleware:
                 raise LLMRequestBodyTooLarge
             return message
 
-        response_started = False
-
-        async def tracking_send(message: Message) -> None:
-            nonlocal response_started
-            if message["type"] == "http.response.start":
-                response_started = True
-            await send(message)
-
-        try:
-            await self.app(scope, limited_receive, tracking_send)
-        except LLMRequestBodyTooLarge:
-            if response_started:
-                # A second response start would break the ASGI protocol; too late for a 413.
-                raise
-            await JSONResponse(
-                status_code=413,
-                content={"detail": "Request body is too large for this endpoint."},
-            )(scope, receive, send)
+        # One mechanism, not two: a mid-stream overflow raises LLMRequestBodyTooLarge (an HTTPException)
+        # from `limited_receive`, and FastAPI's own exception handling turns it into the 413. (A second
+        # handler here was dead code: no test or request ever reached it once the exception became an
+        # HTTPException.)
+        await self.app(scope, limited_receive, send)

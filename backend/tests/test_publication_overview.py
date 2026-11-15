@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.db import get_session
@@ -122,7 +123,9 @@ def test_publication_overview_uses_cached_summary(monkeypatch):
     app.dependency_overrides.clear()
 
 
-def test_publication_overview_returns_500_when_openai_key_missing(monkeypatch):
+def test_publication_overview_returns_a_generic_500_when_the_pipeline_raises_a_runtime_error(monkeypatch):
+    # The RuntimeError text (here a missing-key config message, in general anything from a driver or
+    # asyncio) must not reach the browser.
     session = DummySession(
         {
             "PMID3": SimpleNamespace(
@@ -147,7 +150,31 @@ def test_publication_overview_returns_500_when_openai_key_missing(monkeypatch):
     response = client.post("/publications/PMID3/overview")
 
     assert response.status_code == 500
-    assert response.json()["detail"] == "OPENAI_API_KEY is required for publication overview generation."
+    assert response.json()["detail"] == "Unable to generate publication overview."
+    assert "OPENAI_API_KEY" not in response.text
+
+    app.dependency_overrides.clear()
+
+
+def test_publication_overview_busy_is_a_503_not_a_generic_500(monkeypatch):
+    # The concurrency slot raises HTTPException(503) inside the try block whose catch-all used to
+    # turn it into "Unable to generate publication overview." (a 500).
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def busy_slot():
+        raise HTTPException(status_code=503, detail="The AI service is handling too many requests right now.")
+        yield  # pragma: no cover
+
+    session = DummySession({"PMID9": SimpleNamespace(pmid="PMID9", abstract="Abstract text")})
+    app.dependency_overrides[get_session] = override_session(session)
+    monkeypatch.setattr("app.routers.publications.llm_concurrency_slot", busy_slot)
+    client = TestClient(app)
+
+    response = client.post("/publications/PMID9/overview")
+
+    assert response.status_code == 503
+    assert "too many requests" in response.json()["detail"]
 
     app.dependency_overrides.clear()
 

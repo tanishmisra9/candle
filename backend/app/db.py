@@ -29,8 +29,16 @@ engine = create_async_engine(
 )
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 PG_TRGM_EXTENSION_STATEMENT = "CREATE EXTENSION IF NOT EXISTS pg_trgm"
+# Arbitrary constant naming "Candle schema reconciliation" for pg_advisory_xact_lock.
+SCHEMA_RECONCILIATION_LOCK_KEY = 7_243_017_001
 
 SCHEMA_RECONCILIATION_STATEMENTS = (
+    # First, always: two processes booting together (a rolling deploy, several workers) run these
+    # statements one after the other instead of interleaved. Several below are check-then-add
+    # (`DO $$ IF NOT EXISTS ... ADD CONSTRAINT`, `CREATE INDEX IF NOT EXISTS`): without this the second
+    # boot can pass the check while the first has not committed, then fail with "already exists", which
+    # in production stops that process at startup. Released automatically when the transaction ends.
+    f"SELECT pg_advisory_xact_lock({SCHEMA_RECONCILIATION_LOCK_KEY})",
     PG_TRGM_EXTENSION_STATEMENT,
     """
     ALTER TABLE trials

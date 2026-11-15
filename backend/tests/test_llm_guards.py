@@ -314,47 +314,24 @@ def test_body_limit_matches_only_llm_post_routes():
     assert not is_llm_endpoint("POST", "/trials")
 
 
-async def _run_middleware(inner_app):
-    from app.middleware import LLMRequestBodyLimitMiddleware
+def test_a_body_that_overflows_mid_stream_is_a_413_through_the_real_app():
+    # The overflow is raised from the wrapped `receive` as an HTTPException, which FastAPI turns into
+    # the 413 (any other exception while reading the body would have become a generic 400). This is the
+    # ONLY path: the middleware has no second handler. A chunked body has no Content-Length, so the up
+    # front check cannot catch it and the mid-stream check must. (The overview route never reads a
+    # body, so only the Content-Length check applies to it.)
+    from fastapi.testclient import TestClient
 
-    sent: list[dict] = []
+    from app.main import app
 
-    async def receive():
-        return {"type": "http.request", "body": b"{}", "more_body": False}
+    client = TestClient(app)
 
-    async def send(message):
-        sent.append(message)
+    def chunks():
+        yield b'{"question":"'
+        yield b"x" * 1_000_000
+        yield b'"}'
 
-    scope = {"type": "http", "method": "POST", "path": "/ask", "headers": [(b"content-length", b"2")]}
-    middleware = LLMRequestBodyLimitMiddleware(inner_app)
-    return middleware, scope, receive, send, sent
-
-
-async def test_body_too_large_before_the_response_starts_is_a_413():
-    from app.middleware import LLMRequestBodyTooLarge
-
-    async def inner(scope, receive, send):
-        raise LLMRequestBodyTooLarge
-
-    middleware, scope, receive, send, sent = await _run_middleware(inner)
-    await middleware(scope, receive, send)
-
-    assert sent[0]["type"] == "http.response.start"
-    assert sent[0]["status"] == 413
-
-
-async def test_body_too_large_after_the_response_started_is_re_raised_not_a_second_response():
-    import pytest
-
-    from app.middleware import LLMRequestBodyTooLarge
-
-    async def inner(scope, receive, send):
-        await send({"type": "http.response.start", "status": 200, "headers": []})
-        raise LLMRequestBodyTooLarge
-
-    middleware, scope, receive, send, sent = await _run_middleware(inner)
-    with pytest.raises(LLMRequestBodyTooLarge):
-        await middleware(scope, receive, send)
-
-    # Exactly one response start: sending a 413 on top would break the ASGI protocol.
-    assert [m["type"] for m in sent].count("http.response.start") == 1
+    for path in ("/ask", "/ask/stream"):
+        response = client.post(path, content=chunks(), headers={"Content-Type": "application/json"})
+        assert response.status_code == 413, path
+        assert response.json()["detail"] == "Request body is too large for this endpoint."

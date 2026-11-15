@@ -359,6 +359,35 @@ def test_a_summary_without_an_attempt_time_is_rejected_loudly():
         record_summary_attempt(legacy, "New", NOW)
 
 
+def test_repairing_a_summary_without_an_attempt_time_goes_through_the_writer_module():
+    # The repair is the only OTHER writer of ai_summary_generated_at: it lives beside
+    # record_summary_attempt and is guarded the same way, not as a bare assignment in a loop.
+    from app.ingest.summarise import SummaryState, repair_missing_attempt_time, summary_state
+
+    legacy = make_trial("T1", ai_summary="Old", ai_summary_generated_at=None)  # impossible since the CHECK
+    result = repair_missing_attempt_time(legacy, NOW)
+    assert result is SummaryState.SUMMARISED
+    assert legacy.ai_summary == "Old"  # the summary is never touched
+    assert legacy.ai_summary_generated_at == NOW
+    assert summary_state(legacy) is SummaryState.SUMMARISED
+
+
+@pytest.mark.parametrize(
+    "summary, attempted_at",
+    [(None, None), (None, NOW), ("A summary", NOW)],
+    ids=["never attempted", "attempted, empty", "healthy summarised"],
+)
+def test_repair_refuses_a_trial_that_is_not_in_the_broken_state(summary, attempted_at):
+    # Only "summary but no attempt time" may be repaired; stamping anything else would hide a bug (and
+    # the third case would silently move a healthy trial's attempt time).
+    from app.ingest.summarise import InvalidSummaryTransition, repair_missing_attempt_time
+
+    trial = make_trial("T1", ai_summary=summary, ai_summary_generated_at=attempted_at)
+    with pytest.raises(InvalidSummaryTransition):
+        repair_missing_attempt_time(trial, datetime(2030, 1, 1, tzinfo=timezone.utc))
+    assert trial.ai_summary == summary and trial.ai_summary_generated_at == attempted_at  # untouched
+
+
 def test_a_disallowed_edge_is_refused_by_the_writer(monkeypatch):
     # If someone edits the edge table (or the target logic) so an illegal edge is requested, the
     # writer must refuse rather than write. Remove the guard and this fails.
