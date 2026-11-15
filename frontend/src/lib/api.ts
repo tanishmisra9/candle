@@ -191,7 +191,9 @@ export async function askQuestionStream(
     return;
   }
 
-  if (!finished) {
+  // A deliberate abort can also end the read cleanly: that is not a failure to report (reporting it
+  // made the caller start a duplicate, paid, non-streaming request for a question already abandoned).
+  if (!finished && !signal?.aborted) {
     handlers.onError("The answer stream ended before the answer was complete.");
   }
 }

@@ -59,6 +59,8 @@ export function AskPanel({
   // scrollY after our own scrollTo, so the scroll event it fires isn't mistaken for the user.
   const programmaticYRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Leaving the page abandons any answer in flight (and, through `isCurrent` below, its callbacks).
+  useEffect(() => () => abortRef.current?.abort(), []);
   const exampleQuestions = useMemo(() => {
     return [...EXAMPLE_QUESTIONS]
       .sort(() => Math.random() - 0.5)
@@ -74,6 +76,9 @@ export function AskPanel({
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    // Late callbacks (a stream that ended after an abort, the fallback request settling after the
+    // panel moved on or unmounted) must not touch state or start more requests.
+    const isCurrent = () => abortRef.current === controller && !controller.signal.aborted;
 
     const assistantId = `assistant-${Date.now()}`;
     setMessages((current) => [
@@ -106,6 +111,7 @@ export function AskPanel({
       trimmed,
       {
         onDelta: (delta) => {
+          if (!isCurrent()) return;
           setMessages((current) =>
             current.map((message) =>
               message.id === assistantId
@@ -115,6 +121,7 @@ export function AskPanel({
           );
         },
         onDone: (data) => {
+          if (!isCurrent()) return;
           setAnnouncement(markdownToPlainText(data.answer));
           setMessages((current) =>
             current.map((message) =>
@@ -131,8 +138,10 @@ export function AskPanel({
           setIsPending(false);
         },
         onError: () => {
+          if (!isCurrent()) return;
           void askQuestion(trimmed)
             .then((data) => {
+              if (!isCurrent()) return;
               setAnnouncement(markdownToPlainText(data.answer));
               setMessages((current) =>
                 current.map((message) =>
@@ -147,9 +156,11 @@ export function AskPanel({
                 ),
               );
             })
-            .catch((error) => failAssistant(assistantId, error))
+            .catch((error) => {
+              if (isCurrent()) failAssistant(assistantId, error);
+            })
             .finally(() => {
-              setIsPending(false);
+              if (isCurrent()) setIsPending(false);
             });
         },
       },
@@ -260,7 +271,7 @@ export function AskPanel({
               );
             })}
             {showLoadingDots ? (
-              <div className="flex justify-start" role="status">
+              <div className="flex justify-start" data-testid="loading-dots">
                 <div className="inline-flex items-center gap-2 rounded-panel border border-line bg-panel px-5 py-4">
                   {[0, 1, 2].map((dot) => (
                     <span

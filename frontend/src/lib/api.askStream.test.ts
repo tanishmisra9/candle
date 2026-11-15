@@ -65,6 +65,15 @@ describe("askQuestionStream completion", () => {
     expect(h.onError).not.toHaveBeenCalled();
   });
 
+  it("an abort that ends the read cleanly (no throw) is not reported either", async () => {
+    const controller = new AbortController();
+    streamingFetch([frame({ type: "delta", delta: "partial" })]); // closes cleanly
+    controller.abort();
+    const h = handlers();
+    await askQuestionStream("q", h, controller.signal);
+    expect(h.onError).not.toHaveBeenCalled(); // used to start a duplicate non-streaming request
+  });
+
   it("a deliberate abort is not reported as an error", async () => {
     const controller = new AbortController();
     controller.abort();

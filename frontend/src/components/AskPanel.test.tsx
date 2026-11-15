@@ -50,7 +50,7 @@ describe("AskPanel streaming UI", () => {
     const conversation = screen.getByRole("log", { name: "Conversation" });
 
     await waitFor(() => {
-      expect(within(conversation).getByRole("status")).toBeInTheDocument();
+      expect(within(conversation).getByTestId("loading-dots")).toBeInTheDocument();
     });
     expect(within(conversation).queryByLabelText("Copy response")).not.toBeInTheDocument();
 
@@ -60,7 +60,7 @@ describe("AskPanel streaming UI", () => {
       expect(within(conversation).getByText(/Recruiting trials found\./)).toBeInTheDocument();
     });
 
-    expect(within(conversation).queryByRole("status")).not.toBeInTheDocument();
+    expect(within(conversation).queryByTestId("loading-dots")).not.toBeInTheDocument();
   });
 
   it("announces the finished answer once through a persistent status region, not per delta", async () => {
@@ -99,5 +99,26 @@ describe("AskPanel streaming UI", () => {
     expect(screen.getAllByRole("status").some((el) => /Generating answer/.test(el.textContent ?? ""))).toBe(false);
     expect(screen.getAllByRole("status").some((el) => /could not be completed/.test(el.textContent ?? ""))).toBe(true);
     expect(screen.getByRole("button", { name: "Send question" })).toBeDisabled(); // empty draft, no longer pending
+  });
+
+  it("callbacks that arrive after the panel is gone do not start a duplicate fallback request", async () => {
+    const api = await import("../lib/api");
+    let captured: { onError: (message: string) => void } | null = null;
+    vi.mocked(api.askQuestion).mockClear();
+    vi.mocked(api.askQuestionStream).mockImplementationOnce(async (_q, handlers) => {
+      captured = handlers as unknown as { onError: (message: string) => void };
+      await new Promise<void>(() => {}); // never settles: the user leaves first
+    });
+    const view = render(<AskPanel />);
+    fireEvent.change(screen.getByLabelText(/ask a question about chm trials/i), {
+      target: { value: "What trials are recruiting?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send question" }));
+    await waitFor(() => expect(captured).not.toBeNull());
+
+    view.unmount(); // aborts the in-flight answer
+    captured!.onError("stream ended early"); // a late callback, as after an abort that ended the read cleanly
+
+    expect(api.askQuestion).not.toHaveBeenCalled(); // no second, paid request for an abandoned question
   });
 });
