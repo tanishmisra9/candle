@@ -281,3 +281,35 @@ describe("TrialSnapshot facts", () => {
     }
   });
 });
+
+describe("TrialSnapshot stacked on a paper", () => {
+  beforeEach(() => {
+    mockUseQuery.mockReset();
+    mockUseQuery.mockReturnValue({ data: makeTrialDetail(), isLoading: false });
+  });
+
+  function open(underneath?: string, onClose = () => {}) {
+    return render(
+      <TrialSnapshot
+        trialId="NCT12345678"
+        onClose={onClose}
+        onOpenPublicationSnapshot={() => {}}
+        isPublicationSnapshotOpen={Boolean(underneath)}
+        publicationSnapshotLayer="below-trial"
+        underneath={underneath}
+      />,
+    );
+  }
+
+  it("names what is underneath and closes itself when 'Back to' is pressed", () => {
+    const onClose = vi.fn();
+    open("paper 777", onClose);
+    fireEvent.click(screen.getByRole("button", { name: "Back to paper 777" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows no Back button when nothing is underneath", () => {
+    open();
+    expect(screen.queryByRole("button", { name: /^Back to/ })).not.toBeInTheDocument();
+  });
+});

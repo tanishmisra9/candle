@@ -235,3 +235,38 @@ describe("PublicationSnapshot overview", () => {
     }
   });
 });
+
+describe("PublicationSnapshot stacked on a trial", () => {
+  it("says which trial is underneath and closes only itself on 'Back to'", async () => {
+    vi.mocked(getPublicationOverview).mockResolvedValue({ overview: "x" });
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <PublicationSnapshot
+        publication={makePublication()}
+        onClose={onClose}
+        onOpenTrialSnapshot={() => {}}
+        layer="above-trial"
+        isTrialSnapshotOpen
+        underneath="trial NCT12345678"
+      />,
+    );
+    await user.click(await screen.findByRole("button", { name: "Back to trial NCT12345678" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("has no Back button when it is the only dialog", async () => {
+    vi.mocked(getPublicationOverview).mockResolvedValue({ overview: "x" });
+    render(
+      <PublicationSnapshot
+        publication={makePublication()}
+        onClose={() => {}}
+        onOpenTrialSnapshot={() => {}}
+        layer="below-trial"
+        isTrialSnapshotOpen={false}
+      />,
+    );
+    await screen.findByRole("dialog");
+    expect(screen.queryByRole("button", { name: /^Back to/ })).not.toBeInTheDocument();
+  });
+});

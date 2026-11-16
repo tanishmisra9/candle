@@ -194,6 +194,11 @@ export default function App() {
         }
         isPublicationSnapshotOpen={Boolean(selectedPublication)}
         publicationSnapshotLayer={publicationSnapshotLayer}
+        underneath={
+          selectedPublication && publicationSnapshotLayer === "below-trial"
+            ? `paper ${selectedPublication.pmid}`
+            : undefined
+        }
       />
       <PublicationSnapshot
         publication={selectedPublication}
@@ -201,6 +206,11 @@ export default function App() {
         onOpenTrialSnapshot={openTrialSnapshot}
         layer={publicationSnapshotLayer}
         isTrialSnapshotOpen={Boolean(selectedTrialId)}
+        underneath={
+          selectedTrialId && publicationSnapshotLayer === "above-trial"
+            ? `trial ${selectedTrialId}`
+            : undefined
+        }
       />
     </div>
   );

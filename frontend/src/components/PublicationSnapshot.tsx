@@ -11,6 +11,7 @@ import clsx from "clsx";
 import { useIsMobile } from "../lib/mobile";
 import { lockPageScroll } from "../lib/scrollLock";
 import type { PublicationSummary } from "../types";
+import { StackBackButton } from "./StackBackButton";
 import { Button } from "./ui/Button";
 
 type PublicationOverviewState = {
@@ -26,6 +27,8 @@ type PublicationSnapshotProps = {
   onOpenTrialSnapshot: (trialId: string) => void;
   layer: PublicationSnapshotLayer;
   isTrialSnapshotOpen: boolean;
+  /** What this dialog is stacked on (e.g. "trial NCT123"), when something is underneath it. */
+  underneath?: string;
 };
 
 function formatPublicationDate(value: string | null) {
@@ -69,6 +72,7 @@ export function PublicationSnapshot({
   onOpenTrialSnapshot,
   layer,
   isTrialSnapshotOpen,
+  underneath,
 }: PublicationSnapshotProps) {
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
@@ -272,9 +276,12 @@ export function PublicationSnapshot({
             <div data-testid="snapshot-header" className="border-b border-line bg-panel px-5 pt-6 pb-5 md:px-8">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 max-w-[820px] flex-1">
-                  <p className="text-[11px] kicker text-muted md:text-[12px]">
-                    PMID {publication.pmid}
-                  </p>
+                  <div className="flex flex-wrap items-center justify-between gap-x-3">
+                    <p className="whitespace-nowrap text-[11px] kicker text-muted md:text-[12px]">
+                      PMID {publication.pmid}
+                    </p>
+                    {underneath ? <StackBackButton label={underneath} onBack={onClose} /> : null}
+                  </div>
                   <h2
                     id={titleId}
                     className={clsx(
