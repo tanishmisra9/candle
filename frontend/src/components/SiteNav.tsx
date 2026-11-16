@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 
 import { mobileMenuMotion } from "../lib/motion";
+import { lockPageScroll } from "../lib/scrollLock";
 import { primaryDestinations } from "../lib/navigation";
 import { prefetchRoute } from "../lib/routes";
 import { tabClass } from "../lib/ui";
@@ -35,16 +36,10 @@ function useMobileMenu() {
 
   useEffect(() => {
     if (!open) return;
-    // <html> AND <body>: iOS Safari keeps scrolling the page behind an overflow:hidden <html> on its own.
-    const html = document.documentElement;
-    const body = document.body;
-    const previous = { html: html.style.overflow, body: body.style.overflow };
-    html.style.overflow = "hidden";
-    body.style.overflow = "hidden";
+    const releaseScroll = lockPageScroll(); // <html> and <body>, counted (see lib/scrollLock.ts)
     document.querySelectorAll("main, footer").forEach((element) => element.setAttribute("inert", ""));
     return () => {
-      html.style.overflow = previous.html;
-      body.style.overflow = previous.body;
+      releaseScroll();
       // Re-query rather than reuse what was found on opening: whatever is there now must not stay inert.
       document.querySelectorAll("main, footer").forEach((element) => element.removeAttribute("inert"));
     };

@@ -15,7 +15,8 @@ import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
 import clsx from "clsx";
 import type { PublicationSummary } from "../types";
 import { formatStatusLabel } from "../lib/formatters";
-import { useIsMobile, useScrolledPastThreshold } from "../lib/mobile";
+import { useIsMobile } from "../lib/mobile";
+import { lockPageScroll } from "../lib/scrollLock";
 import { Button } from "./ui/Button";
 
 const SNAPSHOT_SECTION_HEADING_CLASS =
@@ -66,16 +67,11 @@ export function TrialSnapshot({
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
   const [showAllLocations, setShowAllLocations] = useState(false);
-  const [contentNode, setContentNode] = useState<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const wasOpenRef = useRef(false);
   const reactTitleId = useId();
-  const isHeaderCondensed = useScrolledPastThreshold({
-    enabled: Boolean(trialId) && isMobile,
-    threshold: 24,
-    target: contentNode,
-  });
 
   const isTopmost =
     Boolean(trialId) &&
@@ -95,12 +91,7 @@ export function TrialSnapshot({
   useEffect(() => {
     if (!trialId) return;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
+    return lockPageScroll();
   }, [trialId]);
 
   useEffect(() => {
@@ -121,9 +112,9 @@ export function TrialSnapshot({
   }, [trialId]);
 
   useEffect(() => {
-    if (!trialId || !contentNode) return;
-    contentNode.scrollTo({ top: 0 });
-  }, [contentNode, trialId]);
+    if (!trialId) return;
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [trialId]);
 
   useEffect(() => {
     if (trialId) {
@@ -182,7 +173,7 @@ export function TrialSnapshot({
         <AnimatePresence>
           {trialId ? (
             <motion.div
-              className="fixed inset-0 z-[60] flex items-end overflow-y-auto bg-scrim/60 p-3 md:items-start md:justify-center md:px-6 md:pb-6 md:pt-16"
+              className="fixed inset-0 z-[60] flex items-end overflow-y-auto overscroll-contain bg-scrim/60 p-3 md:items-start md:justify-center md:px-6 md:pb-6 md:pt-16"
               initial={backdropMotion.initial}
               animate={backdropMotion.animate}
               exit={backdropMotion.exit}
@@ -201,44 +192,17 @@ export function TrialSnapshot({
                 onClick={(event) => event.stopPropagation()}
                 className="flex h-[min(87svh,920px)] w-full flex-col overflow-hidden rounded-panel border border-line bg-panel md:h-[min(calc(100vh-7rem),920px)] md:max-w-[1040px] md:rounded-panel"
               >
-                <motion.div
-                  animate={
-                    isMobile
-                      ? {
-                          paddingTop: isHeaderCondensed ? 16 : 24,
-                          paddingBottom: isHeaderCondensed ? 12 : 18,
-                        }
-                      : undefined
-                  }
-                  transition={
-                    prefersReducedMotion
-                      ? { duration: 0 }
-                      : { type: "spring", stiffness: 340, damping: 34, mass: 0.8 }
-                  }
-                  className="border-b border-line bg-panel px-5 pt-6 pb-5 md:px-8"
-                >
+                <div data-testid="snapshot-header" className="border-b border-line bg-panel px-5 pt-6 pb-5 md:px-8">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0 max-w-[820px] flex-1">
-                      <motion.p
-                        animate={isMobile ? { opacity: isHeaderCondensed ? 0.76 : 1 } : undefined}
-                        transition={
-                          prefersReducedMotion
-                            ? { duration: 0 }
-                            : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
-                        }
-                        className="text-[11px] kicker text-muted md:text-[12px]"
-                      >
+                      <p className="text-[11px] kicker text-muted md:text-[12px]">
                         {detailQuery.data?.id}
-                      </motion.p>
+                      </p>
                       <h2
                         id={titleId}
                         className={clsx(
-                          "mt-2 font-medium tracking-[-0.03em] text-text transition-all duration-200 md:text-[32px]",
-                          isMobile
-                            ? isHeaderCondensed
-                              ? "line-clamp-2 text-[21px] leading-[1.16]"
-                              : "line-clamp-3 text-[26px] leading-[1.12]"
-                            : "text-[32px]",
+                          "mt-2 font-medium tracking-[-0.03em] text-text md:text-[32px]",
+                          isMobile ? "line-clamp-3 text-[26px] leading-[1.12]" : "text-[32px]",
                         )}
                       >
                         {titleText}
@@ -253,11 +217,12 @@ export function TrialSnapshot({
                       <X size={18} strokeWidth={1.5} aria-hidden="true" />
                     </Button>
                   </div>
-                </motion.div>
+                </div>
 
                 <div
-                  ref={setContentNode}
-                  className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-5 md:px-8 md:pb-8 md:pt-6"
+                  ref={contentRef}
+                  data-testid="snapshot-scroll"
+                  className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-5 md:px-8 md:pb-8 md:pt-6"
                 >
                   {detailQuery.isLoading || detailQuery.data ? (
                     <div className="grid gap-6 md:grid-cols-[1.25fr_0.75fr] md:gap-8">

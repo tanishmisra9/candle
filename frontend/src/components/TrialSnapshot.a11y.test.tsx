@@ -20,7 +20,6 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("../lib/mobile", () => ({
   useIsMobile: () => false,
-  useScrolledPastThreshold: () => false,
 }));
 
 vi.mock("framer-motion", async () => {

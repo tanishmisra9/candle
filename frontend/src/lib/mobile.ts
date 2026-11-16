@@ -1,10 +1,8 @@
-/** Viewport helpers: `useIsMobile` (matches Tailwind's `md` breakpoint, `max-width: 767px`), `useScrolledPastThreshold` for condensing sticky headers, and `NAV_OFFSET_CLASS`, the `top` offset that clears the fixed nav (`--nav-offset` in `index.css`). */
+/** Viewport helpers: `useIsMobile` (matches Tailwind's `md` breakpoint, `max-width: 767px`), and `NAV_OFFSET_CLASS`, the `top` offset that clears the fixed nav (`--nav-offset` in `index.css`). */
 import { useEffect, useState } from "react";
 
 export const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 export const NAV_OFFSET_CLASS = "top-[var(--nav-offset)]";
-
-type ScrollTarget = Window | HTMLElement;
 
 function readMediaQuery(query: string) {
   if (typeof window === "undefined") {
@@ -12,14 +10,6 @@ function readMediaQuery(query: string) {
   }
 
   return window.matchMedia(query).matches;
-}
-
-function getScrollValue(target: ScrollTarget) {
-  if ("scrollY" in target) {
-    return target.scrollY;
-  }
-
-  return target.scrollTop;
 }
 
 export function useIsMobile(query = MOBILE_MEDIA_QUERY) {
@@ -41,43 +31,4 @@ export function useIsMobile(query = MOBILE_MEDIA_QUERY) {
   }, [query]);
 
   return isMobile;
-}
-
-type UseScrolledPastThresholdOptions = {
-  enabled?: boolean;
-  threshold?: number;
-  target?: ScrollTarget | null;
-};
-
-export function useScrolledPastThreshold({
-  enabled = true,
-  threshold = 28,
-  target = null,
-}: UseScrolledPastThresholdOptions = {}) {
-  const [isPastThreshold, setIsPastThreshold] = useState(false);
-
-  useEffect(() => {
-    if (!enabled) {
-      setIsPastThreshold(false);
-      return;
-    }
-
-    const scrollTarget = target ?? (typeof window !== "undefined" ? window : null);
-    if (!scrollTarget) {
-      return;
-    }
-
-    const onScroll = () => {
-      setIsPastThreshold(getScrollValue(scrollTarget) > threshold);
-    };
-
-    onScroll();
-    scrollTarget.addEventListener("scroll", onScroll, { passive: true });
-
-    return () => {
-      scrollTarget.removeEventListener("scroll", onScroll);
-    };
-  }, [enabled, threshold, target]);
-
-  return isPastThreshold;
 }
