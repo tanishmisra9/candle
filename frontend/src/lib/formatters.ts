@@ -50,3 +50,18 @@ export function formatInterventionTypeLabel(type: string | null) {
   if (!type) return "Unknown";
   return titleCaseWords(type.replace(/\//g, " / "));
 }
+
+/** "3 sites in United States, United Kingdom +1" (words, not icons). Used by the card (capped) and the trial dialog (all countries). */
+export function formatSitesLabel(
+  locations: Array<{ country?: string | null }>,
+  maxCountries = Infinity,
+) {
+  if (locations.length === 0) return "Sites not listed";
+  const count = `${locations.length} site${locations.length === 1 ? "" : "s"}`;
+  const countries = Array.from(
+    new Set(locations.map((location) => location.country?.trim()).filter((c): c is string => Boolean(c))),
+  );
+  if (countries.length === 0) return count;
+  const more = countries.length - maxCountries;
+  return `${count} in ${countries.slice(0, maxCountries).join(", ")}${more > 0 ? ` +${more}` : ""}`;
+}

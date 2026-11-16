@@ -1,6 +1,7 @@
 /** Trial list card. The whole card is one `<button>`, so nothing inside it may be interactive (no tooltips or links on its badges). Title is an `<h2>` under the page `<h1>`. */
 import { memo } from "react";
 
+import { formatSitesLabel } from "../lib/formatters";
 import { highlightText } from "../lib/highlight";
 import type { TrialSummary } from "../types";
 import { PhasePill } from "./PhasePill";
@@ -14,23 +15,10 @@ type TrialCardProps = {
 
 const MAX_COUNTRIES = 2;
 
-/** "3 sites in United States, United Kingdom" (words, not icons: a bare icon + 0 read as an error). */
-function sitesLabel(locations: TrialSummary["locations"]) {
-  if (locations.length === 0) return "Sites not listed";
-  const count = `${locations.length} site${locations.length === 1 ? "" : "s"}`;
-  const countries = Array.from(
-    new Set(locations.map((location) => location.country?.trim()).filter((c): c is string => Boolean(c))),
-  );
-  if (countries.length === 0) return count;
-  const shown = countries.slice(0, MAX_COUNTRIES).join(", ");
-  const more = countries.length - MAX_COUNTRIES;
-  return `${count} in ${shown}${more > 0 ? ` +${more}` : ""}`;
-}
-
 export const TrialCard = memo(function TrialCard({ trial, query = "", onOpen }: TrialCardProps) {
   const enrollmentLabel =
     trial.enrollment === null ? "Participants not listed" : `${trial.enrollment} participants`;
-  const meta = [trial.sponsor || "Unknown sponsor", enrollmentLabel, sitesLabel(trial.locations)].join(" · ");
+  const meta = [trial.sponsor || "Unknown sponsor", enrollmentLabel, formatSitesLabel(trial.locations, MAX_COUNTRIES)].join(" · ");
 
   return (
     <button

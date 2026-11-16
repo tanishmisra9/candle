@@ -6,7 +6,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Activity, CalendarRange, ExternalLink, Mail, MapPin, X } from "lucide-react";
+import { CalendarRange, ExternalLink, Mail, MapPin, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
 import { getTrial } from "../lib/api";
@@ -14,15 +14,17 @@ import { useFocusTrap } from "../lib/a11y";
 import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
 import clsx from "clsx";
 import type { PublicationSummary } from "../types";
-import { formatStatusLabel } from "../lib/formatters";
+import { formatSitesLabel } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import { lockPageScroll } from "../lib/scrollLock";
+import { PhasePill } from "./PhasePill";
+import { StatusBadge } from "./StatusBadge";
 import { Button } from "./ui/Button";
 
 const SNAPSHOT_SECTION_HEADING_CLASS =
   "text-[13px] font-medium kicker text-muted";
 const AI_DISCLAIMER_COPY =
-  "This is AI-generated. Always verify medical information with a qualified professional.";
+  "Written by AI from the ClinicalTrials.gov record, so it can contain mistakes. Always verify medical information with a qualified professional.";
 
 function formatDate(value: string | null) {
   if (!value) return "Unknown";
@@ -36,8 +38,12 @@ function formatLocationLine(city?: string | null, country?: string | null) {
   return parts.join(", ");
 }
 
-function formatLocationCountLabel(count: number) {
-  return `${count} location${count === 1 ? "" : "s"}`;
+/** "Dec 2011 to Jun 2015", or say what is missing instead of a bare "Unknown". */
+function formatDateRange(start: string | null, end: string | null) {
+  if (start && end) return `${formatDate(start)} to ${formatDate(end)}`;
+  if (start) return `Started ${formatDate(start)} · no end date reported`;
+  if (end) return `Ends ${formatDate(end)} · no start date reported`;
+  return "Dates not reported";
 }
 
 function formatMoreLocationsLabel(count: number) {
@@ -227,9 +233,32 @@ export function TrialSnapshot({
                   {detailQuery.isLoading || detailQuery.data ? (
                     <div className="grid gap-6 md:grid-cols-[1.25fr_0.75fr] md:gap-8">
                       <div className="space-y-6 md:space-y-8">
+                        {detailQuery.data ? (
+                          <div className="space-y-4">
+                            {/* The header clamps the title to 3 lines on a phone; the whole title is repeated here (hidden from
+                                assistive tech, the header's h2 already has it). */}
+                            {isMobile ? (
+                              <p aria-hidden="true" className="text-[18px] font-medium leading-[1.35] text-text">
+                                {detailQuery.data.title}
+                              </p>
+                            ) : null}
+                            <div className="flex flex-wrap items-center gap-3">
+                              <StatusBadge status={detailQuery.data.status} />
+                              <PhasePill phase={detailQuery.data.phase} />
+                            </div>
+                            <p className="text-[14px] leading-[1.5] text-muted">
+                              {[
+                                detailQuery.data.sponsor || "Unknown sponsor",
+                                detailQuery.data.enrollment === null
+                                  ? "Participants not listed"
+                                  : `${detailQuery.data.enrollment} participants`,
+                              ].join(" · ")}
+                            </p>
+                          </div>
+                        ) : null}
                         <section className="rounded-panel border border-line bg-panel px-5 py-4">
                           <p className="text-[11px] kicker text-muted">
-                            OVERVIEW
+                            AI SUMMARY
                           </p>
                           <p className="mt-2 text-[12px] text-muted">{AI_DISCLAIMER_COPY}</p>
                           <div className="mt-3 min-h-[88px]">
@@ -252,23 +281,25 @@ export function TrialSnapshot({
                               </p>
                               <div className="grid gap-3 text-[14px] text-muted">
                                 <div className="inline-flex items-center gap-2">
-                                  <Activity size={16} strokeWidth={1.5} />
-                                  {formatStatusLabel(detailQuery.data.status)}
-                                </div>
-                                <div className="inline-flex items-center gap-2">
                                   <CalendarRange size={16} strokeWidth={1.5} />
-                                  {formatDate(detailQuery.data.start_date)} to{" "}
-                                  {formatDate(detailQuery.data.completion_date)}
+                                  {formatDateRange(
+                                    detailQuery.data.start_date,
+                                    detailQuery.data.completion_date,
+                                  )}
                                 </div>
                                 <div className="inline-flex items-center gap-2">
                                   <MapPin size={16} strokeWidth={1.5} />
-                                  {formatLocationCountLabel(detailQuery.data.locations.length)}{" "}
-                                  listed
+                                  {formatSitesLabel(detailQuery.data.locations)}
                                 </div>
                                 {detailQuery.data.contact_email ? (
                                   <div className="inline-flex items-center gap-2">
-                                    <Mail size={16} strokeWidth={1.5} />
-                                    {detailQuery.data.contact_email}
+                                    <Mail size={16} strokeWidth={1.5} aria-hidden="true" />
+                                    <a
+                                      href={`mailto:${detailQuery.data.contact_email}`}
+                                      className="underline underline-offset-2 hover:text-text"
+                                    >
+                                      {detailQuery.data.contact_email}
+                                    </a>
                                   </div>
                                 ) : null}
                               </div>

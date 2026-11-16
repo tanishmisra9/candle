@@ -100,7 +100,7 @@ describe("TrialSnapshot AI summary", () => {
       />,
     );
 
-    expect(screen.getByText("OVERVIEW")).toBeInTheDocument();
+    expect(screen.getByText("AI SUMMARY")).toBeInTheDocument();
     expect(screen.getByText("Loading summary…")).toBeInTheDocument();
     expect(screen.getByText("Loading trial details…")).toBeInTheDocument();
   });
@@ -143,7 +143,7 @@ describe("TrialSnapshot AI summary", () => {
     expect(screen.getByText("A pre-generated overview for this trial.")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "This is AI-generated. Always verify medical information with a qualified professional.",
+        "Written by AI from the ClinicalTrials.gov record, so it can contain mistakes. Always verify medical information with a qualified professional.",
       ),
     ).toBeInTheDocument();
   });
@@ -223,5 +223,61 @@ describe("TrialSnapshot page scroll lock", () => {
     expect([document.documentElement.style.overflow, document.body.style.overflow]).toEqual(["hidden", "hidden"]);
     rerender(<TrialSnapshot trialId={null} {...props} />);
     expect([document.documentElement.style.overflow, document.body.style.overflow]).toEqual(["", ""]);
+  });
+});
+
+describe("TrialSnapshot facts", () => {
+  beforeEach(() => {
+    mockUseQuery.mockReset();
+  });
+
+  function open(overrides: Parameters<typeof makeTrialDetail>[0] = {}) {
+    mockUseQuery.mockReturnValue({ data: makeTrialDetail(overrides), isLoading: false });
+    return render(
+      <TrialSnapshot
+        trialId="NCT12345678"
+        onClose={() => {}}
+        onOpenPublicationSnapshot={() => {}}
+        isPublicationSnapshotOpen={false}
+        publicationSnapshotLayer="below-trial"
+      />,
+    );
+  }
+
+  it("shows status, phase, sponsor and participants at the top, as the card does", () => {
+    open();
+    expect(screen.getByText("Recruiting")).toBeInTheDocument();
+    expect(screen.getByText("Phase 2")).toBeInTheDocument();
+    expect(screen.getByText("Candle · 12 participants")).toBeInTheDocument();
+  });
+
+  it("says what is missing instead of 'to Unknown'", () => {
+    open({ start_date: "2011-12-01", completion_date: null });
+    expect(screen.getByText(/Started .*2011 · no end date reported/)).toBeInTheDocument();
+    expect(screen.queryByText(/Unknown/)).not.toBeInTheDocument();
+  });
+
+  it("names the countries of the sites, not just a count", () => {
+    open({ locations: [{ country: "Canada" }, { country: "Germany" }, { country: "Canada" }] });
+    expect(screen.getByText("3 sites in Canada, Germany")).toBeInTheDocument();
+  });
+
+  it("makes the contact email a mailto link", () => {
+    open({ contact_email: "study@example.org" });
+    expect(screen.getByRole("link", { name: "study@example.org" })).toHaveAttribute(
+      "href",
+      "mailto:study@example.org",
+    );
+  });
+
+  it("repeats the full title in the body on a phone, hidden from assistive tech", () => {
+    viewport.mobile = true;
+    try {
+      const { container } = open();
+      const copy = container.ownerDocument.querySelector('p[aria-hidden="true"]');
+      expect(copy?.textContent).toBe("Example CHM Trial");
+    } finally {
+      viewport.mobile = false;
+    }
   });
 });
