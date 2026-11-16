@@ -1,6 +1,6 @@
 /** Literature page (`/literature`): search, sort, linked-only filter, client-side pagination (50 per page). Auto-loads every page from the API first because sorting needs the full set. */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
@@ -8,6 +8,7 @@ import { PublicationRow } from "../components/PublicationRow";
 import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
 import { listPublicationsPage } from "../lib/api";
+import { useDebouncedValue } from "../lib/useDebouncedValue";
 import { catalogQueryOptions } from "../lib/queryClient";
 import { tabClass } from "../lib/ui";
 import { Input } from "../components/ui/Input";
@@ -31,17 +32,20 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [page, setPage] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const restoreScrollRef = useRef<number | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const scrollToListRef = useRef(false);
   const searchFieldId = useId();
   const normalizedSearch = search.trim();
+  // The request waits for a pause in typing; the old rows stay on screen meanwhile (keepPreviousData).
+  const requestedSearch = useDebouncedValue(normalizedSearch);
   const publicationQueryParams = useMemo(
     () => ({
       envelope: "true" as const,
       limit: publicationPageSize,
-      q: normalizedSearch || undefined,
+      q: requestedSearch || undefined,
       linked_only: linkedOnly,
     }),
-    [linkedOnly, normalizedSearch, publicationPageSize],
+    [linkedOnly, requestedSearch, publicationPageSize],
   );
 
   useEffect(() => {
@@ -65,6 +69,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         cursor: pageParam ?? undefined,
       }),
     getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
+    placeholderData: keepPreviousData,
     ...catalogQueryOptions,
   });
 
@@ -124,18 +129,19 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   );
 
   const goToPage = (updater: (current: number) => number) => {
-    // Capture the offset before the slice swaps so the layout-height change on
-    // the new page does not clamp the window scroll toward the top.
-    restoreScrollRef.current = window.scrollY;
+    scrollToListRef.current = true;
     setPage(updater);
   };
 
+  // A page change leaves you at the top of the new page (the buttons sit at the bottom, so keeping the scroll
+  // offset used to land you at the END of the next page), with the first row focused for keyboard users.
   useLayoutEffect(() => {
-    if (restoreScrollRef.current === null) {
+    if (!scrollToListRef.current) {
       return;
     }
-    window.scrollTo(0, restoreScrollRef.current);
-    restoreScrollRef.current = null;
+    scrollToListRef.current = false;
+    listRef.current?.scrollIntoView?.({ block: "start" });
+    listRef.current?.querySelector("button")?.focus({ preventScroll: true });
   }, [currentPage]);
 
   const literatureControls = (
@@ -230,7 +236,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
             </div>
           ) : null}
 
-          <div className="rounded-panel border border-line bg-panel px-4 md:px-8">
+          <div ref={listRef} className="scroll-mt-[var(--nav-offset)] rounded-panel border border-line bg-panel px-4 md:px-8">
             <AnimatePresence mode="wait" initial={false}>
               {showPublicationSkeletons ? (
                 <motion.div
@@ -272,8 +278,26 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                     </motion.div>
                   ))}
                   {!sortedPublications.length ? (
-                    <div className="px-2 py-12 text-[15px] text-muted">
-                      No publications matched this filter.
+                    <div className="space-y-4 px-2 py-12 text-[15px] text-muted">
+                      <p>
+                        {normalizedSearch
+                          ? `No publications match “${normalizedSearch}”${linkedOnly ? " among papers linked to a trial" : ""}.`
+                          : linkedOnly
+                            ? "No publications are linked to a trial yet."
+                            : "No publications are tracked yet."}
+                      </p>
+                      {hasFilters ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearch("");
+                            setLinkedOnly(false);
+                          }}
+                          className="min-h-11 rounded-panel border border-line-strong px-4 py-2 text-[14px] text-text hover:bg-text/5"
+                        >
+                          Clear search and filters
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </motion.div>

@@ -97,7 +97,7 @@ describe("LiteratureView", () => {
     });
   });
 
-  it("preserves scroll position when paginating", async () => {
+  it("brings the top of the list into view and focuses its first row when you change page (the buttons are at the bottom, so keeping the scroll offset landed you at the END of the next page)", async () => {
     const items = Array.from({ length: 60 }, (_, index) => ({
       pmid: `PMID${index}`,
       trial_id: null,
@@ -110,34 +110,41 @@ describe("LiteratureView", () => {
       url: `https://example.com/${index}`,
     }));
 
-    vi.mocked(listPublicationsPage).mockImplementation(
-      async (params: Record<string, string | number | boolean | string[] | undefined>) => {
-        if (params.limit === 1 && params.envelope === "true" && !params.cursor) {
-          return { items: [], next_cursor: null, total: 60 };
-        }
-        return { items, next_cursor: null, total: 60 };
-      },
-    );
+    vi.mocked(listPublicationsPage).mockImplementation(async () => ({
+      items,
+      next_cursor: null,
+      total: 60,
+    }));
 
-    const scrollToSpy = vi.fn();
-    Object.defineProperty(window, "scrollTo", {
+    const scrollIntoViewSpy = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
       writable: true,
       configurable: true,
-      value: scrollToSpy,
-    });
-    Object.defineProperty(window, "scrollY", {
-      writable: true,
-      configurable: true,
-      value: 480,
+      value: scrollIntoViewSpy,
     });
 
     renderWithQueryClient(<LiteratureView onOpenPublicationSnapshot={vi.fn()} />);
 
-    const nextButton = await screen.findByLabelText("Next page");
-    fireEvent.click(nextButton);
+    const next = await screen.findByLabelText("Next page");
+    await waitFor(() => expect(document.querySelector("h2")).not.toBeNull()); // rows have swapped in from the skeleton
+    fireEvent.click(next);
 
     await waitFor(() => {
-      expect(scrollToSpy).toHaveBeenCalledWith(0, 480);
+      expect(scrollIntoViewSpy).toHaveBeenCalledWith({ block: "start" });
     });
+    const firstRow = document.querySelector("h2")?.closest("button");
+    expect(firstRow).toHaveFocus();
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+  });
+
+  it("says what was searched and offers a way out when nothing matches", async () => {
+    vi.mocked(listPublicationsPage).mockResolvedValue({ items: [], next_cursor: null, total: 0 });
+    renderWithQueryClient(<LiteratureView onOpenPublicationSnapshot={vi.fn()} />);
+
+    fireEvent.change(await screen.findByLabelText("Search title or abstract"), { target: { value: "zzzz" } });
+
+    expect(await screen.findByText("No publications match “zzzz”.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Clear search and filters" }));
+    expect(screen.getByLabelText("Search title or abstract")).toHaveValue("");
   });
 });
