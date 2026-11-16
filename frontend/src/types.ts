@@ -77,4 +77,6 @@ export type AskMessage = {
   isStreaming?: boolean;
   /** A failed answer: shown as an error with retry actions, not as an answer (no Copy, no sources). */
   isError?: boolean;
+  /** The reader pressed Stop while it streamed: the text so far is kept and marked. */
+  isStopped?: boolean;
 };

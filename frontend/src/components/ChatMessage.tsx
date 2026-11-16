@@ -172,6 +172,7 @@ export const ChatMessage = memo(function ChatMessage({
           // One row under the bubble: the sources, then Copy at the end. Copy used to sit in the bubble's corner,
           // which reserved 56px of a ~250px text column on a phone.
           <div className="mt-3 flex max-w-full flex-wrap items-center gap-2">
+            {message.isStopped ? <span className="text-[13px] text-muted">Stopped.</span> : null}
             {message.sources?.length ? (
               <>
                 <span className="kicker text-[11px] text-muted">Sources ({message.sources.length})</span>

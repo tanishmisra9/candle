@@ -1,5 +1,5 @@
 /** The Ask page: example questions, conversation log, fixed composer and the streaming scroll/announcement logic. See the scroll invariant in the module body before changing the follow behaviour (it must be a ref derived from position; the old state-driven version caused an infinite scroll glitch). */
-import { ArrowDown, SendHorizonal } from "lucide-react";
+import { ArrowDown, SendHorizonal, Square } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { askQuestion, askQuestionStream } from "../lib/api";
@@ -33,6 +33,8 @@ const EXAMPLE_QUESTIONS = [
   "What CHM trials have been withdrawn or terminated?",
   "Are there any trials studying vitamin A or neuroprotective treatments for CHM?",
 ] as const;
+
+const SLOW_ANSWER_MS = 8000;
 
 // "Following" the stream means being within this many px of the true document bottom.
 const STICK_THRESHOLD_PX = 80;
@@ -257,6 +259,40 @@ export function AskPanel({
   const showLoadingDots =
     isPending && !(inFlightAssistant && inFlightAssistant.content.length > 0);
 
+  // Retrieval, rerank and the classifier can take several seconds before the first token: say what is happening, and
+  // admit it when it is slow. Visible only (aria-hidden): the polite status region already announces "Generating answer."
+  const [isSlow, setIsSlow] = useState(false);
+  useEffect(() => {
+    if (!showLoadingDots) {
+      setIsSlow(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setIsSlow(true), SLOW_ANSWER_MS);
+    return () => window.clearTimeout(timer);
+  }, [showLoadingDots]);
+
+  // Stop: abort the stream (isCurrent() then ignores every late callback and the catch returns, so NO fallback request
+  // is sent for an answer the reader walked away from). Nothing streamed yet: hand the question back to the box. Some
+  // text streamed: keep it, marked as stopped.
+  const stopAnswer = () => {
+    abortRef.current?.abort();
+    setIsPending(false);
+    setAnnouncement("Stopped.");
+    const inflightIndex = messages.findIndex((message) => message.role === "assistant" && message.isStreaming);
+    const inflight = messages[inflightIndex];
+    if (!inflight) return;
+    const question = messages[inflightIndex - 1];
+    if (inflight.content.length === 0 && question?.role === "user") {
+      setMessages((current) => current.filter((message) => message.id !== inflight.id && message.id !== question.id));
+      setDraft(question.content);
+      inputRef.current?.focus();
+      return;
+    }
+    setMessages((current) =>
+      current.map((message) => (message.id === inflight.id ? { ...message, isStreaming: false, isStopped: true } : message)),
+    );
+  };
+
   // Stickiness is derived from position, and only from scrolls we did not cause ourselves.
   useEffect(() => {
     const onScroll = () => {
@@ -347,15 +383,20 @@ export function AskPanel({
             })}
             {showLoadingDots ? (
               <div className="flex justify-start" data-testid="loading-dots">
-                <div className="inline-flex items-center gap-2 rounded-panel border border-line bg-panel px-5 py-4">
-                  {[0, 1, 2].map((dot) => (
-                    <span
-                      key={dot}
-                      className="h-2 w-2 animate-pulse rounded-panel bg-accent"
-                      style={{ animationDelay: `${dot * 120}ms` }}
-                      aria-hidden="true"
-                    />
-                  ))}
+                <div className="inline-flex items-center gap-3 rounded-panel border border-line bg-panel px-5 py-4">
+                  <span className="inline-flex items-center gap-2">
+                    {[0, 1, 2].map((dot) => (
+                      <span
+                        key={dot}
+                        className="h-2 w-2 animate-pulse rounded-panel bg-accent"
+                        style={{ animationDelay: `${dot * 120}ms` }}
+                        aria-hidden="true"
+                      />
+                    ))}
+                  </span>
+                  <span aria-hidden="true" className="text-[14px] text-muted">
+                    {isSlow ? "Still working…" : "Searching trials and papers…"}
+                  </span>
                 </div>
               </div>
             ) : null}
@@ -401,17 +442,36 @@ export function AskPanel({
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="Ask about CHM trials, outcomes, sponsors, or papers"
               />
-              <Tooltip label="Send question" describe={false}>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={!draft.trim() || isPending}
-                  aria-label="Send question"
-                  className="w-11 shrink-0 p-0"
-                >
-                  <SendHorizonal size={17} strokeWidth={1.5} aria-hidden="true" />
-                </Button>
-              </Tooltip>
+              {/* Distinct keys on purpose: with the same key React reuses ONE <button> and flips its type from "button" to
+                  "submit" while the Stop click is still being handled, so the browser then submits the form and re-asks the
+                  question that was just stopped (jsdom does not show this; the test pins that they are different elements). */}
+              {isPending ? (
+                <Tooltip key="stop" label="Stop answer" describe={false}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={stopAnswer}
+                    aria-label="Stop answer"
+                    // `!p-0`: the variant's own px-5 outranks a plain p-0 in the generated CSS and squeezed the icon to ~2px.
+                    className="w-11 shrink-0 !p-0"
+                  >
+                    <Square size={15} strokeWidth={1.75} aria-hidden="true" />
+                  </Button>
+                </Tooltip>
+              ) : (
+                <Tooltip key="send" label="Send question" describe={false}>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={!draft.trim()}
+                    aria-label="Send question"
+                    // `!p-0`: the variant's own px-5 outranks a plain p-0 in the generated CSS and squeezed the icon to ~2px.
+                    className="w-11 shrink-0 !p-0"
+                  >
+                    <SendHorizonal size={17} strokeWidth={1.5} aria-hidden="true" />
+                  </Button>
+                </Tooltip>
+              )}
             </div>
             <LastSyncedLabel className="mt-2" />
           </div>

@@ -218,11 +218,16 @@ describe("describeAskFailure", () => {
 });
 
 describe("a failed answer keeps the question and offers a way forward", () => {
-  async function failThen(second: (h: Handlers) => Promise<void>) {
+  // `second` is the stream for a retry; leave it out when the test never asks again (a queued mockImplementationOnce
+  // that nobody consumes would be picked up by the next test's stream).
+  async function failThen(second?: (h: Handlers) => Promise<void>) {
     const api = await import("../lib/api");
-    vi.mocked(api.askQuestionStream)
-      .mockImplementationOnce(async (_q, handlers) => (handlers as Handlers).onError("Ask request timed out.", "server"))
-      .mockImplementationOnce(async (_q, handlers) => second(handlers as Handlers));
+    vi.mocked(api.askQuestionStream).mockImplementationOnce(async (_q, handlers) =>
+      (handlers as Handlers).onError("Ask request timed out.", "server"),
+    );
+    if (second) {
+      vi.mocked(api.askQuestionStream).mockImplementationOnce(async (_q, handlers) => second(handlers as Handlers));
+    }
     render(<AskPanel />);
     fireEvent.change(screen.getByLabelText(/ask a question about chm trials/i), {
       target: { value: "What trials are recruiting?" },
@@ -243,10 +248,79 @@ describe("a failed answer keeps the question and offers a way forward", () => {
   });
 
   it("'Edit question' puts the text back in the box instead of losing it", async () => {
-    const { conversation } = await failThen(async () => {});
+    const { conversation } = await failThen();
     fireEvent.click(within(conversation).getByRole("button", { name: "Edit question" }));
     expect(screen.getByLabelText(/ask a question about chm trials/i)).toHaveValue("What trials are recruiting?");
     expect(within(conversation).queryByText("Answer failed")).not.toBeInTheDocument();
+  });
+});
+
+describe("waiting and Stop", () => {
+  async function pendingStream(first?: (h: Handlers) => void) {
+    const api = await import("../lib/api");
+    vi.mocked(api.askQuestion).mockReset();
+    const seen: { signal?: AbortSignal } = {};
+    vi.mocked(api.askQuestionStream).mockImplementationOnce(async (_q, handlers, signal) => {
+      seen.signal = signal;
+      first?.(handlers as Handlers);
+      // A stream that stays open until it is aborted, as the real fetch does.
+      await new Promise((_, reject) =>
+        signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError"))),
+      );
+    });
+    render(<AskPanel />);
+    fireEvent.change(screen.getByLabelText(/ask a question about chm trials/i), {
+      target: { value: "What trials are recruiting?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send question" }));
+    return { api, seen, conversation: screen.getByRole("log", { name: "Conversation" }) };
+  }
+
+  it("says what is happening while waiting for the first token", async () => {
+    const { conversation } = await pendingStream();
+    expect(await within(conversation).findByText("Searching trials and papers…")).toBeInTheDocument();
+  });
+
+  it("keeps the icon buttons' padding off, or the variant's px-5 squeezes the icon to ~2px inside the 44px square", async () => {
+    await pendingStream();
+    expect(screen.getByRole("button", { name: "Stop answer" }).className).toContain("!p-0");
+  });
+
+  it("Stop and Send are different elements (one reused button turned into a submit mid-click and re-asked the stopped question)", async () => {
+    const { api, conversation } = await pendingStream();
+    await within(conversation).findByTestId("loading-dots");
+    const stop = screen.getByRole("button", { name: "Stop answer" });
+    expect(stop).toHaveAttribute("type", "button");
+    const callsBefore = vi.mocked(api.askQuestionStream).mock.calls.length; // the spy is shared across tests
+    fireEvent.click(stop);
+    const send = await screen.findByRole("button", { name: "Send question" });
+    expect(send).not.toBe(stop);
+    expect(vi.mocked(api.askQuestionStream).mock.calls.length).toBe(callsBefore);
+  });
+
+  it("Stop before any text hands the question back to the box and sends no fallback request", async () => {
+    const { api, seen, conversation } = await pendingStream();
+    await within(conversation).findByTestId("loading-dots");
+    fireEvent.click(screen.getByRole("button", { name: "Stop answer" }));
+    expect(seen.signal?.aborted).toBe(true); // the request really stops, not just the display
+
+    await waitFor(() => expect(screen.getByLabelText(/ask a question about chm trials/i)).toHaveValue("What trials are recruiting?"));
+    expect(within(conversation).queryByTestId("loading-dots")).not.toBeInTheDocument();
+    expect(within(conversation).queryByText("What trials are recruiting?")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
+    expect(api.askQuestion).not.toHaveBeenCalled(); // no second, paid request for an answer the reader walked away from
+  });
+
+  it("Stop after some text keeps what was streamed and marks it stopped", async () => {
+    const { api, seen, conversation } = await pendingStream((h) => h.onDelta("Two trials are "));
+    await within(conversation).findByText(/Two trials are/);
+    fireEvent.click(screen.getByRole("button", { name: "Stop answer" }));
+    expect(seen.signal?.aborted).toBe(true);
+
+    expect(await within(conversation).findByText("Stopped.")).toBeInTheDocument();
+    expect(within(conversation).getByText(/Two trials are/)).toBeInTheDocument();
+    expect(api.askQuestion).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
   });
 });
 
