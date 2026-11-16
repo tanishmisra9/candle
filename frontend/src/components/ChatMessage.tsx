@@ -38,6 +38,41 @@ const markdownComponents = {
   h3: ({ children }: { children?: ReactNode }) => (
     <p className="mb-2 font-medium text-text">{children}</p>
   ),
+  // Links, tables, code and quotes had no styling at all: a link looked like plain text and a table was an
+  // unbordered run of cramped columns.
+  a: ({ href, children }: { href?: string; children?: ReactNode }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="text-accent underline underline-offset-2 hover:text-text"
+    >
+      {children}
+      <span className="sr-only"> (opens in a new tab)</span>
+    </a>
+  ),
+  table: ({ children }: { children?: ReactNode }) => (
+    <div className="mb-3 overflow-x-auto last:mb-0">
+      <table className="w-full border-collapse text-left text-[14px]">{children}</table>
+    </div>
+  ),
+  th: ({ children }: { children?: ReactNode }) => (
+    <th className="border border-line px-3 py-2 font-medium text-text">{children}</th>
+  ),
+  td: ({ children }: { children?: ReactNode }) => (
+    <td className="border border-line px-3 py-2 align-top text-text">{children}</td>
+  ),
+  code: ({ children }: { children?: ReactNode }) => (
+    <code className="rounded-panel bg-text/[0.06] px-1 py-0.5 font-mono text-[0.9em]">{children}</code>
+  ),
+  pre: ({ children }: { children?: ReactNode }) => (
+    <pre className="mb-3 overflow-x-auto rounded-panel border border-line bg-text/[0.04] p-3 text-[13px] last:mb-0 [&_code]:bg-transparent [&_code]:p-0">
+      {children}
+    </pre>
+  ),
+  blockquote: ({ children }: { children?: ReactNode }) => (
+    <blockquote className="mb-3 border-l border-line-strong pl-4 text-muted last:mb-0">{children}</blockquote>
+  ),
 };
 
 export const ChatMessage = memo(function ChatMessage({
@@ -81,16 +116,39 @@ export const ChatMessage = memo(function ChatMessage({
       transition={entranceMotion.transition}
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
     >
-      <div className="max-w-[92%]">
+      <div className="group max-w-[92%]">
         <div
           className={`rounded-panel ${
             isUser
               ? "border border-line bg-text/[0.05] px-5 py-3.5 text-[15px] leading-[1.6] text-text"
-              : "group relative border border-line bg-panel py-5 pl-6 pr-14 text-[16px] leading-[1.6] text-text"
+              : "border border-line bg-panel px-6 py-5 text-[16px] leading-[1.6] text-text"
           }`}
         >
-          {!isUser ? (
-            <div className="absolute right-2 top-2 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
+          {isUser ? (
+            message.content
+          ) : (
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {message.content}
+            </ReactMarkdown>
+          )}
+        </div>
+        {!isUser ? (
+          // One row under the bubble: the sources, then Copy at the end. Copy used to sit in the bubble's corner,
+          // which reserved 56px of a ~250px text column on a phone.
+          <div className="mt-3 flex max-w-full flex-wrap items-center gap-2">
+            {message.sources?.length ? (
+              <>
+                <span className="kicker text-[11px] text-muted">Sources ({message.sources.length})</span>
+                {message.sources.map((source) => (
+                  <SourceChip
+                    key={`${source.source_type}-${source.source_id}`}
+                    source={source}
+                    onOpenTrialSnapshot={onOpenTrialSnapshot}
+                  />
+                ))}
+              </>
+            ) : null}
+            <div className="ml-auto opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100">
               <Tooltip label={copied ? "Copied" : "Copy response"} describe={false}>
                 <button
                   type="button"
@@ -106,24 +164,6 @@ export const ChatMessage = memo(function ChatMessage({
                 </button>
               </Tooltip>
             </div>
-          ) : null}
-          {isUser ? (
-            message.content
-          ) : (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {message.content}
-            </ReactMarkdown>
-          )}
-        </div>
-        {!isUser && message.sources?.length ? (
-          <div className="mt-3 flex max-w-full flex-wrap gap-2">
-            {message.sources.map((source) => (
-              <SourceChip
-                key={`${source.source_type}-${source.source_id}`}
-                source={source}
-                onOpenTrialSnapshot={onOpenTrialSnapshot}
-              />
-            ))}
           </div>
         ) : null}
       </div>

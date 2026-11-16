@@ -13,7 +13,7 @@ export function SourceChip({
     source.label ??
     (source.source_type === "trial" ? `${source.source_id}` : source.title);
   const detail =
-    source.detail ?? (source.source_type === "trial" ? "Trial" : "PubMed");
+    source.detail ?? (source.source_type === "trial" ? "Trial" : `PMID ${source.source_id}`);
   const chipClass =
     "inline-flex min-h-11 max-w-full min-w-0 items-center overflow-hidden rounded-panel border border-line-strong bg-panel px-3 py-2 text-[13px] text-text transition-colors hover:border-accent";
   const content = (
