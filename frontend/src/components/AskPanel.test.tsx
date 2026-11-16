@@ -196,6 +196,52 @@ describe("AskPanel failures do not trigger a second, paid request unless a retry
   });
 });
 
+describe("the empty state", () => {
+  const STARTERS = [
+    "What are researchers currently testing for choroideremia?",
+    "Which gene therapy trials are currently recruiting?",
+    "What does the research say about how CHM progresses over time?",
+    "Are there any completed Phase 3 CHM trials?",
+  ];
+
+  it("offers the same four plain-language starters every time (it used to pick 4 random of 20, some jargon)", () => {
+    const first = render(<AskPanel />);
+    const read = () =>
+      within(screen.getByRole("log", { name: "Conversation" })).getAllByRole("button").map((b) => b.textContent);
+    expect(read()).toEqual(STARTERS);
+    first.unmount();
+    render(<AskPanel />);
+    expect(read()).toEqual(STARTERS);
+  });
+
+  it("says what Ask cannot do before the first question, instead of on the first refusal", () => {
+    render(<AskPanel />);
+    expect(screen.getByText(/can’t give medical advice, say which trial suits you, or predict outcomes/)).toBeInTheDocument();
+    expect(screen.getByText("Not medical advice. AI can make mistakes.")).toBeInTheDocument();
+  });
+
+  it("limits the question to what the server accepts", () => {
+    render(<AskPanel />);
+    expect(screen.getByLabelText(/ask a question about chm trials/i)).toHaveAttribute("maxlength", "2000");
+  });
+
+  it("returns focus to the box after a starter is clicked with a mouse-like pointer (the starter unmounts)", async () => {
+    const api = await import("../lib/api");
+    vi.mocked(api.askQuestionStream).mockImplementationOnce(async (_q, _h, signal) => {
+      await new Promise((_, reject) => signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError"))));
+    });
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({ ...original(query), matches: query.includes("pointer: fine") })) as typeof window.matchMedia;
+    try {
+      render(<AskPanel />);
+      fireEvent.click(screen.getByRole("button", { name: STARTERS[0] }));
+      expect(screen.getByLabelText(/ask a question about chm trials/i)).toHaveFocus();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+});
+
 describe("describeAskFailure", () => {
   it.each([
     ["Rate limit exceeded for this endpoint.", /too many requests/i],

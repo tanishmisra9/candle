@@ -1,6 +1,6 @@
 /** The Ask page: example questions, conversation log, fixed composer and the streaming scroll/announcement logic. See the scroll invariant in the module body before changing the follow behaviour (it must be a ref derived from position; the old state-driven version caused an infinite scroll glitch). */
 import { ArrowDown, SendHorizonal, Square } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 import { askQuestion, askQuestionStream } from "../lib/api";
 import { markdownToPlainText } from "../lib/plainText";
@@ -11,28 +11,17 @@ import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 import { Tooltip } from "./ui/Tooltip";
 
-const EXAMPLE_QUESTIONS = [
-  "Which CHM gene therapy trials are currently recruiting?",
-  "What did the RTx-015 Phase 1 trial report?",
-  "What publications exist on AAV gene therapy for CHM?",
-  "Which trials have the most enrolled participants?",
-  "What is the primary endpoint of the Kiora KIO-301 trial?",
-  "Which trials are sponsored by 4D Molecular Therapeutics?",
-  "What does the research say about natural disease progression in CHM?",
+// A fixed, plain-language set (it used to be 4 random picks out of 20, several full of jargon like "microperimetry"),
+// so everyone sees the same first examples and none needs a clinical vocabulary.
+const STARTER_QUESTIONS = [
+  "What are researchers currently testing for choroideremia?",
+  "Which gene therapy trials are currently recruiting?",
+  "What does the research say about how CHM progresses over time?",
   "Are there any completed Phase 3 CHM trials?",
-  "Which trials are currently enrolling by invitation?",
-  "What imaging outcomes have been reported in CHM publications?",
-  "What gene therapy vectors have been studied for CHM?",
-  "Which trials have sites outside the United States?",
-  "What visual acuity outcomes have been reported in CHM gene therapy trials?",
-  "Which sponsor has run the most CHM trials?",
-  "What is the total enrollment across all CHM trials?",
-  "Are there any observational studies tracking CHM disease progression?",
-  "What publications are linked to the Biogen natural history study?",
-  "Which trials use microperimetry as an outcome measure?",
-  "What CHM trials have been withdrawn or terminated?",
-  "Are there any trials studying vitamin A or neuroprotective treatments for CHM?",
 ] as const;
+
+// Mirrors the server's default `ask_question_max_chars`; the server stays the authority (it replies 413).
+const MAX_QUESTION_CHARS = 2000;
 
 const SLOW_ANSWER_MS = 8000;
 
@@ -96,12 +85,6 @@ export function AskPanel({
   const inputRef = useRef<HTMLInputElement | null>(null);
   // Leaving the page abandons any answer in flight (and, through `isCurrent` below, its callbacks).
   useEffect(() => () => abortRef.current?.abort(), []);
-  const exampleQuestions = useMemo(() => {
-    return [...EXAMPLE_QUESTIONS]
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 4);
-  }, []);
-
   const sendQuestion = (question: string) => {
     const trimmed = question.trim();
     if (!trimmed || isPending) {
@@ -328,15 +311,21 @@ export function AskPanel({
   };
 
   return (
-    <div className="space-y-8 pb-24 pt-28 md:space-y-12 md:pt-32">
+    // ONE bottom padding (scroll invariant above). With <main>'s own pb-20 this clears the fixed composer (~130px: input,
+    // note line, bar padding) by ~60px, which is what the old pb-24 left under the old, shorter composer.
+    <div className="space-y-8 pb-28 pt-28 md:space-y-12 md:pt-32">
       <header className="space-y-2">
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
           Ask
         </h1>
         {emptyState ? (
-          <p className="text-[17px] text-muted">
-            Ask anything about indexed CHM trials and publications.
-          </p>
+          <div className="max-w-[46rem] space-y-2">
+            <p className="text-[17px] text-muted">Ask about the CHM trials and publications Candle has indexed.</p>
+            <p className="text-[14px] leading-[1.6] text-muted">
+              Answers come only from those trials and papers. Candle can’t give medical advice, say which trial suits
+              you, or predict outcomes, and AI can make mistakes.
+            </p>
+          </div>
         ) : null}
       </header>
       <div
@@ -348,11 +337,16 @@ export function AskPanel({
         {emptyState ? (
           <div className="pt-12">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {exampleQuestions.map((question) => (
+              {STARTER_QUESTIONS.map((question) => (
                 <button
                   key={question}
                   type="button"
-                  onClick={() => sendQuestion(question)}
+                  onClick={() => {
+                    sendQuestion(question);
+                    // The clicked starter unmounts, which dropped focus to <body>. Hand it to the box, but only with a
+                    // mouse-like pointer: on touch it would pop the keyboard over the answer.
+                    if (window.matchMedia?.("(hover: hover) and (pointer: fine)").matches) inputRef.current?.focus();
+                  }}
                   className="inline-flex min-h-12 items-center rounded-panel border border-line-strong bg-panel px-5 py-3.5 text-left text-[15px] text-muted transition-colors hover:border-accent hover:text-text"
                 >
                   {question}
@@ -409,7 +403,9 @@ export function AskPanel({
           event.preventDefault();
           sendQuestion(draft);
         }}
-        className="fixed inset-x-0 bottom-6 z-40 px-4 sm:px-5 md:px-10"
+        // The bar itself is the canvas-coloured mask, full width and down to the bottom edge (it used to be a padded box
+        // floating 24px up, so answer text showed in the gap below it and beside it), padded by the phone's safe area.
+        className="fixed inset-x-0 bottom-0 z-40 bg-canvas px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-5 md:px-10"
       >
         <div className="mx-auto w-full max-w-[1360px]">
           {showJumpToLatest && hasConversation ? (
@@ -426,7 +422,7 @@ export function AskPanel({
           ) : null}
           {/* No outer outline: the input carries its own 3:1 border (WCAG 1.4.11). The canvas background
               only hides messages scrolling underneath the fixed composer. */}
-          <div className="bg-canvas p-3 md:p-4">
+          <div className="p-3 md:p-4">
             <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
               {announcement}
             </span>
@@ -440,7 +436,8 @@ export function AskPanel({
                 data-route-autofocus=""
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                placeholder="Ask about CHM trials, outcomes, sponsors, or papers"
+                placeholder="Ask about trials or papers"
+                maxLength={MAX_QUESTION_CHARS}
               />
               {/* Distinct keys on purpose: with the same key React reuses ONE <button> and flips its type from "button" to
                   "submit" while the Stop click is still being handled, so the browser then submits the form and re-asks the
@@ -473,7 +470,10 @@ export function AskPanel({
                 </Tooltip>
               )}
             </div>
-            <LastSyncedLabel className="mt-2" />
+            <div className="mt-2 flex flex-wrap items-baseline justify-center gap-x-3">
+              <p className="text-center text-xs text-muted">Not medical advice. AI can make mistakes.</p>
+              <LastSyncedLabel />
+            </div>
           </div>
         </div>
       </form>
