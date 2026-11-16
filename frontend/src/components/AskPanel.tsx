@@ -52,6 +52,26 @@ export function scrollToBottom(guard: { current: number | null }) {
   guard.current = window.scrollY !== before ? window.scrollY : null;
 }
 
+/** Plain-language text for a failed answer, by what went wrong. The lead sentence is shared so a failure always reads the same way. */
+export function describeAskFailure(raw: string) {
+  if (/rate limit|too many/i.test(raw)) {
+    return { text: "Too many requests. Please wait a moment and try again.", rateLimited: true };
+  }
+  const lead = "I couldn't complete that answer just now.";
+  if (/timed out|timeout/i.test(raw)) {
+    return { text: `${lead} It took too long, so please try again.`, rateLimited: false };
+  }
+  if (/unavailable|overloaded|busy|\b50[234]\b/i.test(raw)) {
+    return { text: `${lead} The service is busy, so please try again in a moment.`, rateLimited: false };
+  }
+  if (/too large|too long|\b413\b/i.test(raw)) {
+    return { text: `${lead} The question was too long. Please shorten it and try again.`, rateLimited: false };
+  }
+  // Developers get the likely local cause; a visitor must never be told to check an API key.
+  const devHint = import.meta.env.DEV ? " (Dev: is the backend running and the OpenAI key configured?)" : "";
+  return { text: `${lead} Please try again.${devHint}`, rateLimited: false };
+}
+
 export function AskPanel({
   onOpenTrialSnapshot,
 }: {
@@ -71,6 +91,7 @@ export function AskPanel({
   // scrollY after our own scrollTo, so the scroll event it fires isn't mistaken for the user.
   const programmaticYRef = useRef<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   // Leaving the page abandons any answer in flight (and, through `isCurrent` below, its callbacks).
   useEffect(() => () => abortRef.current?.abort(), []);
   const exampleQuestions = useMemo(() => {
@@ -116,13 +137,12 @@ export function AskPanel({
 
     const failAssistant = (id: string, error: unknown) => {
       settled = true;
-      const isRateLimited = /rate limit|too many/i.test(String((error as Error | undefined)?.message ?? ""));
-      const text = isRateLimited
-        ? "Too many requests. Please wait a moment and try again."
-        : "I couldn't complete that answer just now. Please check that the backend is running and the OpenAI key is configured.";
-      setAnnouncement(isRateLimited ? text : "Answer could not be completed.");
+      const { text, rateLimited } = describeAskFailure(String((error as Error | undefined)?.message ?? ""));
+      setAnnouncement(rateLimited ? text : "Answer could not be completed.");
       setMessages((current) =>
-        current.map((message) => (message.id === id ? { ...message, content: text, isStreaming: false } : message)),
+        current.map((message) =>
+          message.id === id ? { ...message, content: text, isStreaming: false, isError: true } : message,
+        ),
       );
       setIsPending(false);
     };
@@ -209,7 +229,27 @@ export function AskPanel({
     });
   };
 
+  // "Try again" / "Edit question" on the failed answer: drop the failed pair, then re-ask or hand the text back.
+  const takeFailedQuestion = (errorId: string) => {
+    const index = messages.findIndex((message) => message.id === errorId);
+    const question = messages[index - 1];
+    if (index < 1 || question?.role !== "user") return null;
+    setMessages((current) => current.filter((message) => message.id !== errorId && message.id !== question.id));
+    return question.content;
+  };
+  const retryFailed = (errorId: string) => {
+    const question = takeFailedQuestion(errorId);
+    if (question) sendQuestion(question);
+  };
+  const editFailed = (errorId: string) => {
+    const question = takeFailedQuestion(errorId);
+    if (question === null) return;
+    setDraft(question);
+    inputRef.current?.focus();
+  };
+
   const emptyState = messages.length === 0 && !isPending;
+  const lastMessageId = messages[messages.length - 1]?.id;
   const hasConversation = messages.length > 0 || isPending;
   const inFlightAssistant = messages.find(
     (message) => message.role === "assistant" && message.isStreaming,
@@ -300,6 +340,8 @@ export function AskPanel({
                   key={message.id}
                   message={message}
                   onOpenTrialSnapshot={onOpenTrialSnapshot}
+                  onRetry={message.isError && message.id === lastMessageId ? () => retryFailed(message.id) : undefined}
+                  onEdit={message.isError && message.id === lastMessageId ? () => editFailed(message.id) : undefined}
                 />
               );
             })}
@@ -352,6 +394,7 @@ export function AskPanel({
                 Ask a question about CHM trials, outcomes, sponsors, or papers
               </label>
               <Input
+                ref={inputRef}
                 id={questionFieldId}
                 data-route-autofocus=""
                 value={draft}

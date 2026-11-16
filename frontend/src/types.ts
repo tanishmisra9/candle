@@ -75,4 +75,6 @@ export type AskMessage = {
   content: string;
   sources?: AskSource[];
   isStreaming?: boolean;
+  /** A failed answer: shown as an error with retry actions, not as an answer (no Copy, no sources). */
+  isError?: boolean;
 };

@@ -8,6 +8,8 @@ import remarkGfm from "remark-gfm";
 import { messageEntranceMotion } from "../lib/motion";
 import type { AskMessage } from "../types";
 import { SourceChip } from "./SourceChip";
+import { StatusMarker } from "./StatusBadge";
+import { Button } from "./ui/Button";
 import { Tooltip } from "./ui/Tooltip";
 
 const markdownComponents = {
@@ -78,9 +80,14 @@ const markdownComponents = {
 export const ChatMessage = memo(function ChatMessage({
   message,
   onOpenTrialSnapshot,
+  onRetry,
+  onEdit,
 }: {
   message: AskMessage;
   onOpenTrialSnapshot?: (trialId: string) => void;
+  /** Only passed for the latest failed answer. */
+  onRetry?: () => void;
+  onEdit?: () => void;
 }) {
   const isUser = message.role === "user";
   const prefersReducedMotion = useReducedMotion();
@@ -107,6 +114,35 @@ export const ChatMessage = memo(function ChatMessage({
     } catch {
       // Clipboard access can fail in unsupported contexts; fail silently.
     }
+  }
+
+  if (message.isError) {
+    // A failure is not an answer: its own look (marker + label, so not colour alone), no Copy, no sources, and a way
+    // forward that keeps the question.
+    return (
+      <motion.div
+        initial={entranceMotion.initial}
+        animate={entranceMotion.animate}
+        transition={entranceMotion.transition}
+        className="flex justify-start"
+      >
+        <div className="max-w-[92%] space-y-3">
+          <div className="rounded-panel border border-line-strong bg-panel px-6 py-5 text-[16px] leading-[1.6] text-text">
+            <p className="kicker mb-2 inline-flex items-center gap-2 text-[11px] text-muted">
+              <StatusMarker tier="terminated" />
+              Answer failed
+            </p>
+            <p>{message.content}</p>
+          </div>
+          {onRetry || onEdit ? (
+            <div className="flex flex-wrap gap-2">
+              {onRetry ? <Button variant="secondary" onClick={onRetry}>Try again</Button> : null}
+              {onEdit ? <Button variant="ghost" onClick={onEdit}>Edit question</Button> : null}
+            </div>
+          ) : null}
+        </div>
+      </motion.div>
+    );
   }
 
   return (

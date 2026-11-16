@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { AskPanel } from "./AskPanel";
+import { AskPanel, describeAskFailure } from "./AskPanel";
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({
@@ -193,6 +193,60 @@ describe("AskPanel failures do not trigger a second, paid request unless a retry
     await waitFor(() => expect(consoleError).toHaveBeenCalled()); // it is logged, not shown
     expect(within(conversation).queryByText(/couldn't complete that answer/i)).not.toBeInTheDocument();
     consoleError.mockRestore();
+  });
+});
+
+describe("describeAskFailure", () => {
+  it.each([
+    ["Rate limit exceeded for this endpoint.", /too many requests/i],
+    ["Ask request timed out.", /took too long/i],
+    ["AI service temporarily unavailable", /service is busy/i],
+    ["Request body too large", /question was too long/i],
+    ["boom", /couldn't complete that answer just now\. please try again/i],
+  ])("%s", (raw, expected) => {
+    expect(describeAskFailure(raw).text).toMatch(expected);
+  });
+
+  it("never tells a visitor to check an API key outside development", () => {
+    vi.stubEnv("DEV", false);
+    try {
+      expect(describeAskFailure("boom").text).not.toMatch(/openai|backend/i);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
+describe("a failed answer keeps the question and offers a way forward", () => {
+  async function failThen(second: (h: Handlers) => Promise<void>) {
+    const api = await import("../lib/api");
+    vi.mocked(api.askQuestionStream)
+      .mockImplementationOnce(async (_q, handlers) => (handlers as Handlers).onError("Ask request timed out.", "server"))
+      .mockImplementationOnce(async (_q, handlers) => second(handlers as Handlers));
+    render(<AskPanel />);
+    fireEvent.change(screen.getByLabelText(/ask a question about chm trials/i), {
+      target: { value: "What trials are recruiting?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send question" }));
+    const conversation = screen.getByRole("log", { name: "Conversation" });
+    await waitFor(() => expect(within(conversation).getByText("Answer failed")).toBeInTheDocument());
+    return { api, conversation };
+  }
+
+  it("'Try again' asks the same question again and replaces the failed pair (no duplicate question)", async () => {
+    const { api, conversation } = await failThen(async (h) => h.onDone({ answer: "Second try worked.", sources: [] }));
+    fireEvent.click(within(conversation).getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(within(conversation).getByText("Second try worked.")).toBeInTheDocument());
+    expect(within(conversation).getAllByText("What trials are recruiting?")).toHaveLength(1);
+    expect(within(conversation).queryByText("Answer failed")).not.toBeInTheDocument();
+    expect(vi.mocked(api.askQuestionStream).mock.calls.at(-1)?.[0]).toBe("What trials are recruiting?");
+  });
+
+  it("'Edit question' puts the text back in the box instead of losing it", async () => {
+    const { conversation } = await failThen(async () => {});
+    fireEvent.click(within(conversation).getByRole("button", { name: "Edit question" }));
+    expect(screen.getByLabelText(/ask a question about chm trials/i)).toHaveValue("What trials are recruiting?");
+    expect(within(conversation).queryByText("Answer failed")).not.toBeInTheDocument();
   });
 });
 
