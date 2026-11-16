@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
+import { version } from "../../package.json";
 import { Footer } from "./Footer";
 
 vi.mock("../lib/api", () => ({
@@ -20,6 +21,15 @@ function renderFooter(path: string) {
 }
 
 describe("Footer", () => {
+  it("shows the release number from package.json, except on Ask", () => {
+    const { unmount } = renderFooter("/trials");
+    expect(screen.getByText(`Version ${version}`)).toBeInTheDocument();
+    expect(version).toMatch(/^\d+\.\d+\.\d+$/);
+    unmount();
+    renderFooter("/ask");
+    expect(screen.queryByText(/^Version /)).toBeNull();
+  });
+
   it("links to the guide and the about page, and says Candle gives no medical advice", () => {
     renderFooter("/trials");
     const nav = screen.getByRole("navigation", { name: "Footer" });
