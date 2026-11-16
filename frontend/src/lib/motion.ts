@@ -82,6 +82,38 @@ export function dropdownMenuMotion(prefersReducedMotion: boolean | null) {
   };
 }
 
+/**
+ * The full-screen mobile menu (ported from Telogify and the portfolio): the overlay fades in, then the links
+ * rise one after another with a spring. Under reduced motion nothing moves or fades: it simply appears.
+ * The overlay is a sibling of the fixed header, not an ancestor of anything `position: fixed`, so the item
+ * `y` offset cannot shift fixed content (see PageTransition for the rule).
+ */
+export function mobileMenuMotion(prefersReducedMotion: boolean | null) {
+  if (prefersReducedMotion) {
+    const still = { opacity: 1, y: 0 };
+    return {
+      overlay: { initial: { opacity: 1 }, animate: { opacity: 1 }, exit: { opacity: 1 } },
+      list: { hidden: {}, show: {}, exit: {} },
+      item: { hidden: still, show: still, exit: still },
+    };
+  }
+
+  const spring = { type: "spring" as const, stiffness: 250, damping: 25 };
+  return {
+    overlay: {
+      initial: { opacity: 0 },
+      animate: { opacity: 1, transition: { duration: 0.25 } },
+      exit: { opacity: 0, transition: { duration: 0.2 } },
+    },
+    list: { hidden: {}, show: { transition: { staggerChildren: 0.05, delayChildren: 0.05 } }, exit: {} },
+    item: {
+      hidden: { opacity: 0, y: 32 },
+      show: { opacity: 1, y: 0, transition: spring },
+      exit: { opacity: 0, y: 16, transition: spring },
+    },
+  };
+}
+
 export function cardScrollRevealMotion(prefersReducedMotion: boolean | null) {
   if (prefersReducedMotion) {
     return {
