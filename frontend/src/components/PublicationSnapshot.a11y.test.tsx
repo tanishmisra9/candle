@@ -255,6 +255,20 @@ describe("PublicationSnapshot stacked on a trial", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the dialog panel positioned, so sr-only text inside it cannot make the fixed overlay scrollable", async () => {
+    vi.mocked(getPublicationOverview).mockResolvedValue({ overview: "x" });
+    render(
+      <PublicationSnapshot
+        publication={makePublication()}
+        onClose={() => {}}
+        onOpenTrialSnapshot={() => {}}
+        layer="below-trial"
+        isTrialSnapshotOpen={false}
+      />,
+    );
+    expect((await screen.findByRole("dialog")).className).toContain("relative");
+  });
+
   it("has no Back button when it is the only dialog", async () => {
     vi.mocked(getPublicationOverview).mockResolvedValue({ overview: "x" });
     render(

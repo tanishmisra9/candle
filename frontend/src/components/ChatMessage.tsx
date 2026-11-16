@@ -54,7 +54,8 @@ const markdownComponents = {
     </a>
   ),
   table: ({ children }: { children?: ReactNode }) => (
-    <div className="mb-3 overflow-x-auto last:mb-0">
+    // Focusable region: a keyboard user must be able to scroll a table that is wider than the bubble (axe: scrollable-region-focusable).
+    <div role="region" aria-label="Table" tabIndex={0} className="mb-3 overflow-x-auto last:mb-0">
       <table className="w-full border-collapse text-left text-[14px]">{children}</table>
     </div>
   ),

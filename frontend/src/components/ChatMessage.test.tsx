@@ -21,6 +21,9 @@ describe("ChatMessage", () => {
     render(<ChatMessage message={assistant({ content: "| Trial | Phase |\n| --- | --- |\n| NCT1 | 2 |" })} />);
     const table = screen.getByRole("table");
     expect(table.parentElement?.className).toContain("overflow-x-auto");
+    // A keyboard user must be able to focus the scroller to scroll a wide table (axe: scrollable-region-focusable).
+    expect(table.parentElement).toHaveAttribute("tabindex", "0");
+    expect(table.parentElement).toHaveAttribute("role", "region");
     expect(screen.getByRole("columnheader", { name: "Trial" }).className).toContain("border");
   });
 

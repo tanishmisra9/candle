@@ -200,7 +200,7 @@ export function TrialSnapshot({
                 animate={panelMotion.animate}
                 exit={panelMotion.exit}
                 onClick={(event) => event.stopPropagation()}
-                className="flex h-[min(87svh,920px)] w-full flex-col overflow-hidden rounded-panel border border-line bg-panel md:h-[min(calc(100vh-7rem),920px)] md:max-w-[1040px] md:rounded-panel"
+                className="relative flex h-[min(87svh,920px)] w-full flex-col overflow-hidden rounded-panel border border-line bg-panel md:h-[min(calc(100vh-7rem),920px)] md:max-w-[1040px] md:rounded-panel"
               >
                 <div data-testid="snapshot-header" className="border-b border-line bg-panel px-5 pt-6 pb-5 md:px-8">
                   <div className="flex items-start justify-between gap-4">

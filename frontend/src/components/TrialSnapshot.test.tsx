@@ -308,6 +308,13 @@ describe("TrialSnapshot stacked on a paper", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the dialog panel positioned, so sr-only text inside it cannot make the fixed overlay scrollable", () => {
+    open();
+    // sr-only is position:absolute; in an unpositioned panel it escapes overflow-hidden and lands wherever the flow puts it,
+    // which with enough content above it is below the overlay (axe: scrollable-region-focusable on the overlay).
+    expect(screen.getByRole("dialog").className).toContain("relative");
+  });
+
   it("shows no Back button when nothing is underneath", () => {
     open();
     expect(screen.queryByRole("button", { name: /^Back to/ })).not.toBeInTheDocument();
