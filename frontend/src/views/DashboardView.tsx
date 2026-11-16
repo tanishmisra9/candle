@@ -246,6 +246,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const hasActiveFilters = Boolean(
     status || phase.length || interventionType || sponsor || search.trim(),
   );
+  const filtersOtherThanSearch = Boolean(status || phase.length || interventionType || sponsor);
   const showTrialSkeletons = trialsQuery.isPending;
   const prefersReducedMotion = useReducedMotion();
   const swapMotion = listContentSwapMotion(prefersReducedMotion);
@@ -369,7 +370,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         <div className="space-y-4">
           {trialsQuery.isError ? (
             <div className="rounded-panel border border-line bg-panel p-6 text-[15px] text-muted">
-              <p>Trials could not be loaded.</p>
+              <p>Trials could not be loaded. Check your connection and try again.</p>
               <button
                 type="button"
                 className="mt-4 min-h-11 rounded-panel border border-line-strong px-4 py-2 text-[14px] text-text hover:bg-text/5"
@@ -425,8 +426,23 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
                   ))}
                 </div>
                 {!trials.length ? (
-                  <div className="rounded-panel border border-line bg-panel px-6 py-12 text-[15px] text-muted">
-                    No trials matched this filter.
+                  <div className="space-y-4 rounded-panel border border-line bg-panel px-6 py-12 text-[15px] text-muted">
+                    <p>
+                      {normalizedSearch
+                        ? `No trials match “${normalizedSearch}”${filtersOtherThanSearch ? " with these filters" : ""}.`
+                        : hasActiveFilters
+                          ? "No trials match these filters."
+                          : "No trials are tracked yet."}
+                    </p>
+                    {hasActiveFilters ? (
+                      <button
+                        type="button"
+                        onClick={clearFilters}
+                        className="min-h-11 rounded-panel border border-line-strong px-4 py-2 text-[14px] text-text hover:bg-text/5"
+                      >
+                        Clear search and filters
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
                 {trialsQuery.hasNextPage ? (

@@ -50,6 +50,15 @@ export function statusKey(status: string | null): StatusKey {
   return "other";
 }
 
+/** A trial still running (recruiting or active) with no completion date is drawn to the current year, not as a one-year square that reads as "finished in its first year". */
+export function barEndYear(trial: TrialSummary, start: number, currentYear: number) {
+  const completion = yearFromDate(trial.completion_date);
+  if (completion !== undefined) return completion;
+  return statusKey(trial.status) === "other" || statusKey(trial.status) === "terminated"
+    ? start
+    : Math.max(start, currentYear);
+}
+
 function colorForStatus(status: string | null) {
   return `rgb(var(--tl-${statusKey(status)}))`;
 }
@@ -66,10 +75,10 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const currentYear = new Date().getFullYear();
   const timelineAxisSource = axisTrials?.length ? axisTrials : trials;
-  const years = timelineAxisSource.flatMap((trial) => [
-    yearFromDate(trial.start_date),
-    yearFromDate(trial.completion_date),
-  ]);
+  const years = timelineAxisSource.flatMap((trial) => {
+    const start = yearFromDate(trial.start_date) ?? currentYear;
+    return [yearFromDate(trial.start_date), barEndYear(trial, start, currentYear)];
+  });
   const filteredYears = years.filter((year): year is number => Number.isFinite(year));
   const startYear = Math.min(...filteredYears, new Date().getFullYear());
   const endYear = Math.max(...filteredYears, startYear + 1);
@@ -94,11 +103,13 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
     const frame = window.requestAnimationFrame(() => {
       const node = scrollRef.current;
       if (!node) return;
-      node.scrollLeft = Math.max(0, (node.scrollWidth - node.clientWidth) / 2);
+      // Desktop keeps the centred middle of the axis (labels live in their own column). On a phone the
+      // labels sit inside the bars, so opening mid-chart showed clipped labels with no axis start.
+      node.scrollLeft = isMobile ? 0 : Math.max(0, (node.scrollWidth - node.clientWidth) / 2);
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [width, chartHeight]);
+  }, [width, chartHeight, isMobile]);
 
   const statusLegend = (
     <ul
@@ -113,11 +124,18 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
       ))}
     </ul>
   );
+  const caption = (
+    <p className="px-4 pt-3 text-[12px] leading-[1.5] text-muted md:px-7">
+      Each bar runs from a study’s start to its completion. A study that is still running with no end date is
+      drawn to the current year.
+    </p>
+  );
 
   if (isMobile) {
     return (
       <div className="rounded-panel border border-line bg-panel">
         {statusLegend}
+        {caption}
         <div ref={scrollRef} className="overflow-x-auto px-4 pb-5 pt-3">
           <div
             className="relative"
@@ -191,7 +209,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
 
             {trials.map((trial, index) => {
               const start = yearFromDate(trial.start_date) ?? startYear;
-              const end = yearFromDate(trial.completion_date) ?? start;
+              const end = barEndYear(trial, start, currentYear);
               const x = leftPadding + ((start - startYear) / span) * usableWidth;
               const barWidth = Math.max(
                 104,
@@ -244,6 +262,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
   return (
     <div className="rounded-panel border border-line bg-panel">
       {statusLegend}
+      {caption}
       <div className="grid overflow-hidden" style={{ gridTemplateColumns: `${labelColumnWidth}px minmax(0,1fr)` }}>
         <div className="border-r border-line px-5 pb-7 pt-9">
           <div
@@ -335,7 +354,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
 
             {trials.map((trial, index) => {
               const start = yearFromDate(trial.start_date) ?? startYear;
-              const end = yearFromDate(trial.completion_date) ?? start;
+              const end = barEndYear(trial, start, currentYear);
               const x = leftPadding + ((start - startYear) / span) * usableWidth;
               const barWidth = Math.max(
                 10,
@@ -381,7 +400,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
 
           {trials.map((trial, index) => {
             const start = yearFromDate(trial.start_date) ?? startYear;
-            const end = yearFromDate(trial.completion_date) ?? start;
+            const end = barEndYear(trial, start, currentYear);
             const x = leftPadding + ((start - startYear) / span) * usableWidth;
             const barWidth = Math.max(
               10,

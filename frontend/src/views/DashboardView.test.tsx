@@ -118,4 +118,16 @@ describe("DashboardView", () => {
     // Open statuses first, and the other status is still reachable without clearing the filter.
     expect(labels).toEqual(["All", "Recruiting✓", "Completed"]);
   });
+
+  it("says what was searched and offers a way out when nothing matches", async () => {
+    vi.mocked(listTrialsPage).mockResolvedValue({ items: [], next_cursor: null, total: 0 });
+    const user = userEvent.setup();
+    renderWithQueryClient(<DashboardView onOpenTrialSnapshot={vi.fn()} />);
+
+    await user.type(await screen.findByLabelText("Search trial titles"), "zzzz");
+
+    expect(await screen.findByText("No trials match “zzzz”.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear search and filters" }));
+    expect(screen.getByLabelText("Search trial titles")).toHaveValue("");
+  });
 });
