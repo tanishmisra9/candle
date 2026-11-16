@@ -48,6 +48,21 @@ function formatPublicationAuthors(publication: PublicationSummary) {
   return `${leadAuthor} et al., ${year}`;
 }
 
+function PubMedLink({ url }: { url: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex w-fit items-center gap-2 min-h-11 rounded-panel border border-accent bg-accent/[0.12] px-4 py-2 text-[13px] font-medium text-accent transition-colors hover:bg-accent/[0.2]"
+    >
+      <ExternalLink size={14} strokeWidth={1.7} aria-hidden="true" />
+      Read on PubMed
+      <span className="sr-only"> (opens in a new tab)</span>
+    </a>
+  );
+}
+
 export function PublicationSnapshot({
   publication,
   onClose,
@@ -60,6 +75,8 @@ export function PublicationSnapshot({
   const [overviewCache, setOverviewCache] = useState<Map<string, PublicationOverviewState>>(
     () => new Map(),
   );
+  // Bumped by "Try again" to re-run the overview fetch for the open paper.
+  const [overviewAttempt, setOverviewAttempt] = useState(0);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -161,8 +178,25 @@ export function PublicationSnapshot({
 
     return () => {
       cancelled = true;
+      // Closed (or switched paper) before the answer landed: forget the "loading" entry. Left in the cache it
+      // blocked every later open, which then said "Generating summary…" forever because nothing was in flight.
+      setOverviewCache((current) => {
+        if (current.get(pmid)?.status !== "loading") return current;
+        const next = new Map(current);
+        next.delete(pmid);
+        return next;
+      });
     };
-  }, [publication]);
+  }, [publication, overviewAttempt]);
+
+  function retryOverview(pmid: string) {
+    setOverviewCache((current) => {
+      const next = new Map(current);
+      next.delete(pmid);
+      return next;
+    });
+    setOverviewAttempt((attempt) => attempt + 1);
+  }
 
   useEffect(() => {
     if (!publication) return;
@@ -269,27 +303,38 @@ export function PublicationSnapshot({
             >
               <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_320px] md:gap-6">
                 <div className="space-y-5">
+                  {isMobile ? (
+                    <div className="space-y-3">
+                      {/* The header clamps the title to 3 lines on a phone: repeat it whole (hidden from assistive tech,
+                          the h2 has it), then the source link, which used to sit below the whole abstract. */}
+                      <p aria-hidden="true" className="text-[18px] font-medium leading-[1.35] text-text">
+                        {publication.title}
+                      </p>
+                      <p className="text-[14px] text-muted">
+                        {[publication.journal || "Journal not listed", formatPublicationDate(publication.pub_date)].join(" · ")}
+                      </p>
+                      <PubMedLink url={publication.url} />
+                    </div>
+                  ) : null}
                   <section className="rounded-panel border border-line bg-panel px-5 py-4">
                     <p className="text-[11px] kicker text-muted">
-                      Overview
+                      AI summary
                     </p>
                     <p className="mt-2 text-[12px] text-muted">
-                      This is AI-generated. Always verify medical information with a qualified
-                      professional.
+                      Plain-language summary of the abstract below, written by AI. It can contain
+                      mistakes. Always verify medical information with a qualified professional.
                     </p>
                     <div className="mt-3 min-h-[88px]">
                       {selectedOverview?.status === "loading" ? (
                         <p className="text-[14px] text-muted">Generating summary…</p>
                       ) : null}
                       {selectedOverview?.status === "error" ? (
-                        <p
-                          role="status"
-                          aria-live="polite"
-                          className="text-[14px] text-muted"
-                        >
-                          Overview unavailable right now. Try closing and reopening this
-                          publication, or refresh the page.
-                        </p>
+                        <div role="status" aria-live="polite" className="space-y-3">
+                          <p className="text-[14px] text-muted">Summary unavailable right now.</p>
+                          <Button variant="secondary" onClick={() => retryOverview(publication.pmid)}>
+                            Try again
+                          </Button>
+                        </div>
                       ) : null}
                       {selectedOverview?.status === "success" && selectedOverview.overview ? (
                         <p className="text-[16px] leading-[1.6] text-text">
@@ -307,7 +352,7 @@ export function PublicationSnapshot({
                       Abstract
                     </h3>
                     {publication.abstract?.trim() ? (
-                      <p className="mt-3 text-[14px] leading-[1.6] text-text">
+                      <p className="mt-3 text-[15px] leading-[1.6] text-text">
                         {publication.abstract.trim()}
                       </p>
                     ) : (
@@ -342,16 +387,7 @@ export function PublicationSnapshot({
                     </div>
                   </section>
 
-                  <a
-                    href={publication.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex w-fit items-center gap-2 min-h-11 rounded-panel border border-accent bg-accent/[0.12] px-4 py-2 text-[13px] font-medium text-accent transition-colors hover:bg-accent/[0.2]"
-                  >
-                    <ExternalLink size={14} strokeWidth={1.7} aria-hidden="true" />
-                    Read on PubMed
-                    <span className="sr-only"> (opens in a new tab)</span>
-                  </a>
+                  {isMobile ? null : <PubMedLink url={publication.url} />}
                 </aside>
               </div>
             </div>

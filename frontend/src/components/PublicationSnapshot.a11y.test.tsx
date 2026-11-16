@@ -4,6 +4,7 @@ import { useState } from "react";
 import { configureAxe } from "vitest-axe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getPublicationOverview } from "../lib/api";
 import type { PublicationSummary } from "../types";
 import { PublicationSnapshot } from "./PublicationSnapshot";
 
@@ -175,5 +176,62 @@ describe("PublicationSnapshot page scroll lock", () => {
     await waitFor(() => {
       expect([document.documentElement.style.overflow, document.body.style.overflow]).toEqual(["", ""]);
     });
+  });
+});
+
+describe("PublicationSnapshot overview", () => {
+  beforeEach(() => {
+    vi.mocked(getPublicationOverview).mockReset();
+  });
+
+  it("fetches again when reopened after closing before the first answer landed (it used to say 'Generating summary…' forever)", async () => {
+    vi.mocked(getPublicationOverview)
+      .mockImplementationOnce(() => new Promise(() => {})) // first open: never answers
+      .mockResolvedValueOnce({ overview: "Second open answer." });
+    const user = userEvent.setup();
+    render(<PublicationSnapshotHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Open publication" }));
+    expect(await screen.findByText("Generating summary…")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /close publication details/i }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Open publication" }));
+    expect(await screen.findByText("Second open answer.")).toBeInTheDocument();
+    expect(getPublicationOverview).toHaveBeenCalledTimes(2);
+  });
+
+  it("offers 'Try again' after a failure, and it fetches again", async () => {
+    vi.mocked(getPublicationOverview)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce({ overview: "Recovered answer." });
+    const user = userEvent.setup();
+    render(<PublicationSnapshotHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Open publication" }));
+    expect(await screen.findByText("Summary unavailable right now.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByText("Recovered answer.")).toBeInTheDocument();
+    expect(screen.queryByText("Summary unavailable right now.")).not.toBeInTheDocument();
+  });
+
+  it("on a phone, shows the whole title, the journal line and ONE PubMed link above the summary", async () => {
+    viewport.mobile = true;
+    vi.mocked(getPublicationOverview).mockResolvedValue({ overview: "x" });
+    try {
+      const user = userEvent.setup();
+      render(<PublicationSnapshotHarness />);
+      await user.click(screen.getByRole("button", { name: "Open publication" }));
+      await screen.findByRole("dialog", { name: "Example CHM Publication" });
+
+      const links = screen.getAllByRole("link", { name: /Read on PubMed/ });
+      expect(links).toHaveLength(1);
+      const summary = screen.getByText("AI summary");
+      expect(links[0].compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.getByText(/^Ophthalmology · /)).toBeInTheDocument();
+    } finally {
+      viewport.mobile = false;
+    }
   });
 });
