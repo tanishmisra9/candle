@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 
 import { FilterBar } from "../components/FilterBar";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
+import { statusTier, type StatusTier } from "../components/StatusBadge";
 import { ToggleButton } from "../components/ui/ToggleButton";
 import { Timeline } from "../components/Timeline";
 import { TrialCard } from "../components/TrialCard";
@@ -20,6 +21,9 @@ import {
   formatStatusLabel,
 } from "../lib/formatters";
 import type { TrialSummary } from "../types";
+
+// Open trials first in the Status menu: "which can I still join?" is the question a visitor arrives with.
+const STATUS_MENU_ORDER: StatusTier[] = ["active", "completed", "terminated", "unknown"];
 
 type ViewMode = "grid" | "timeline";
 type TrialFacetKey = "status" | "phase" | "intervention_type" | "sponsor";
@@ -176,7 +180,10 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
 
   const unfilteredTrialsQuery = useQuery({
     queryKey: ["trials", "total"],
-    queryFn: () => listTrialsPage({ envelope: "true", limit: 1 }),
+    // Also the source of the filter-menu options: they must come from the UNFILTERED set, or picking
+    // Status = Recruiting leaves a menu of only "All" and "Recruiting". ponytail: first 100 trials (the
+    // API page cap); beyond that the menus would miss values, add a /trials/facets endpoint then.
+    queryFn: () => listTrialsPage({ envelope: "true", limit: 100 }),
     ...catalogQueryOptions,
   });
 
@@ -191,17 +198,29 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     search: normalizedSearch.toLowerCase(),
   };
   const trials = allTrials;
+  const facetTrials = unfilteredTrialsQuery.data?.items ?? allTrials;
 
-  const statusOptions = buildFacetOptions(
-    allTrials.filter((trial) =>
+  const [allStatusOption, ...statusValueOptions] = buildFacetOptions(
+    facetTrials.filter((trial) =>
       matchesFacetSelections(trial, activeFilters, "status"),
     ),
     "status",
     status,
     formatStatusLabel,
   );
+  const statusOptions = [
+    allStatusOption,
+    ...statusValueOptions
+      .map((option, index) => ({ option, index }))
+      .sort(
+        (a, b) =>
+          STATUS_MENU_ORDER.indexOf(statusTier(a.option.value)) -
+            STATUS_MENU_ORDER.indexOf(statusTier(b.option.value)) || a.index - b.index,
+      )
+      .map(({ option }) => option),
+  ];
   const phaseOptions = buildMultiSelectFacetOptions(
-    allTrials.filter((trial) =>
+    facetTrials.filter((trial) =>
       matchesFacetSelections(trial, activeFilters, "phase"),
     ),
     "phase",
@@ -209,7 +228,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     formatPhaseLabel,
   );
   const interventionTypeOptions = buildFacetOptions(
-    allTrials.filter((trial) =>
+    facetTrials.filter((trial) =>
       matchesFacetSelections(trial, activeFilters, "intervention_type"),
     ),
     "intervention_type",
@@ -217,7 +236,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     formatInterventionTypeLabel,
   );
   const sponsorOptions = buildFacetOptions(
-    allTrials.filter((trial) =>
+    facetTrials.filter((trial) =>
       matchesFacetSelections(trial, activeFilters, "sponsor"),
     ),
     "sponsor",

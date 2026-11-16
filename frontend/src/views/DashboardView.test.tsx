@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -69,10 +70,6 @@ describe("DashboardView", () => {
 
     vi.mocked(listTrialsPage).mockImplementation(
       async (params: Record<string, string | number | boolean | string[] | undefined>) => {
-        if (params.limit === 1 && params.envelope === "true" && !params.cursor) {
-          return { items: [], next_cursor: null, total: 1 };
-        }
-
         return page;
       },
     );
@@ -81,5 +78,44 @@ describe("DashboardView", () => {
 
     expect(await screen.findByText("1 trials tracked")).toBeInTheDocument();
     expect(await screen.findByText("Gene therapy in CHM")).toBeInTheDocument();
+  });
+
+  it("keeps every status in the Status menu after one is picked (options come from the unfiltered set)", async () => {
+    const make = (id: string, status: string) => ({
+      id,
+      title: `Trial ${id}`,
+      status,
+      phase: "PHASE2",
+      start_date: null,
+      completion_date: null,
+      sponsor: "Candle",
+      intervention: "x",
+      intervention_type: "GENETIC",
+      enrollment: 1,
+      primary_endpoint: null,
+      locations: [],
+      contact_email: null,
+      url: "https://example.com",
+    });
+    const all = [make("NCT1", "COMPLETED"), make("NCT2", "RECRUITING")];
+    vi.mocked(listTrialsPage).mockImplementation(async (params) => {
+      const items = params.status
+        ? all.filter((t) => t.status.toLowerCase() === String(params.status).toLowerCase())
+        : all;
+      return { items, next_cursor: null, total: items.length };
+    });
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<DashboardView onOpenTrialSnapshot={vi.fn()} />);
+
+    await user.click(await screen.findByRole("button", { name: "Status" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Recruiting" }));
+    await screen.findByText("Showing 1 of 2 trials");
+    await user.click(screen.getByRole("button", { name: "Recruiting" }));
+
+    const menu = screen.getByRole("menu");
+    const labels = within(menu).getAllByRole("menuitem").map((item) => item.textContent);
+    // Open statuses first, and the other status is still reachable without clearing the filter.
+    expect(labels).toEqual(["All", "Recruiting✓", "Completed"]);
   });
 });
