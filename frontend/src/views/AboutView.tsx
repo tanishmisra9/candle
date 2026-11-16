@@ -38,7 +38,7 @@ function Points({ icon, items }: { icon: ReactNode; items: string[] }) {
 export function AboutView() {
   return (
     // One column at the full shell width (see GuideView): only the running prose is capped.
-    <div className="pt-28 md:pt-32">
+    <div className="px-4 pt-28 sm:px-0 md:pt-32">
       <BackHomeButton />
       <h1 className="mt-6 text-balance text-[34px] font-medium leading-[1.1] tracking-[-0.03em] text-text md:text-[42px]">
         About Candle

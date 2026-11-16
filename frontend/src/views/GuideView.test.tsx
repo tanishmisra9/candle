@@ -22,6 +22,13 @@ const EXPECTED_GROUPS: Record<string, string[]> = {
 };
 
 describe("GuideView", () => {
+  it("keeps 32px of room either side of the text on a phone (the page's 16px was not enough), none extra from sm up", () => {
+    const { container } = renderGuide();
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain("px-4");
+    expect(root.className).toContain("sm:px-0");
+  });
+
   it("has one h1 and links to no in-page anchors", () => {
     const { container } = renderGuide();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);

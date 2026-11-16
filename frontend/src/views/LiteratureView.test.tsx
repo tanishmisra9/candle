@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { listPublicationsPage } from "../lib/api";
 import { LiteratureView } from "./LiteratureView";
@@ -24,6 +24,23 @@ function renderWithQueryClient(node: React.ReactNode) {
 }
 
 describe("LiteratureView", () => {
+  // The tests count calls on this shared mock: start each from a clean call history.
+  beforeEach(() => {
+    vi.mocked(listPublicationsPage).mockClear();
+  });
+
+  it("puts the sort tabs and the Linked toggle on ONE row, tabs left and Linked right (it stacked as three rows)", async () => {
+    vi.mocked(listPublicationsPage).mockResolvedValue({ items: [], next_cursor: null, total: 0 });
+    renderWithQueryClient(<LiteratureView onOpenPublicationSnapshot={() => {}} />);
+    const sort = await screen.findByRole("group", { name: "Sort order" });
+    const linked = screen.getByRole("button", { name: /linked publications/i });
+    const row = sort.parentElement!;
+    expect(row).toContainElement(linked);
+    expect(sort.nextElementSibling).toBe(linked);
+    expect(row.className).toContain("justify-between");
+    expect(row.className).toContain("md:contents"); // dissolves into the desktop row, which is unchanged
+  });
+
   it("auto-fetches all pages and shows total count", async () => {
     vi.mocked(listPublicationsPage).mockImplementation(
       async (params: Record<string, string | number | boolean | string[] | undefined>) => {

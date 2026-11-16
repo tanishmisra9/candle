@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import React from "react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DashboardView } from "./DashboardView";
 import { listTrialsPage } from "../lib/api";
@@ -29,6 +29,20 @@ function renderWithQueryClient(node: React.ReactNode) {
 }
 
 describe("DashboardView", () => {
+  // The tests count calls on this shared mock: start each from a clean call history.
+  beforeEach(() => {
+    vi.mocked(listTrialsPage).mockClear();
+  });
+
+  it("makes the Timeline toggle full width and centred on a phone, so it lines up with the filter panel above", async () => {
+    vi.mocked(listTrialsPage).mockResolvedValue({ items: [], next_cursor: null, total: 0 });
+    renderWithQueryClient(<DashboardView onOpenTrialSnapshot={() => {}} />);
+    const toggle = await screen.findByRole("button", { name: /timeline view/i });
+    expect(toggle.className).toContain("w-full");
+    expect(toggle.className).toContain("justify-center");
+    expect(toggle.className).toContain("md:w-auto"); // natural width beside the filters on desktop
+  });
+
   it("renders trial cards when the cursor API returns items", async () => {
     const page = {
       items: [

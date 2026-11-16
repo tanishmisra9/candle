@@ -163,37 +163,41 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
         </span>
       </div>
 
-      <div role="group" aria-label="Sort order" className="inline-flex items-stretch self-start md:self-auto">
-        <button
-          type="button"
-          onClick={() => setSortOrder("newest")}
-          className={tabClass(sortOrder === "newest")}
-          aria-pressed={sortOrder === "newest"}
-        >
-          Newest
-        </button>
-        <button
-          type="button"
-          onClick={() => setSortOrder("oldest")}
-          className={tabClass(sortOrder === "oldest")}
-          aria-pressed={sortOrder === "oldest"}
-        >
-          Oldest
-        </button>
-      </div>
+      {/* On a phone the sort tabs sit on the left and the Linked toggle on the right, ONE row of controls (they
+          were three stacked rows with Linked stranded under the tabs). From md `contents` dissolves this
+          wrapper, so on desktop the search, the tabs and Linked are one row as before. */}
+      <div className="flex items-center justify-between gap-3 md:contents">
+        <div role="group" aria-label="Sort order" className="inline-flex items-stretch">
+          <button
+            type="button"
+            onClick={() => setSortOrder("newest")}
+            className={tabClass(sortOrder === "newest", "px-3 sm:px-4")}
+            aria-pressed={sortOrder === "newest"}
+          >
+            Newest
+          </button>
+          <button
+            type="button"
+            onClick={() => setSortOrder("oldest")}
+            className={tabClass(sortOrder === "oldest", "px-3 sm:px-4")}
+            aria-pressed={sortOrder === "oldest"}
+          >
+            Oldest
+          </button>
+        </div>
 
-      <ToggleButton
-        pressed={linkedOnly}
-        onClick={() => setLinkedOnly((current) => !current)}
-        className="self-start md:self-auto"
-        aria-label={
-          linkedOnly
-            ? "Showing linked publications only. Activate to show all publications."
-            : "Activate to show linked publications only."
-        }
-      >
-        Linked
-      </ToggleButton>
+        <ToggleButton
+          pressed={linkedOnly}
+          onClick={() => setLinkedOnly((current) => !current)}
+          aria-label={
+            linkedOnly
+              ? "Showing linked publications only. Activate to show all publications."
+              : "Activate to show linked publications only."
+          }
+        >
+          Linked
+        </ToggleButton>
+      </div>
     </div>
   );
 

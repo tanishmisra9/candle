@@ -312,6 +312,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
           ? "Timeline view active. Activate to return to grid view."
           : "Activate to switch to timeline view."
       }
+      className="w-full justify-center md:w-auto"
     >
       Timeline
     </ToggleButton>
@@ -339,6 +340,8 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
       <div className="space-y-4">
         <div className="relative z-30 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           {filterBar}
+          {/* Full width on a phone, so the toggle lines up with the filter panel above it (a small box left in
+              its own row looked unplaced); its natural width beside the filters from md. */}
           <div className="relative z-10 flex items-center justify-start">
             {timelineToggle}
           </div>

@@ -59,7 +59,7 @@ export function GuideView() {
     // One column at the full shell width (the same 1280px as the nav and the Trials page, so the left edge
     // lines up with the logo and the grids below use the room). Only the running prose is capped, to a
     // readable line length.
-    <div className="pt-28 md:pt-32">
+    <div className="px-4 pt-28 sm:px-0 md:pt-32">
       <BackHomeButton />
       <h1 className="mt-6 text-balance text-[34px] font-medium leading-[1.1] tracking-[-0.03em] text-text md:text-[42px]">
         How to read a CHM trial

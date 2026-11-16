@@ -12,6 +12,13 @@ const renderAbout = () =>
   );
 
 describe("AboutView", () => {
+  it("keeps 32px of room either side of the text on a phone (the page's 16px was not enough), none extra from sm up", () => {
+    const { container } = renderAbout();
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.className).toContain("px-4");
+    expect(root.className).toContain("sm:px-0");
+  });
+
   it("has one h1 and the three sections", () => {
     renderAbout();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
