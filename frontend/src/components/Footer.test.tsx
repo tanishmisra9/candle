@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
-import { version } from "../../package.json";
 import { Footer } from "./Footer";
 
 vi.mock("../lib/api", () => ({
@@ -21,13 +21,20 @@ function renderFooter(path: string) {
 }
 
 describe("Footer", () => {
-  it("shows the release number from package.json, except on Ask", () => {
-    const { unmount } = renderFooter("/trials");
-    expect(screen.getByText(`Version ${version}`)).toBeInTheDocument();
+  it("shows the release number from package.json on every page with a footer, but not on Ask", () => {
+    // Read the file directly (not through the build's constant) so a hardcoded or stale footer string fails.
+    const { version } = JSON.parse(readFileSync("package.json", "utf8"));
     expect(version).toMatch(/^\d+\.\d+\.\d+$/);
-    unmount();
-    renderFooter("/ask");
-    expect(screen.queryByText(/^Version /)).toBeNull();
+    for (const path of ["/", "/trials", "/guide", "/Guide/", "/about"]) {
+      const { unmount } = renderFooter(path);
+      expect(screen.getByText(`Version ${version}`), path).toBeInTheDocument();
+      unmount();
+    }
+    for (const path of ["/ask", "/Ask/"]) {
+      const { unmount } = renderFooter(path);
+      expect(screen.queryByText(/^Version /), path).toBeNull();
+      unmount();
+    }
   });
 
   it("links to the guide and the about page, and says Candle gives no medical advice", () => {

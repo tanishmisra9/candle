@@ -1,0 +1,14 @@
+name: Version
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: .github/scripts/check-version-bump.sh "${{ github.event.pull_request.base.sha || github.event.before }}" "${{ github.sha }}"

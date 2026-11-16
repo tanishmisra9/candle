@@ -19,11 +19,25 @@ pnpm test                # unit, component, vitest-axe, colour contrast
 pnpm run build           # tsc -b && vite build (the typecheck gate)
 ```
 
-CI (`.github/workflows/lockfiles.yml`) only checks lockfile drift. It does **not** run tests, so run them locally before pushing.
+CI checks lockfile drift (`.github/workflows/lockfiles.yml`) and that the version was bumped (`.github/workflows/version.yml`, see [Versioning](#versioning)). It does **not** run tests, so run them locally before pushing.
 
 ### Lockfiles
 
 If you edit `backend/pyproject.toml` or `frontend/package.json`, regenerate the matching lockfile **in the same change**: `cd backend && uv lock` / `cd frontend && pnpm install`. CI runs `uv lock --check` and `pnpm install --frozen-lockfile`, and a dependency removed without a regenerated `uv.lock` once broke every backend deploy for a month (the locked install fails instead of updating the lock).
+
+## Versioning
+
+The release number is `version` in `frontend/package.json`: the one source. `vite.config.ts` injects it as `__APP_VERSION__` and the footer shows "Version x.y.z" on every page that has a footer (not Ask). `backend/pyproject.toml` is not kept in sync (it is never shown, and a bump there needs `uv lock`).
+
+Every change that ships bumps it **in the same commit**:
+
+- **major** (2.x to 3.0): a full redesign of the product. The MVP was v1; the November 2026 paper-theme redesign made it v2.
+- **minor** (2.2.0 to 2.3.0): a user-visible feature, a new page or flow, or a pipeline change.
+- **patch** (2.2.0 to 2.2.1): a fix, polish, refactor or chore.
+
+Lower numbers reset to 0. CI (`.github/scripts/check-version-bump.sh`) fails a push or PR that changes `frontend/src`, `frontend/index.html` or `backend/app` without changing the version; docs, tests, workflows and lockfiles are exempt. The footer test reads `package.json` directly, so a hardcoded footer string fails too.
+
+History before this was numbered retroactively: 1.0 MVP and deploy, 1.1 Ask guardrails and pagination, 1.2 accessibility, 1.3 RAG v2, 1.4 page transitions, 2.0 paper theme and flame hero, 2.1 one-screen landing with /guide and /about, 2.2 mobile menu and stable panels.
 
 ## Changing Ask
 

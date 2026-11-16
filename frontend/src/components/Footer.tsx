@@ -1,6 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
 
-import { version } from "../../package.json";
 import { prefetchRoute } from "../lib/routes";
 import { LastSyncedLabel } from "./LastSyncedLabel";
 
@@ -63,8 +62,8 @@ export function Footer() {
       )}
       <p className="text-xs text-muted">Candle does not give medical advice.</p>
       <LastSyncedLabel className="mt-1" />
-      {/* The release number: package.json is the single source (see CLAUDE.md "Versioning"). */}
-      <p className="mt-1 text-xs text-muted">Version {version}</p>
+      {/* The release number: package.json is the single source (docs/CONTRIBUTING.md, "Versioning"). */}
+      <p className="mt-1 text-xs text-muted">Version {__APP_VERSION__}</p>
     </footer>
   );
 }
