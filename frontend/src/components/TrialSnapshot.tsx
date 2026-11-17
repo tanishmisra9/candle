@@ -6,7 +6,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { CalendarRange, ExternalLink, Mail, MapPin, X } from "lucide-react";
+import { CalendarRange, ChevronDown, ExternalLink, Mail, MapPin, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
 import { getTrial } from "../lib/api";
@@ -40,6 +40,29 @@ function formatDateRange(start: string | null, end: string | null) {
   return "Dates not reported";
 }
 
+// A trial can list 19 outcomes (the BIIB111 dialog was ~5,000px tall, almost all repeated protocol text): show the first few, the
+// primary one first (the API sends it first), and let the rest open, the way Locations does.
+const OUTCOMES_SHOWN = 3;
+
+function formatMoreOutcomesLabel(count: number) {
+  return `Show ${count} more outcome${count === 1 ? "" : "s"}`;
+}
+
+/** The "show more / show fewer" control for a collapsed list: chevron and aria-expanded, so it reads as a control, not loose text. */
+function ShowMoreToggle({ expanded, onClick, children }: { expanded: boolean; onClick: () => void; children: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={expanded}
+      className="inline-flex min-h-11 items-center gap-1.5 text-[14px] text-muted transition-colors hover:text-text"
+    >
+      {children}
+      <ChevronDown size={16} strokeWidth={1.5} aria-hidden="true" className={expanded ? "rotate-180" : undefined} />
+    </button>
+  );
+}
+
 function formatMoreLocationsLabel(count: number) {
   return `Show ${count} more location${count === 1 ? "" : "s"}`;
 }
@@ -70,6 +93,7 @@ export function TrialSnapshot({
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
   const [showAllLocations, setShowAllLocations] = useState(false);
+  const [showAllOutcomes, setShowAllOutcomes] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -112,6 +136,7 @@ export function TrialSnapshot({
 
   useEffect(() => {
     setShowAllLocations(false);
+    setShowAllOutcomes(false);
   }, [trialId]);
 
   useEffect(() => {
@@ -405,17 +430,14 @@ export function TrialSnapshot({
                                     </motion.div>
                                   </div>
                                   {detailQuery.data.locations.length > 3 ? (
-                                    <button
-                                      type="button"
+                                    <ShowMoreToggle
+                                      expanded={showAllLocations}
                                       onClick={() => setShowAllLocations((current) => !current)}
-                                      className="inline-flex min-h-11 items-center text-[14px] text-muted transition-colors hover:text-text"
                                     >
                                       {showAllLocations
                                         ? "Show fewer locations"
-                                        : formatMoreLocationsLabel(
-                                            detailQuery.data.locations.length - 3,
-                                          )}
-                                    </button>
+                                        : formatMoreLocationsLabel(detailQuery.data.locations.length - 3)}
+                                    </ShowMoreToggle>
                                   ) : null}
                                 </div>
                               ) : null}
@@ -425,7 +447,10 @@ export function TrialSnapshot({
                               <h3 className={SNAPSHOT_SECTION_HEADING_CLASS}>Outcomes</h3>
                               <div className="space-y-3">
                                 {detailQuery.data.outcomes.length ? (
-                                  detailQuery.data.outcomes.map((outcome, index) => (
+                                  (showAllOutcomes
+                                    ? detailQuery.data.outcomes
+                                    : detailQuery.data.outcomes.slice(0, OUTCOMES_SHOWN)
+                                  ).map((outcome, index) => (
                                     <div
                                       key={`${outcome.outcome_type}-${index}`}
                                       className="rounded-panel border border-line p-4"
@@ -454,6 +479,16 @@ export function TrialSnapshot({
                                   </p>
                                 )}
                               </div>
+                              {detailQuery.data.outcomes.length > OUTCOMES_SHOWN ? (
+                                <ShowMoreToggle
+                                  expanded={showAllOutcomes}
+                                  onClick={() => setShowAllOutcomes((current) => !current)}
+                                >
+                                  {showAllOutcomes
+                                    ? "Show fewer outcomes"
+                                    : formatMoreOutcomesLabel(detailQuery.data.outcomes.length - OUTCOMES_SHOWN)}
+                                </ShowMoreToggle>
+                              ) : null}
                             </section>
                           </>
                         ) : (

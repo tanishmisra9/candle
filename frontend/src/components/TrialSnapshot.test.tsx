@@ -268,6 +268,29 @@ describe("TrialSnapshot facts", () => {
     expect(screen.queryByText("ACTIVE_NOT_RECRUITING")).not.toBeInTheDocument();
   });
 
+  it("shows the first three outcomes and opens the rest on request (a trial can list 19: the dialog was ~5,000px)", () => {
+    const outcomes = Array.from({ length: 7 }, (_, i) => ({
+      outcome_type: i === 0 ? "primary" : "secondary", measure: `Measure ${i + 1}`, timeframe: null, description: `Details ${i + 1}`,
+    }));
+    open({ outcomes });
+    expect(screen.getByText("Measure 1")).toBeInTheDocument(); // the primary outcome comes first
+    expect(screen.getByText("Measure 3")).toBeInTheDocument();
+    expect(screen.queryByText("Measure 4")).not.toBeInTheDocument();
+
+    const toggle = screen.getByRole("button", { name: "Show 4 more outcomes" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle);
+    expect(screen.getByText("Measure 7")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show fewer outcomes" })).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Show fewer outcomes" }));
+    expect(screen.queryByText("Measure 4")).not.toBeInTheDocument();
+  });
+
+  it("has no toggle when there are three outcomes or fewer", () => {
+    open({ outcomes: [{ outcome_type: "primary", measure: "Only one", timeframe: null, description: null }] });
+    expect(screen.queryByRole("button", { name: /outcome/i })).not.toBeInTheDocument();
+  });
+
   it("makes the contact email a mailto link", () => {
     open({ contact_email: "study@example.org" });
     expect(screen.getByRole("link", { name: "study@example.org" })).toHaveAttribute(
