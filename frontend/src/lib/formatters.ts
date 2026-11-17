@@ -71,3 +71,15 @@ export function formatParticipants(enrollment: number | null) {
   if (enrollment === null) return "Participants not listed";
   return `${enrollment} participant${enrollment === 1 ? "" : "s"}`;
 }
+
+/**
+ * "Oct 2011" for an API date ("2011-10-01", "2011-10" or "2011"). Formatted in UTC: those strings parse as UTC midnight, so
+ * formatting in the viewer's timezone printed the PREVIOUS month for everyone west of UTC (the Americas). A missing date is
+ * "Unknown"; a value that is not a date is returned as-is.
+ */
+export function formatMonthYear(value: string | null) {
+  if (!value) return "Unknown";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, { month: "short", year: "numeric", timeZone: "UTC" }).format(parsed);
+}

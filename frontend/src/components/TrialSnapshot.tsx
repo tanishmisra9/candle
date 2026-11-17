@@ -14,7 +14,7 @@ import { useFocusTrap } from "../lib/a11y";
 import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
 import clsx from "clsx";
 import type { PublicationSummary } from "../types";
-import { formatParticipants, formatSitesLabel } from "../lib/formatters";
+import { formatMonthYear, formatParticipants, formatSitesLabel } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import { lockPageScroll } from "../lib/scrollLock";
 import { PhasePill } from "./PhasePill";
@@ -27,13 +27,6 @@ const SNAPSHOT_SECTION_HEADING_CLASS =
 const AI_DISCLAIMER_COPY =
   "Written by AI from the ClinicalTrials.gov record, so it can contain mistakes. Always verify medical information with a qualified professional.";
 
-function formatDate(value: string | null) {
-  if (!value) return "Unknown";
-  return new Intl.DateTimeFormat(undefined, { month: "short", year: "numeric" }).format(
-    new Date(value),
-  );
-}
-
 function formatLocationLine(city?: string | null, country?: string | null) {
   const parts = [city, country].filter((value): value is string => Boolean(value?.trim()));
   return parts.join(", ");
@@ -41,9 +34,9 @@ function formatLocationLine(city?: string | null, country?: string | null) {
 
 /** "Dec 2011 to Jun 2015", or say what is missing instead of a bare "Unknown". */
 function formatDateRange(start: string | null, end: string | null) {
-  if (start && end) return `${formatDate(start)} to ${formatDate(end)}`;
-  if (start) return `Started ${formatDate(start)} · no end date reported`;
-  if (end) return `Ends ${formatDate(end)} · no start date reported`;
+  if (start && end) return `${formatMonthYear(start)} to ${formatMonthYear(end)}`;
+  if (start) return `Started ${formatMonthYear(start)} · no end date reported`;
+  if (end) return `Ends ${formatMonthYear(end)} · no start date reported`;
   return "Dates not reported";
 }
 

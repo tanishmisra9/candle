@@ -34,5 +34,8 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: "./src/test/setup.ts",
+    // A western timezone on purpose: a date-only API value ("2011-10-01") parsed as UTC midnight and printed in local time
+    // reads a month early there. Pinning it makes that bug fail the suite on any machine (CI runs in UTC, which hides it).
+    env: { TZ: "America/Los_Angeles" },
   },
 });

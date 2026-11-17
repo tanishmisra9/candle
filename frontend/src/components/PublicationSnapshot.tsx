@@ -8,6 +8,7 @@ import { getPublicationOverview } from "../lib/api";
 import { useFocusTrap } from "../lib/a11y";
 import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
 import clsx from "clsx";
+import { formatMonthYear } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import { lockPageScroll } from "../lib/scrollLock";
 import type { PublicationSummary } from "../types";
@@ -30,20 +31,6 @@ type PublicationSnapshotProps = {
   /** What this dialog is stacked on (e.g. "trial NCT123"), when something is underneath it. */
   underneath?: string;
 };
-
-function formatPublicationDate(value: string | null) {
-  if (!value) return "Unknown date";
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    year: "numeric",
-  }).format(parsed);
-}
 
 function formatPublicationAuthors(publication: PublicationSummary) {
   const leadAuthor = publication.authors[0]?.split(",")[0] ?? "Unknown author";
@@ -318,7 +305,7 @@ export function PublicationSnapshot({
                         {publication.title}
                       </p>
                       <p className="text-[14px] text-muted">
-                        {[publication.journal || "Journal not listed", formatPublicationDate(publication.pub_date)].join(" · ")}
+                        {[publication.journal || "Journal not listed", formatMonthYear(publication.pub_date)].join(" · ")}
                       </p>
                       <PubMedLink url={publication.url} />
                     </div>
@@ -378,7 +365,7 @@ export function PublicationSnapshot({
                       <p>{publication.journal || "Journal not listed"}</p>
                       <div className="inline-flex items-center gap-2">
                         <CalendarRange size={16} strokeWidth={1.5} />
-                        {formatPublicationDate(publication.pub_date)}
+                        {formatMonthYear(publication.pub_date)}
                       </div>
                       {publication.trial_id ? (
                         <div>
