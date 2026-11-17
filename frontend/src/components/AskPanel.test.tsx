@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -218,6 +219,13 @@ describe("the empty state", () => {
     render(<AskPanel />);
     expect(screen.getByText(/can’t give medical advice, say which trial suits you, or predict outcomes/)).toBeInTheDocument();
     expect(screen.getByText("Not medical advice. AI can make mistakes.")).toBeInTheDocument();
+  });
+
+  it("shows the release number beside the note under the composer (Ask has no footer)", () => {
+    // Read package.json directly, not the build's constant, so a hardcoded string fails (same as Footer.test).
+    const { version } = JSON.parse(readFileSync("package.json", "utf8"));
+    render(<AskPanel />);
+    expect(screen.getByText(`Version ${version}`)).toBeInTheDocument();
   });
 
   it("limits the question to what the server accepts", () => {

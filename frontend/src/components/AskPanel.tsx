@@ -489,6 +489,8 @@ export function AskPanel({
             <div className="mt-2 flex flex-wrap items-baseline justify-center gap-x-3">
               <p className="text-center text-xs text-muted">Not medical advice. AI can make mistakes.</p>
               <LastSyncedLabel />
+              {/* The release number, as in every page's footer (package.json is the single source; docs/CONTRIBUTING.md, "Versioning"). */}
+              <p className="text-xs text-muted">Version {__APP_VERSION__}</p>
             </div>
           </div>
         </div>

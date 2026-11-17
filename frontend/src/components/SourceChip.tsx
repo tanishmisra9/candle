@@ -17,7 +17,7 @@ export function SourceChip({
   const detail = source.detail ?? (isTrial ? "Trial" : `PMID ${source.source_id}`);
   const kicker = [idText, detail].filter(Boolean).join(" · ");
   const chipClass =
-    "flex min-h-11 w-full max-w-full min-w-0 flex-col justify-center gap-0.5 overflow-hidden rounded-panel border border-line-strong bg-panel px-3 py-2 text-left text-[13px] text-text transition-colors hover:border-accent active:bg-text/5";
+    "flex min-h-11 w-full max-w-full min-w-0 flex-col justify-center gap-0.5 overflow-hidden rounded-panel border border-line-strong bg-panel px-3 py-1 text-left text-[13px] leading-tight text-text transition-colors hover:border-accent active:bg-text/5";
   const content = (
     <>
       <span className="truncate">{source.source_type === "publication" ? displayTitle(source.title) : source.title}</span>
@@ -27,7 +27,7 @@ export function SourceChip({
 
   if (source.source_type === "trial" && onOpenTrialSnapshot) {
     return (
-      <Tooltip label={source.title} describe={false} className="inline-flex min-w-0 max-w-full sm:max-w-[min(100%,22rem)]">
+      <Tooltip label={source.title} describe={false} className="inline-flex min-w-0 max-w-full sm:max-w-[min(100%,18rem)]">
         <button
           type="button"
           onClick={() => onOpenTrialSnapshot(source.source_id)}
@@ -40,7 +40,7 @@ export function SourceChip({
   }
 
   return (
-    <Tooltip label={source.title} describe={false} className="inline-flex min-w-0 max-w-full sm:max-w-[min(100%,22rem)]">
+    <Tooltip label={source.title} describe={false} className="inline-flex min-w-0 max-w-full sm:max-w-[min(100%,18rem)]">
       <a href={source.url ?? "#"} target="_blank" rel="noreferrer" className={chipClass}>
         {content}
         <span className="sr-only"> (opens in a new tab)</span>
