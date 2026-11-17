@@ -122,3 +122,10 @@ describe("PublicationRow snippet", () => {
     expect(snippet(container)).toBe("Gene therapy was well tolerated.");
   });
 });
+
+describe("PublicationRow title", () => {
+  it("shows the title without PubMed's trailing full stop", () => {
+    render(<PublicationRow publication={pub({ title: "Gene therapy for choroideremia." })} onOpen={() => {}} />);
+    expect(screen.getByText("Gene therapy for choroideremia")).toBeInTheDocument();
+  });
+});

@@ -1,5 +1,6 @@
 /** Citation chip under an assistant answer: a button that opens the trial dialog, or a new-tab link to PubMed. Title on the first line, id/status/phase on the second; the tooltip repeats the full title for a truncated one. */
 import type { AskSource } from "../types";
+import { displayTitle } from "../lib/formatters";
 import { Tooltip } from "./ui/Tooltip";
 
 export function SourceChip({
@@ -19,7 +20,7 @@ export function SourceChip({
     "flex min-h-11 w-full max-w-full min-w-0 flex-col justify-center gap-0.5 overflow-hidden rounded-panel border border-line-strong bg-panel px-3 py-2 text-left text-[13px] text-text transition-colors hover:border-accent active:bg-text/5";
   const content = (
     <>
-      <span className="truncate">{source.title}</span>
+      <span className="truncate">{source.source_type === "publication" ? displayTitle(source.title) : source.title}</span>
       <span className="kicker truncate text-[11px] text-muted">{kicker}</span>
     </>
   );

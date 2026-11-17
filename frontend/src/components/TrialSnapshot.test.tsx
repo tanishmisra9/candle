@@ -386,3 +386,23 @@ describe("TrialSnapshot stacked on a paper", () => {
     expect(screen.queryByRole("button", { name: /^Back to/ })).not.toBeInTheDocument();
   });
 });
+
+describe("TrialSnapshot linked papers", () => {
+  it("lists a linked paper with the one citation format and a title without the trailing full stop", () => {
+    mockUseQuery.mockReturnValue({
+      data: makeTrialDetail({
+        publications: [
+          { pmid: "1", trial_id: "NCT12345678", title: "Retinal gene therapy.", authors: ["MacLaren, R", "Lee, K"], journal: "Lancet", pub_date: "2014-03-29", abstract: null, doi: null, url: "u" },
+          { pmid: "2", trial_id: "NCT12345678", title: "Sole author paper.", authors: ["Smith, J"], journal: null, pub_date: null, abstract: null, doi: null, url: "u" },
+        ],
+      }),
+      isLoading: false,
+    });
+    render(
+      <TrialSnapshot trialId="NCT12345678" onClose={() => {}} onOpenPublicationSnapshot={() => {}} isPublicationSnapshotOpen={false} publicationSnapshotLayer="below-trial" />,
+    );
+    expect(screen.getByText("Retinal gene therapy")).toBeInTheDocument();
+    expect(screen.getByText("MacLaren et al., 2014")).toBeInTheDocument();
+    expect(screen.getByText("Smith, n.d.")).toBeInTheDocument();
+  });
+});

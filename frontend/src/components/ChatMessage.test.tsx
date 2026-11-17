@@ -104,3 +104,14 @@ describe("ChatMessage source chips", () => {
     expect(screen.getByRole("link")).toHaveTextContent(/^A paperPMID 1/);
   });
 });
+
+describe("ChatMessage paper chip title", () => {
+  it("drops the trailing full stop PubMed puts on a paper title", () => {
+    render(
+      <ChatMessage
+        message={assistant({ sources: [{ source_type: "publication", source_id: "9", title: "A paper about eyes.", url: "u" }] })}
+      />,
+    );
+    expect(screen.getByRole("link")).toHaveTextContent(/^A paper about eyesPMID 9/);
+  });
+});

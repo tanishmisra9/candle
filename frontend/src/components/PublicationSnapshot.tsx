@@ -8,7 +8,7 @@ import { getPublicationOverview } from "../lib/api";
 import { useFocusTrap } from "../lib/a11y";
 import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
 import clsx from "clsx";
-import { formatMonthYear } from "../lib/formatters";
+import { displayTitle, formatCitation, formatMonthYear } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import { useIsClamped } from "../lib/useIsClamped";
 import { lockPageScroll } from "../lib/scrollLock";
@@ -37,12 +37,6 @@ type PublicationSnapshotProps = {
   /** What this dialog is stacked on (e.g. "trial NCT123"), when something is underneath it. */
   underneath?: string;
 };
-
-function formatPublicationAuthors(publication: PublicationSummary) {
-  const leadAuthor = publication.authors[0]?.split(",")[0] ?? "Unknown author";
-  const year = publication.pub_date?.slice(0, 4) ?? "n.d.";
-  return `${leadAuthor} et al., ${year}`;
-}
 
 function PubMedLink({ url }: { url: string }) {
   return (
@@ -286,7 +280,7 @@ export function PublicationSnapshot({
                       isMobile ? "line-clamp-3 text-[26px] leading-[1.12]" : "text-[32px]",
                     )}
                   >
-                    {publication.title}
+                    {displayTitle(publication.title)}
                   </h2>
                 </div>
                 <Button
@@ -313,7 +307,7 @@ export function PublicationSnapshot({
                           the h2 has it), then the source link, which used to sit below the whole abstract. */}
                       {titleClamped ? (
                         <p aria-hidden="true" className="text-[18px] font-medium leading-[1.35] text-text">
-                          {publication.title}
+                          {displayTitle(publication.title)}
                         </p>
                       ) : null}
                       <p className="text-[14px] text-muted">
@@ -370,7 +364,7 @@ export function PublicationSnapshot({
                       Snapshot
                     </h3>
                     <div className="mt-3 space-y-2.5 text-[14px] text-muted">
-                      <p>{formatPublicationAuthors(publication)}</p>
+                      <p>{formatCitation(publication.authors, publication.pub_date)}</p>
                       <p>{publication.journal || "Journal not listed"}</p>
                       <div className="inline-flex items-center gap-2">
                         <CalendarRange size={16} strokeWidth={1.5} />

@@ -66,10 +66,35 @@ export function formatSitesLabel(
   return `${count} in ${countries.slice(0, maxCountries).join(", ")}${more > 0 ? ` +${more}` : ""}`;
 }
 
-/** "17 participants", "1 participant", or "Participants not listed". Shared by the trial card and dialog. */
+/**
+ * "1,178 participants" (grouped in the viewer's locale: 20000 and 1178 were unreadable), "1 participant", "None enrolled" for a
+ * trial that enrolled nobody (a withdrawn one printed "0 participants", which reads like an error), or "Participants not listed".
+ * Shared by the trial card and dialog.
+ */
 export function formatParticipants(enrollment: number | null) {
   if (enrollment === null) return "Participants not listed";
-  return `${enrollment} participant${enrollment === 1 ? "" : "s"}`;
+  if (enrollment === 0) return "None enrolled";
+  return `${new Intl.NumberFormat().format(enrollment)} participant${enrollment === 1 ? "" : "s"}`;
+}
+
+/** "Smith et al." for several authors, "Smith" for one (the dialog printed "Smith et al." for a sole author), "Unknown author" for none. */
+export function formatLeadAuthor(authors: string[]) {
+  const lead = authors[0]?.split(",")[0]?.trim();
+  if (!lead) return "Unknown author";
+  return authors.length > 1 ? `${lead} et al.` : lead;
+}
+
+/** "Smith et al., 2021": the one citation format (rows, the paper dialog and a trial's linked papers each had their own). "n.d." when undated. */
+export function formatCitation(authors: string[], pubDate: string | null) {
+  return `${formatLeadAuthor(authors)}, ${pubDate?.slice(0, 4) || "n.d."}`;
+}
+
+/**
+ * A publication title as shown. PubMed ends nearly every title with a full stop (479 of 482 here), which is clutter in a heading and
+ * a list. Only after a lowercase letter, digit or bracket, so an abbreviation at the end ("... the U.S.") keeps its own.
+ */
+export function displayTitle(title: string) {
+  return title.replace(/([a-z0-9)\]])\.$/, "$1");
 }
 
 /**

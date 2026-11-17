@@ -361,3 +361,20 @@ describe("PublicationSnapshot title repeat on a phone", () => {
     } finally { reset(); }
   });
 });
+
+describe("PublicationSnapshot citation and title", () => {
+  it("uses the one citation format ('Smith, 2024' for a sole author, not 'Smith et al.') and no trailing full stop in the heading", async () => {
+    vi.mocked(getPublicationOverview).mockResolvedValue({ overview: "x" });
+    render(
+      <PublicationSnapshot
+        publication={{ ...makePublication(), title: "Example CHM Publication." }}
+        onClose={() => {}}
+        onOpenTrialSnapshot={() => {}}
+        layer="below-trial"
+        isTrialSnapshotOpen={false}
+      />,
+    );
+    expect(await screen.findByRole("heading", { level: 2, name: "Example CHM Publication" })).toBeInTheDocument();
+    expect(screen.getByText("Smith, 2024")).toBeInTheDocument();
+  });
+});

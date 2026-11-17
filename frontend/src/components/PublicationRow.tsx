@@ -1,6 +1,7 @@
 /** Publication list row (one `<button>`, same no-nested-interactive rule as `TrialCard`). */
 import { memo } from "react";
 
+import { displayTitle, formatLeadAuthor } from "../lib/formatters";
 import { highlightText } from "../lib/highlight";
 import type { PublicationSummary } from "../types";
 
@@ -11,10 +12,8 @@ type PublicationRowProps = {
 };
 
 function formatMeta(publication: PublicationSummary) {
-  const lead = publication.authors[0]?.split(",")[0] ?? "Unknown author";
-  const authors = publication.authors.length > 1 ? `${lead} et al.` : lead;
   const year = publication.pub_date?.slice(0, 4) ?? "n.d.";
-  return [publication.journal || "Journal not listed", year, authors].join(" · ");
+  return [publication.journal || "Journal not listed", year, formatLeadAuthor(publication.authors)].join(" · ");
 }
 
 const PREVIEW_LENGTH = 200;
@@ -87,7 +86,7 @@ export const PublicationRow = memo(function PublicationRow({
         <div className="flex items-start gap-3">
           <div className="min-w-0">
             <h2 className="text-[19px] font-medium leading-7 tracking-[-0.015em] text-text">
-              {highlightText(publication.title, query)}
+              {highlightText(displayTitle(publication.title), query)}
             </h2>
             <p className="mt-2 text-[15px] text-muted">{formatMeta(publication)}</p>
             {preview ? (

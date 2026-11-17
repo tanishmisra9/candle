@@ -14,7 +14,14 @@ import { useFocusTrap } from "../lib/a11y";
 import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
 import clsx from "clsx";
 import type { PublicationSummary } from "../types";
-import { formatMonthYear, formatParticipants, formatSitesLabel, formatStatusLabel } from "../lib/formatters";
+import {
+  displayTitle,
+  formatCitation,
+  formatMonthYear,
+  formatParticipants,
+  formatSitesLabel,
+  formatStatusLabel,
+} from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import { useIsClamped } from "../lib/useIsClamped";
 import { lockPageScroll } from "../lib/scrollLock";
@@ -516,14 +523,10 @@ export function TrialSnapshot({
                                     className="block w-full rounded-panel border border-line p-4 text-left transition hover:border-accent/[0.22]"
                                   >
                                     <p className="text-[15px] font-medium leading-6 text-text">
-                                      {publication.title}
+                                      {displayTitle(publication.title)}
                                     </p>
                                     <p className="mt-2 text-[13px] text-muted">
-                                      {publication.authors[0]?.split(",")[0] ?? "Unknown author"}{" "}
-                                      et al.
-                                      {publication.pub_date
-                                        ? `, ${publication.pub_date.slice(0, 4)}`
-                                        : ""}
+                                      {formatCitation(publication.authors, publication.pub_date)}
                                     </p>
                                   </button>
                                 ))

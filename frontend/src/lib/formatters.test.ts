@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { formatMonthYear, formatParticipants, normalizeStatus } from "./formatters";
+import {
+  displayTitle,
+  formatCitation,
+  formatLeadAuthor,
+  formatMonthYear,
+  formatParticipants,
+  normalizeStatus,
+} from "./formatters";
 
 describe("normalizeStatus", () => {
   it.each([
@@ -19,7 +26,7 @@ describe("formatParticipants", () => {
   it.each([
     [17, "17 participants"],
     [1, "1 participant"], // N-of-1 and first-in-human gene-therapy studies are common here
-    [0, "0 participants"],
+    [0, "None enrolled"], // a withdrawn trial printed "0 participants", which reads like an error
     [null, "Participants not listed"],
   ])("%s -> %s", (n, expected) => {
     expect(formatParticipants(n)).toBe(expected);
@@ -44,5 +51,45 @@ describe("formatMonthYear", () => {
   it("says Unknown for a missing date and passes through a value it cannot parse", () => {
     expect(formatMonthYear(null)).toBe("Unknown");
     expect(formatMonthYear("not a date")).toBe("not a date");
+  });
+});
+
+describe("formatParticipants grouping", () => {
+  it("groups thousands in the viewer's locale (20000 and 1178 were unreadable)", () => {
+    expect(formatParticipants(1178)).toBe(`${new Intl.NumberFormat().format(1178)} participants`);
+    expect(formatParticipants(1178)).not.toBe("1178 participants");
+    expect(formatParticipants(20000)).not.toBe("20000 participants");
+  });
+});
+
+describe("formatLeadAuthor and formatCitation", () => {
+  it.each([
+    [["Smith, J", "Lee, K"], "Smith et al."],
+    [["Smith, J"], "Smith"], // the dialog printed "Smith et al." for a sole author
+    [["MacLaren R"], "MacLaren R"],
+    [[], "Unknown author"],
+    [[""], "Unknown author"],
+  ])("%j -> %s", (authors, expected) => {
+    expect(formatLeadAuthor(authors)).toBe(expected);
+  });
+
+  it("is ONE citation format: lead author, year, 'n.d.' when undated", () => {
+    expect(formatCitation(["Smith, J", "Lee, K"], "2021-03-01")).toBe("Smith et al., 2021");
+    expect(formatCitation(["Smith, J"], "2021-03-01")).toBe("Smith, 2021");
+    expect(formatCitation(["Smith, J", "Lee, K"], null)).toBe("Smith et al., n.d."); // the trial's tile used to drop the year
+  });
+});
+
+describe("displayTitle", () => {
+  it.each([
+    ["Retinal gene therapy in patients with choroideremia.", "Retinal gene therapy in patients with choroideremia"],
+    ["CHOROIDEREMIA.", "CHOROIDEREMIA."], // only after a lowercase letter, digit or bracket
+    ["A new approach (phase 1).", "A new approach (phase 1)"],
+    ["Outcomes in 2020.", "Outcomes in 2020"],
+    ["Care in the U.S.", "Care in the U.S."], // an abbreviation keeps its own full stop
+    ["Choroideremia: a review", "Choroideremia: a review"],
+    ["Wait...", "Wait..."],
+  ])("%s", (title, expected) => {
+    expect(displayTitle(title)).toBe(expected);
   });
 });
