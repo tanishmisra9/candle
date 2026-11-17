@@ -16,6 +16,7 @@ import clsx from "clsx";
 import type { PublicationSummary } from "../types";
 import { formatMonthYear, formatParticipants, formatSitesLabel, formatStatusLabel } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
+import { useIsClamped } from "../lib/useIsClamped";
 import { lockPageScroll } from "../lib/scrollLock";
 import { PhasePill } from "./PhasePill";
 import { StackBackButton } from "./StackBackButton";
@@ -94,6 +95,7 @@ export function TrialSnapshot({
   const isMobile = useIsMobile();
   const [showAllLocations, setShowAllLocations] = useState(false);
   const [showAllOutcomes, setShowAllOutcomes] = useState(false);
+  const [titleNode, setTitleNode] = useState<HTMLHeadingElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -112,6 +114,9 @@ export function TrialSnapshot({
     gcTime: 60 * 60_000,
     refetchOnWindowFocus: false,
   });
+
+  // Whether the fixed header's title is cut (3 lines on a phone): only then is it repeated whole in the body.
+  const titleClamped = useIsClamped(titleNode, detailQuery.data?.title ?? "");
 
   useFocusTrap(dialogRef, isTopmost);
 
@@ -230,6 +235,7 @@ export function TrialSnapshot({
                         {underneath ? <StackBackButton label={underneath} onBack={onClose} /> : null}
                       </div>
                       <h2
+                        ref={setTitleNode}
                         id={titleId}
                         className={clsx(
                           "mt-2 font-medium tracking-[-0.03em] text-text md:text-[32px]",
@@ -262,12 +268,12 @@ export function TrialSnapshot({
                           <div className="space-y-4">
                             {/* The header clamps the title to 3 lines on a phone; the whole title is repeated here (hidden from
                                 assistive tech, the header's h2 already has it). */}
-                            {isMobile ? (
+                            {isMobile && titleClamped ? (
                               <p aria-hidden="true" className="text-[18px] font-medium leading-[1.35] text-text">
                                 {detailQuery.data.title}
                               </p>
                             ) : null}
-                            <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
                               <StatusBadge status={detailQuery.data.status} />
                               <PhasePill phase={detailQuery.data.phase} />
                             </div>

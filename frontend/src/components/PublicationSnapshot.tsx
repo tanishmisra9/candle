@@ -10,6 +10,7 @@ import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
 import clsx from "clsx";
 import { formatMonthYear } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
+import { useIsClamped } from "../lib/useIsClamped";
 import { lockPageScroll } from "../lib/scrollLock";
 import type { PublicationSummary } from "../types";
 import { AbstractText } from "./AbstractText";
@@ -68,6 +69,9 @@ export function PublicationSnapshot({
 }: PublicationSnapshotProps) {
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
+  const [titleNode, setTitleNode] = useState<HTMLHeadingElement | null>(null);
+  // Whether the fixed header's title is cut (3 lines on a phone): only then is it repeated whole in the body.
+  const titleClamped = useIsClamped(titleNode, publication?.title ?? "");
   const [overviewCache, setOverviewCache] = useState<Map<string, PublicationOverviewState>>(
     () => new Map(),
   );
@@ -275,6 +279,7 @@ export function PublicationSnapshot({
                     {underneath ? <StackBackButton label={underneath} onBack={onClose} /> : null}
                   </div>
                   <h2
+                    ref={setTitleNode}
                     id={titleId}
                     className={clsx(
                       "mt-2 font-medium tracking-[-0.03em] text-text md:text-[32px]",
@@ -306,9 +311,11 @@ export function PublicationSnapshot({
                     <div className="space-y-3">
                       {/* The header clamps the title to 3 lines on a phone: repeat it whole (hidden from assistive tech,
                           the h2 has it), then the source link, which used to sit below the whole abstract. */}
-                      <p aria-hidden="true" className="text-[18px] font-medium leading-[1.35] text-text">
-                        {publication.title}
-                      </p>
+                      {titleClamped ? (
+                        <p aria-hidden="true" className="text-[18px] font-medium leading-[1.35] text-text">
+                          {publication.title}
+                        </p>
+                      ) : null}
                       <p className="text-[14px] text-muted">
                         {[publication.journal || "Journal not listed", formatMonthYear(publication.pub_date)].join(" · ")}
                       </p>

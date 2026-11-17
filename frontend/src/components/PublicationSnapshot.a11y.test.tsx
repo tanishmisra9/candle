@@ -324,3 +324,40 @@ describe("PublicationSnapshot hierarchy", () => {
     expect(screen.getByText(/Always verify medical information with a qualified professional/)).toBeInTheDocument();
   });
 });
+
+describe("PublicationSnapshot title repeat on a phone", () => {
+  const titleIs = (clamped: boolean) => {
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get(this: HTMLElement) { return this.tagName === "H2" ? (clamped ? 120 : 60) : 0; } });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get(this: HTMLElement) { return this.tagName === "H2" ? 60 : 0; } });
+  };
+  const reset = () => {
+    delete (HTMLElement.prototype as unknown as Record<string, unknown>).scrollHeight;
+    delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight;
+    viewport.mobile = false;
+  };
+  const renderPhone = async () => {
+    vi.mocked(getPublicationOverview).mockResolvedValue({ overview: "x" });
+    viewport.mobile = true;
+    const view = render(
+      <PublicationSnapshot publication={makePublication()} onClose={() => {}} onOpenTrialSnapshot={() => {}} layer="below-trial" isTrialSnapshotOpen={false} />,
+    );
+    await screen.findByRole("dialog");
+    return view;
+  };
+
+  it("repeats the title in the body only when the header cuts it", async () => {
+    titleIs(true);
+    try {
+      await renderPhone();
+      expect([...document.querySelectorAll('p[aria-hidden="true"]')].map((p) => p.textContent)).toEqual(["Example CHM Publication"]);
+    } finally { reset(); }
+  });
+
+  it("does not repeat a title the header shows in full", async () => {
+    titleIs(false);
+    try {
+      await renderPhone();
+      expect(document.querySelector('p[aria-hidden="true"]')).toBeNull();
+    } finally { reset(); }
+  });
+});

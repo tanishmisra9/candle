@@ -251,6 +251,13 @@ describe("TrialSnapshot facts", () => {
     expect(screen.getByText("Candle · 12 participants")).toBeInTheDocument();
   });
 
+  it("keeps the status and phase badges close enough to share a row on a phone (a gap of 12px pushed 'Enrolling by invitation' + 'Unspecified' onto two rows at 390px)", () => {
+    open({ status: "ENROLLING_BY_INVITATION", phase: null });
+    const row = screen.getByText("Enrolling By Invitation").closest("div") as HTMLElement;
+    expect(row.className).toContain("gap-2");
+    expect(row.className).not.toContain("gap-3");
+  });
+
   it("says what is missing instead of 'to Unknown'", () => {
     open({ start_date: "2011-12-01", completion_date: null });
     expect(screen.getByText(/Started .*2011 · no end date reported/)).toBeInTheDocument();
@@ -299,14 +306,44 @@ describe("TrialSnapshot facts", () => {
     );
   });
 
-  it("repeats the full title in the body on a phone, hidden from assistive tech", () => {
+  // jsdom has no layout: say whether the header's <h2> is cutting its text (scrollHeight > clientHeight).
+  function headerTitleIs(clamped: boolean) {
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get(this: HTMLElement) { return this.tagName === "H2" ? (clamped ? 120 : 60) : 0; },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get(this: HTMLElement) { return this.tagName === "H2" ? 60 : 0; },
+    });
+  }
+  const resetLayout = () => {
+    delete (HTMLElement.prototype as unknown as Record<string, unknown>).scrollHeight;
+    delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight;
+  };
+
+  it("repeats the full title in the body on a phone when the header cuts it, hidden from assistive tech", () => {
     viewport.mobile = true;
+    headerTitleIs(true);
     try {
       const { container } = open();
       const copy = container.ownerDocument.querySelector('p[aria-hidden="true"]');
       expect(copy?.textContent).toBe("Example CHM Trial");
     } finally {
       viewport.mobile = false;
+      resetLayout();
+    }
+  });
+
+  it("does NOT repeat a title the header shows in full (a short title appeared twice, 66px apart)", () => {
+    viewport.mobile = true;
+    headerTitleIs(false);
+    try {
+      const { container } = open();
+      expect(container.ownerDocument.querySelector('p[aria-hidden="true"]')).toBeNull();
+    } finally {
+      viewport.mobile = false;
+      resetLayout();
     }
   });
 });
