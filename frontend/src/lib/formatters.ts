@@ -65,3 +65,9 @@ export function formatSitesLabel(
   const more = countries.length - maxCountries;
   return `${count} in ${countries.slice(0, maxCountries).join(", ")}${more > 0 ? ` +${more}` : ""}`;
 }
+
+/** "17 participants", "1 participant", or "Participants not listed". Shared by the trial card and dialog. */
+export function formatParticipants(enrollment: number | null) {
+  if (enrollment === null) return "Participants not listed";
+  return `${enrollment} participant${enrollment === 1 ? "" : "s"}`;
+}

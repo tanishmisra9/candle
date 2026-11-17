@@ -14,7 +14,7 @@ import { useFocusTrap } from "../lib/a11y";
 import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
 import clsx from "clsx";
 import type { PublicationSummary } from "../types";
-import { formatSitesLabel } from "../lib/formatters";
+import { formatParticipants, formatSitesLabel } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import { lockPageScroll } from "../lib/scrollLock";
 import { PhasePill } from "./PhasePill";
@@ -256,9 +256,7 @@ export function TrialSnapshot({
                             <p className="text-[14px] leading-[1.5] text-muted">
                               {[
                                 detailQuery.data.sponsor || "Unknown sponsor",
-                                detailQuery.data.enrollment === null
-                                  ? "Participants not listed"
-                                  : `${detailQuery.data.enrollment} participants`,
+                                formatParticipants(detailQuery.data.enrollment),
                               ].join(" · ")}
                             </p>
                           </div>

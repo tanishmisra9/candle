@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeStatus } from "./formatters";
+import { formatParticipants, normalizeStatus } from "./formatters";
 
 describe("normalizeStatus", () => {
   it.each([
@@ -12,5 +12,16 @@ describe("normalizeStatus", () => {
     [null, ""],
   ] as const)("%j -> %j", (input, expected) => {
     expect(normalizeStatus(input)).toBe(expected);
+  });
+});
+
+describe("formatParticipants", () => {
+  it.each([
+    [17, "17 participants"],
+    [1, "1 participant"], // N-of-1 and first-in-human gene-therapy studies are common here
+    [0, "0 participants"],
+    [null, "Participants not listed"],
+  ])("%s -> %s", (n, expected) => {
+    expect(formatParticipants(n)).toBe(expected);
   });
 });

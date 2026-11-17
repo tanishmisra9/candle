@@ -50,6 +50,11 @@ describe("TrialCard", () => {
     ).toBeInTheDocument();
   });
 
+  it("says '1 participant', not '1 participants'", () => {
+    render(<TrialCard trial={trial({ enrollment: 1 })} onOpen={() => {}} />);
+    expect(screen.getByText(/· 1 participant ·/)).toBeInTheDocument();
+  });
+
   it("falls back to the site count when no site names a country", () => {
     render(<TrialCard trial={trial({ locations: [{ city: "Boston" }] })} onOpen={() => {}} />);
     expect(screen.getByText(/· 1 site$/)).toBeInTheDocument();

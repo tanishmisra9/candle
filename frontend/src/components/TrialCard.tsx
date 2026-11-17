@@ -1,7 +1,7 @@
 /** Trial list card. The whole card is one `<button>`, so nothing inside it may be interactive (no tooltips or links on its badges). Title is an `<h2>` under the page `<h1>`. */
 import { memo } from "react";
 
-import { formatSitesLabel } from "../lib/formatters";
+import { formatParticipants, formatSitesLabel } from "../lib/formatters";
 import { highlightText } from "../lib/highlight";
 import type { TrialSummary } from "../types";
 import { PhasePill } from "./PhasePill";
@@ -16,9 +16,11 @@ type TrialCardProps = {
 const MAX_COUNTRIES = 2;
 
 export const TrialCard = memo(function TrialCard({ trial, query = "", onOpen }: TrialCardProps) {
-  const enrollmentLabel =
-    trial.enrollment === null ? "Participants not listed" : `${trial.enrollment} participants`;
-  const meta = [trial.sponsor || "Unknown sponsor", enrollmentLabel, formatSitesLabel(trial.locations, MAX_COUNTRIES)].join(" · ");
+  const meta = [
+    trial.sponsor || "Unknown sponsor",
+    formatParticipants(trial.enrollment),
+    formatSitesLabel(trial.locations, MAX_COUNTRIES),
+  ].join(" · ");
 
   return (
     <button
