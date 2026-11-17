@@ -20,6 +20,7 @@ import {
   prefetchAllRoutesWhenIdle,
 } from "./lib/routes";
 import { HomeView } from "./views/HomeView";
+import { NotFoundView } from "./views/NotFoundView";
 import { PublicationSnapshot } from "./components/PublicationSnapshot";
 import { TrialSnapshot } from "./components/TrialSnapshot";
 import { usePageTitle } from "./hooks/usePageTitle";
@@ -176,6 +177,15 @@ export default function App() {
                     element={
                       <PageTransition cascade={false}>
                         <AskView onOpenTrialSnapshot={openTrialSnapshot} />
+                      </PageTransition>
+                    }
+                  />
+                  {/* Last on purpose: anything that is not a page above. Bundled (tiny), so a bad address never shows a loading flash. */}
+                  <Route
+                    path="*"
+                    element={
+                      <PageTransition>
+                        <NotFoundView />
                       </PageTransition>
                     }
                   />

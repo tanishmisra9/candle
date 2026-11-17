@@ -121,6 +121,7 @@ export function SiteNav() {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  end
                   onPointerEnter={() => prefetchRoute(item.to)}
                   onFocus={() => prefetchRoute(item.to)}
                   onTouchStart={() => prefetchRoute(item.to)}
@@ -204,6 +205,7 @@ export function SiteNav() {
                 <motion.li key={item.to} variants={menuMotion.item}>
                   <NavLink
                     to={item.to}
+                    end
                     // A tap on the CURRENT page's link does not change the route, so the route effect never
                     // fires: the link closes the menu itself.
                     onClick={() => setOpen(false)}

@@ -15,6 +15,7 @@ export function usePageTitle() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    document.title = PAGE_TITLES[pathname] ?? "Candle";
+    // Every address that is not listed renders the not-found page, so it is titled as one.
+    document.title = PAGE_TITLES[pathname] ?? "Page not found — Candle";
   }, [pathname]);
 }
