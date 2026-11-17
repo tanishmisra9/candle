@@ -62,6 +62,46 @@ export function barEndYear(trial: TrialSummary, start: number, currentYear: numb
     : Math.max(start, currentYear);
 }
 
+/**
+ * Where the chart should open. Opening at 0 showed a phone twelve rows of blank grid (the real chart is 2,250px wide and the
+ * newest rows start in 2020), and opening on the middle of the content only worked by luck on desktop. Instead: the window of
+ * `viewport` px that shows the most bars among the first `firstRows` rows (the ones on the first screen), then the most
+ * overall, then the one centred nearest `anchor` (today).
+ * Candidate windows start at a bar's left edge (minus `margin`): the best window can always be slid to one.
+ */
+export function pickScrollLeft(
+  boxes: { x: number; width: number }[],
+  viewport: number,
+  content: number,
+  anchor: number,
+  margin = 16,
+  firstRows = 8,
+) {
+  const maxLeft = Math.max(0, content - viewport);
+  if (boxes.length === 0 || viewport <= 0 || maxLeft === 0) return 0;
+  const inWindow = (box: { x: number; width: number }, left: number) => box.x < left + viewport && box.x + box.width > left;
+  let best = 0;
+  let bestScore: [number, number] = [-1, -1];
+  let bestGap = Infinity;
+  for (const box of boxes) {
+    const left = Math.min(maxLeft, Math.max(0, Math.round(box.x - margin)));
+    const score: [number, number] = [
+      boxes.slice(0, firstRows).filter((b) => inWindow(b, left)).length,
+      boxes.filter((b) => inWindow(b, left)).length,
+    ];
+    const gap = Math.abs(left + viewport / 2 - anchor);
+    const better =
+      score[0] > bestScore[0] ||
+      (score[0] === bestScore[0] && (score[1] > bestScore[1] || (score[1] === bestScore[1] && gap < bestGap)));
+    if (better) {
+      best = left;
+      bestScore = score;
+      bestGap = gap;
+    }
+  }
+  return best;
+}
+
 function colorForStatus(status: string | null) {
   return `rgb(var(--tl-${statusKey(status)}))`;
 }
@@ -100,18 +140,35 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
     trials.length * rowHeight + topPadding + 42,
   );
 
+  // One place for where a bar sits (x) and how wide it is: the phone bars, the desktop SVG bars, their pointer overlays and
+  // the opening scroll position all use it, so they cannot drift apart.
+  const barBox = (trial: TrialSummary, minWidth: number, pad: number) => {
+    const start = yearFromDate(trial.start_date) ?? startYear;
+    const end = barEndYear(trial, start, currentYear);
+    const x = leftPadding + ((start - startYear) / span) * usableWidth;
+    return { x, width: Math.max(minWidth, ((Math.max(start, end) - start + pad) / span) * usableWidth) };
+  };
+  const phoneBar = (trial: TrialSummary) => barBox(trial, 104, 0.45);
+  const deskBar = (trial: TrialSummary) => barBox(trial, 10, 0.35);
+
   useEffect(() => {
     if (!scrollRef.current) return;
 
     const frame = window.requestAnimationFrame(() => {
       const node = scrollRef.current;
       if (!node) return;
-      // Desktop keeps the centred middle of the axis (labels live in their own column). On a phone the
-      // labels sit inside the bars, so opening mid-chart showed clipped labels with no axis start.
-      node.scrollLeft = isMobile ? 0 : Math.max(0, (node.scrollWidth - node.clientWidth) / 2);
+      const anchor = leftPadding + ((currentYear - startYear) / span) * usableWidth;
+      node.scrollLeft = pickScrollLeft(
+        trials.map(isMobile ? phoneBar : deskBar),
+        node.clientWidth,
+        node.scrollWidth,
+        anchor,
+        isMobile ? 20 : 24,
+      );
     });
 
     return () => window.cancelAnimationFrame(frame);
+    // Not `trials`: a new array every render would re-scroll the chart under the reader. Row count (chartHeight) covers a filter.
   }, [width, chartHeight, isMobile]);
 
   const statusLegend = (
@@ -211,13 +268,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
             </motion.svg>
 
             {trials.map((trial, index) => {
-              const start = yearFromDate(trial.start_date) ?? startYear;
-              const end = barEndYear(trial, start, currentYear);
-              const x = leftPadding + ((start - startYear) / span) * usableWidth;
-              const barWidth = Math.max(
-                104,
-                ((Math.max(start, end) - start + 0.45) / span) * usableWidth,
-              );
+              const { x, width: barWidth } = phoneBar(trial);
               const y = topPadding + index * rowHeight;
               const label =
                 trial.title.length > 44 ? `${trial.title.slice(0, 44)}…` : trial.title;
@@ -356,13 +407,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
             })}
 
             {trials.map((trial, index) => {
-              const start = yearFromDate(trial.start_date) ?? startYear;
-              const end = barEndYear(trial, start, currentYear);
-              const x = leftPadding + ((start - startYear) / span) * usableWidth;
-              const barWidth = Math.max(
-                10,
-                ((Math.max(start, end) - start + 0.35) / span) * usableWidth,
-              );
+              const { x, width: barWidth } = deskBar(trial);
               const y = topPadding + index * rowHeight;
 
               return (
@@ -402,13 +447,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
           </motion.svg>
 
           {trials.map((trial, index) => {
-            const start = yearFromDate(trial.start_date) ?? startYear;
-            const end = barEndYear(trial, start, currentYear);
-            const x = leftPadding + ((start - startYear) / span) * usableWidth;
-            const barWidth = Math.max(
-              10,
-              ((Math.max(start, end) - start + 0.35) / span) * usableWidth,
-            );
+            const { x, width: barWidth } = deskBar(trial);
             const y = topPadding + index * rowHeight;
 
             return (
