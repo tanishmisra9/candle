@@ -71,3 +71,54 @@ describe("PublicationRow", () => {
     expect(screen.getByText("Trial NCT123")).toBeInTheDocument();
   });
 });
+
+describe("PublicationRow snippet", () => {
+  const show = (abstract: string, query = "") =>
+    render(<PublicationRow publication={pub({ abstract })} query={query} onOpen={() => {}} />);
+  const snippet = (container: HTMLElement) => container.querySelector("p.line-clamp-3")?.textContent ?? "";
+
+  it("drops a funding sentence that is glued to the conclusion with no label (the real first row)", () => {
+    const { container } = show(
+      "PURPOSE: x.\n\nCONCLUSIONS: Cone contrast and entropy textural analyses may provide a biomarker for cone health in retinal disease and its response to treatment.Funding for the study provided by NIH R01EY028601, NIH P30EY001583, and Research to Prevent Blindness.",
+    );
+    expect(snippet(container)).toBe(
+      "Cone contrast and entropy textural analyses may provide a biomarker for cone health in retinal disease and its response to treatment.",
+    );
+  });
+
+  it("uses INTERPRETATION when that is what the journal calls it (it opened on a raw 'BACKGROUND:')", () => {
+    const { container } = show("BACKGROUND: Rare.\n\nMETHODS: A cohort.\n\nFINDINGS: Gains.\n\nINTERPRETATION: Initial results are consistent with a benefit.");
+    expect(snippet(container)).toBe("Initial results are consistent with a benefit.");
+  });
+
+  it("opens an abstract with no conclusion without its section label", () => {
+    const { container } = show("PURPOSE: To evaluate gene therapy in a cohort.");
+    expect(snippet(container)).toBe("To evaluate gene therapy in a cohort.");
+  });
+
+  it("cuts at a word, with no half word and no '.…'", () => {
+    const sentence = `${"Outcomes varied between the early trials and the later ones ".repeat(3)}across sites.`; // ends near the cut
+    const { container } = show(`${sentence} Then it carries on for a good while longer than the limit allows here.`);
+    const text = snippet(container);
+    expect(text.endsWith("…")).toBe(true);
+    expect(text).not.toMatch(/[.,;:]…$/);
+    const body = text.slice(0, -1);
+    expect(sentence.startsWith(body.slice(0, 40))).toBe(true);
+    expect(`${sentence} Then it carries on for a good while longer than the limit allows here.`.charAt(body.length)).toMatch(/[ .]/); // the cut sits on a word end
+  });
+
+  it("shows the part of the abstract that matched a search when the term is not in the snippet", () => {
+    const abstract = `BACKGROUND: ${"filler words. ".repeat(40)}Zebrafish models show retinal degeneration in the dark. ${"more words. ".repeat(40)}`;
+    const { container } = show(abstract, "zebrafish");
+    const text = snippet(container);
+    expect(text).toMatch(/Zebrafish models show retinal degeneration/);
+    expect(text.startsWith("…")).toBe(true);
+    expect(text.endsWith("…")).toBe(true);
+    expect(container.querySelector("mark")?.textContent.toLowerCase()).toBe("zebrafish"); // and it is highlighted
+  });
+
+  it("leaves the snippet alone when the term is already in it", () => {
+    const { container } = show("CONCLUSIONS: Gene therapy was well tolerated.", "tolerated");
+    expect(snippet(container)).toBe("Gene therapy was well tolerated.");
+  });
+});

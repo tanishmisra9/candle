@@ -18,23 +18,56 @@ function formatMeta(publication: PublicationSummary) {
 }
 
 const PREVIEW_LENGTH = 200;
+const WINDOW_AROUND_HIT = 100;
+// The labelled section only ("Conclusion:" / "CONCLUSIONS:" / "INTERPRETATION:" as Lancet abstracts call it, not "we conclude:"), up to
+// the next section label (an ALL-CAPS one, or the boilerplate ones PubMed appends) so registration and funding lines don't trail it.
 const CONCLUSION_SECTION =
-  /\b(?:Conclusions?|CONCLUSIONS?)\s*:\s*([\s\S]*?)(?=\s+(?:[A-Z][A-Z ]{2,}|Trial registration|Clinical trial registration|Registration|Funding|Disclosures?|Keywords?)\s*:|$)/;
+  /\b(?:Conclusions?|CONCLUSIONS?|Interpretation|INTERPRETATION)\s*:\s*([\s\S]*?)(?=\s+(?:[A-Z][A-Z ]{2,}|Trial registration|Clinical trial registration|Registration|Funding|Disclosures?|Keywords?)\s*:|$)/;
+const LEADING_LABEL = /^[A-Z][A-Z &/,-]{2,40}:\s*/;
+// Some abstracts run a funding sentence on with no label ("...treatment.Funding for the study provided by NIH..."): drop it.
+const UNLABELLED_FUNDING = /\s+(?:Funding|Funded by|Supported by)\b[\s\S]*$/;
+const TRAILING_PUNCTUATION = /[\s.,;:]+$/;
 
-/** The "Conclusion(s):" part of a structured abstract when there is one (what a skimmer wants), else the opening. */
-function abstractPreview(abstract: string | null) {
+/** One line of plain text: breaks collapsed, and a space put back where two sentences were glued ("treatment.Funding"). */
+function tidy(text: string) {
+  return text.replace(/\s+/g, " ").replace(/([a-z0-9)])\.([A-Z])/g, "$1. $2").trim();
+}
+
+/**
+ * What the row shows under the title. The abstract's conclusion (or interpretation) when it has one, else its opening without the
+ * section label; cut at a word, not mid-word, and never "….". When a search is active and the term is NOT in that text, a window
+ * around its first hit in the abstract instead, so a match found in the abstract is visible (it used to look like a wrong result).
+ */
+function abstractPreview(abstract: string | null, query = "") {
   if (!abstract?.trim()) {
     return null;
   }
   const trimmed = abstract.trim();
-  // The labelled section only ("Conclusion:" / "CONCLUSIONS:", not "we conclude:"), up to the next section label (an
-  // ALL-CAPS one, or the boilerplate ones PubMed appends) so registration and funding lines don't trail the preview.
-  const conclusion = CONCLUSION_SECTION.exec(trimmed)?.[1]?.trim();
-  const text = conclusion || trimmed;
-  if (text.length <= PREVIEW_LENGTH) {
-    return text;
+  const conclusion = CONCLUSION_SECTION.exec(trimmed)?.[1];
+  const base = conclusion?.trim()
+    ? tidy(conclusion).replace(UNLABELLED_FUNDING, "")
+    : tidy(trimmed).replace(LEADING_LABEL, "").replace(UNLABELLED_FUNDING, "");
+
+  let shown = base;
+  if (base.length > PREVIEW_LENGTH) {
+    const space = base.lastIndexOf(" ", PREVIEW_LENGTH);
+    shown = `${base.slice(0, space > PREVIEW_LENGTH * 0.6 ? space : PREVIEW_LENGTH).replace(TRAILING_PUNCTUATION, "")}…`;
   }
-  return `${text.slice(0, PREVIEW_LENGTH).trimEnd()}…`;
+
+  // Judged against what is actually SHOWN (not the whole abstract): a hit 500 characters in is not visible in a 200-character snippet.
+  const needle = query.trim().toLowerCase();
+  if (needle.length >= 2 && !shown.toLowerCase().includes(needle)) {
+    const whole = tidy(trimmed);
+    const hit = whole.toLowerCase().indexOf(needle);
+    if (hit >= 0) {
+      let start = Math.max(0, hit - WINDOW_AROUND_HIT);
+      if (start > 0) start = whole.indexOf(" ", start) + 1 || start;
+      let end = Math.min(whole.length, hit + needle.length + WINDOW_AROUND_HIT);
+      if (end < whole.length) end = whole.lastIndexOf(" ", end) > hit + needle.length ? whole.lastIndexOf(" ", end) : end;
+      return `${start > 0 ? "…" : ""}${whole.slice(start, end).replace(TRAILING_PUNCTUATION, "")}${end < whole.length ? "…" : ""}`;
+    }
+  }
+  return shown;
 }
 
 export const PublicationRow = memo(function PublicationRow({
@@ -42,7 +75,7 @@ export const PublicationRow = memo(function PublicationRow({
   query = "",
   onOpen,
 }: PublicationRowProps) {
-  const preview = abstractPreview(publication.abstract);
+  const preview = abstractPreview(publication.abstract, query);
 
   return (
     <button
