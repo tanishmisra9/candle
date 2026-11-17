@@ -60,6 +60,13 @@ describe("TrialCard", () => {
     expect(screen.getByRole("button").className).toMatch(/active:border-accent/);
   });
 
+  it("lets a title run to three balanced lines, so the word that says what the trial is about is not cut (14 of 29 clipped at two)", () => {
+    render(<TrialCard trial={trial()} onOpen={() => {}} />);
+    const title = screen.getByRole("heading", { name: "Example CHM Trial" });
+    expect(title.className).toContain("line-clamp-3");
+    expect(title.className).toContain("text-balance");
+  });
+
   it("falls back to the site count when no site names a country", () => {
     render(<TrialCard trial={trial({ locations: [{ city: "Boston" }] })} onOpen={() => {}} />);
     expect(screen.getByText(/· 1 site$/)).toBeInTheDocument();

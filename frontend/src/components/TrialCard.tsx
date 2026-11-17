@@ -33,7 +33,7 @@ export const TrialCard = memo(function TrialCard({ trial, query = "", onOpen }: 
         <StatusBadge status={trial.status} />
         <PhasePill phase={trial.phase} />
       </div>
-      <h2 className="mt-5 line-clamp-2 text-[20px] font-medium leading-7 tracking-[-0.015em] text-text">
+      <h2 className="mt-5 line-clamp-3 text-balance text-[20px] font-medium leading-7 tracking-[-0.015em] text-text">
         {highlightText(trial.title, query)}
       </h2>
       <p className="mt-3.5 line-clamp-2 text-[15px] leading-[1.6] text-muted">
