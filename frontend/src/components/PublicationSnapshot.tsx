@@ -286,7 +286,7 @@ export function PublicationSnapshot({
                   variant="ghost"
                   onClick={onClose}
                   aria-label="Close publication details"
-                  className="shrink-0 self-start min-h-12 min-w-12 p-0"
+                  className="shrink-0 self-center min-h-12 min-w-12 p-0 md:self-start"
                 >
                   <X size={18} strokeWidth={1.5} aria-hidden="true" />
                 </Button>
