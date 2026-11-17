@@ -48,7 +48,7 @@ export function describeAskFailure(raw: string) {
   if (/rate limit|too many/i.test(raw)) {
     return { text: "Too many requests. Please wait a moment and try again.", rateLimited: true };
   }
-  const lead = "I couldn't complete that answer just now.";
+  const lead = "I couldn’t complete that answer just now.";
   if (/timed out|timeout/i.test(raw)) {
     return { text: `${lead} It took too long, so please try again.`, rateLimited: false };
   }

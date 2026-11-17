@@ -94,7 +94,7 @@ describe("AskPanel streaming UI", () => {
 
     const conversation = screen.getByRole("log", { name: "Conversation" });
     await waitFor(() => {
-      expect(within(conversation).getByText(/couldn't complete that answer/i)).toBeInTheDocument();
+      expect(within(conversation).getByText(/couldn’t complete that answer/i)).toBeInTheDocument();
     });
     expect(screen.getAllByRole("status").some((el) => /Generating answer/.test(el.textContent ?? ""))).toBe(false);
     expect(screen.getAllByRole("status").some((el) => /could not be completed/.test(el.textContent ?? ""))).toBe(true);
@@ -147,7 +147,7 @@ describe("AskPanel failures do not trigger a second, paid request unless a retry
       h.onDelta("Partial ");
       h.onError("Ask request timed out.", "server");
     });
-    await waitFor(() => expect(within(conversation).getByText(/couldn't complete that answer/i)).toBeInTheDocument());
+    await waitFor(() => expect(within(conversation).getByText(/couldn’t complete that answer/i)).toBeInTheDocument());
     expect(api.askQuestion).not.toHaveBeenCalled();
   });
 
@@ -179,7 +179,7 @@ describe("AskPanel failures do not trigger a second, paid request unless a retry
       h.onDelta("Partial ");
       h.onError("The answer stream ended before the answer was complete.", "transport");
     });
-    await waitFor(() => expect(within(conversation).getByText(/couldn't complete that answer/i)).toBeInTheDocument());
+    await waitFor(() => expect(within(conversation).getByText(/couldn’t complete that answer/i)).toBeInTheDocument());
     expect(api.askQuestion).not.toHaveBeenCalled();
   });
 
@@ -191,7 +191,7 @@ describe("AskPanel failures do not trigger a second, paid request unless a retry
     });
     await waitFor(() => expect(within(conversation).getByText("Finished answer.")).toBeInTheDocument());
     await waitFor(() => expect(consoleError).toHaveBeenCalled()); // it is logged, not shown
-    expect(within(conversation).queryByText(/couldn't complete that answer/i)).not.toBeInTheDocument();
+    expect(within(conversation).queryByText(/couldn’t complete that answer/i)).not.toBeInTheDocument();
     consoleError.mockRestore();
   });
 });
@@ -268,7 +268,7 @@ describe("describeAskFailure", () => {
     ["Ask request timed out.", /took too long/i],
     ["AI service temporarily unavailable", /service is busy/i],
     ["Request body too large", /question was too long/i],
-    ["boom", /couldn't complete that answer just now\. please try again/i],
+    ["boom", /couldn’t complete that answer just now\. please try again/i],
   ])("%s", (raw, expected) => {
     expect(describeAskFailure(raw).text).toMatch(expected);
   });
@@ -460,5 +460,15 @@ describe("scrollToBottom (the follow-the-stream guard)", () => {
     const guard = { current: 123 as number | null };
     scrollToBottom(guard);
     expect(guard.current).toBeNull(); // an armed guard here swallowed the user's next small scroll
+  });
+});
+
+describe("Ask failure copy typography", () => {
+  it("uses the curly apostrophe like the rest of the product (it was the one straight one)", () => {
+    for (const raw of ["boom", "Ask request timed out.", "AI service temporarily unavailable", "Request body too large"]) {
+      const { text } = describeAskFailure(raw);
+      expect(text).toContain("couldn’t");
+      expect(text).not.toContain("'");
+    }
   });
 });
