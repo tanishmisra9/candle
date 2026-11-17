@@ -378,3 +378,20 @@ describe("PublicationSnapshot citation and title", () => {
     expect(screen.getByText("Smith, 2024")).toBeInTheDocument();
   });
 });
+
+describe("PublicationSnapshot overview when the same paper arrives as a new object", () => {
+  it("fetches again instead of staying on 'Generating summary…' (the effect re-runs on a new object for the same pmid)", async () => {
+    vi.mocked(getPublicationOverview).mockReset();
+    vi.mocked(getPublicationOverview)
+      .mockImplementationOnce(() => new Promise(() => {})) // the first request never answers
+      .mockResolvedValueOnce({ overview: "Answer to the second request." });
+    const props = { onClose: () => {}, onOpenTrialSnapshot: () => {}, layer: "below-trial" as const, isTrialSnapshotOpen: false };
+    const { rerender } = render(<PublicationSnapshot publication={makePublication()} {...props} />);
+    expect(await screen.findByText("Generating summary…")).toBeInTheDocument();
+
+    rerender(<PublicationSnapshot publication={{ ...makePublication() }} {...props} />); // same paper, new object identity
+
+    expect(await screen.findByText("Answer to the second request.")).toBeInTheDocument();
+    expect(getPublicationOverview).toHaveBeenCalledTimes(2);
+  });
+});

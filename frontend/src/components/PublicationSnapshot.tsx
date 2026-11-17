@@ -180,6 +180,14 @@ export function PublicationSnapshot({
         next.delete(pmid);
         return next;
       });
+      // The guard above reads this ref, which only catches up after a render. When the effect re-runs in the SAME commit (the same
+      // paper arriving as a new object) it would still see "loading", return early, and the dialog would wait forever for a
+      // request that was just cancelled. So the ref forgets the entry now as well.
+      if (overviewCacheRef.current.get(pmid)?.status === "loading") {
+        const next = new Map(overviewCacheRef.current);
+        next.delete(pmid);
+        overviewCacheRef.current = next;
+      }
     };
   }, [publication, overviewAttempt]);
 
