@@ -80,9 +80,11 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     ...catalogQueryOptions,
   });
 
+  // The DEBOUNCED search: the rows on screen answer it, so the page indicator must not jump to 1 on every keystroke while the old
+  // rows are still shown.
   useEffect(() => {
     setPage(0);
-  }, [normalizedSearch, linkedOnly, sortOrder]);
+  }, [requestedSearch, linkedOnly, sortOrder]);
 
   useEffect(() => {
     // Not after a failure: the effect re-fires whenever fetching flips back to idle, so a failing page was re-requested in a

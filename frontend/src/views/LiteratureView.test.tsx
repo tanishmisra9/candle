@@ -231,4 +231,22 @@ describe("LiteratureView", () => {
     await new Promise((resolve) => setTimeout(resolve, 600));
     expect(vi.mocked(listPublicationsPage).mock.calls.length).toBe(callsWhenFailed); // no further requests
   });
+
+  it("keeps the page indicator while the old rows are still shown (it jumped to page 1 on every keystroke)", async () => {
+    const items = Array.from({ length: 60 }, (_, index) => ({
+      pmid: `P${index}`, trial_id: null, title: `Publication ${index}`, authors: ["A"], journal: "J",
+      pub_date: `2025-01-${String((index % 28) + 1).padStart(2, "0")}`, abstract: "x", doi: null, url: "u",
+    }));
+    vi.mocked(listPublicationsPage).mockResolvedValue({ items, next_cursor: null, total: 60 });
+    Object.defineProperty(Element.prototype, "scrollIntoView", { writable: true, configurable: true, value: vi.fn() });
+    renderWithQueryClient(<LiteratureView onOpenPublicationSnapshot={vi.fn()} />);
+    await screen.findByText("Page 1 of 2");
+    await waitFor(() => expect(document.querySelector("h2")).not.toBeNull());
+    fireEvent.click(screen.getByLabelText("Next page"));
+    await screen.findByText("Page 2 of 2");
+
+    fireEvent.change(screen.getByLabelText("Search title or abstract"), { target: { value: "g" } });
+    expect(screen.getByText("Page 2 of 2")).toBeInTheDocument(); // the typed letter has not been searched yet
+    expect(await screen.findByText("Page 1 of 2")).toBeInTheDocument(); // once it has, the new results start at page 1
+  });
 });
