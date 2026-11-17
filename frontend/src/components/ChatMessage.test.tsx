@@ -78,3 +78,29 @@ describe("ChatMessage reading width", () => {
     expect((container.querySelector(".group") as HTMLElement).className).toContain("max-w-[92%]");
   });
 });
+
+describe("ChatMessage source chips", () => {
+  const sources = [
+    { source_type: "trial" as const, source_id: "NCT03496012", title: "Efficacy and Safety of BIIB111 for the Treatment of Choroideremia", url: null, label: "NCT03496012", detail: "COMPLETED · PHASE3" },
+    { source_type: "publication" as const, source_id: "24439297", title: "Retinal gene therapy in patients with choroideremia", url: "https://pubmed.ncbi.nlm.nih.gov/24439297/" },
+  ];
+
+  it("shows what each source IS (its title) and which one it is (id, status), not just an ID that needs a hover to explain", () => {
+    render(<ChatMessage message={assistant({ sources })} onOpenTrialSnapshot={() => {}} />);
+    const trial = screen.getByRole("button", { name: /Efficacy and Safety of BIIB111/ });
+    expect(trial).toHaveTextContent("Efficacy and Safety of BIIB111 for the Treatment of Choroideremia");
+    expect(trial).toHaveTextContent("NCT03496012 · COMPLETED · PHASE3");
+    const paper = screen.getByRole("link", { name: /Retinal gene therapy in patients/ });
+    expect(paper).toHaveTextContent("PMID 24439297");
+    expect(paper).toHaveAttribute("target", "_blank");
+  });
+
+  it("does not repeat the id when the label is the title", () => {
+    render(
+      <ChatMessage
+        message={assistant({ sources: [{ source_type: "publication", source_id: "1", title: "A paper", url: "u", label: "A paper" }] })}
+      />,
+    );
+    expect(screen.getByRole("link")).toHaveTextContent(/^A paperPMID 1/);
+  });
+});
