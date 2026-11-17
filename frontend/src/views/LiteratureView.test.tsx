@@ -192,4 +192,43 @@ describe("LiteratureView", () => {
     fireEvent.click(screen.getByLabelText("Previous page"));
     expect(await screen.findByText("Page 1 of 2")).toBeInTheDocument();
   });
+
+  it("while loading, the heading has no count (it used to claim '0 publications tracked')", async () => {
+    vi.mocked(listPublicationsPage).mockImplementation(() => new Promise(() => {}));
+    renderWithQueryClient(<LiteratureView onOpenPublicationSnapshot={vi.fn()} />);
+    expect(await screen.findByRole("heading", { level: 1, name: "Literature" })).toBeInTheDocument();
+    expect(screen.queryByText(/\b0 publications/)).not.toBeInTheDocument();
+  });
+
+  it("a failed load shows ONE error panel and no empty-state or zero count", async () => {
+    vi.mocked(listPublicationsPage).mockRejectedValue(new Error("boom"));
+    renderWithQueryClient(<LiteratureView onOpenPublicationSnapshot={vi.fn()} />);
+
+    expect(await screen.findByText(/Publications could not be loaded/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Literature" })).toBeInTheDocument();
+    expect(screen.queryByText(/No publications/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(1);
+  });
+
+  it("a page that fails mid-load keeps the rows already loaded and stops asking (it re-requested in a tight loop)", async () => {
+    const item = (pmid: string) => ({
+      pmid, trial_id: null, title: `Paper ${pmid}`, authors: ["A"], journal: "J", pub_date: "2025-01-01", abstract: "x", doi: null, url: "u",
+    });
+    vi.mocked(listPublicationsPage).mockImplementation(async (params) => {
+      if (params.cursor === "page-2") {
+        // Not instant: with real network latency React renders the "fetching" state between attempts, which is what re-fires
+        // the auto-load effect (an instantly-rejecting mock never shows the loop).
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        throw new Error("boom");
+      }
+      return { items: [item("1"), item("2")], next_cursor: "page-2", total: 4 };
+    });
+    renderWithQueryClient(<LiteratureView onOpenPublicationSnapshot={vi.fn()} />);
+
+    expect(await screen.findByText(/Publications could not be loaded/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Paper 1")).toBeInTheDocument()); // the first page stays on screen
+    const callsWhenFailed = vi.mocked(listPublicationsPage).mock.calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(vi.mocked(listPublicationsPage).mock.calls.length).toBe(callsWhenFailed); // no further requests
+  });
 });

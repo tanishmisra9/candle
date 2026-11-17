@@ -4,6 +4,7 @@ import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-qu
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
+import { ErrorPanel } from "../components/ErrorPanel";
 import { PublicationRow } from "../components/PublicationRow";
 import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
@@ -84,21 +85,28 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   }, [normalizedSearch, linkedOnly, sortOrder]);
 
   useEffect(() => {
-    if (publicationsQuery.hasNextPage && !publicationsQuery.isFetchingNextPage) {
+    // Not after a failure: the effect re-fires whenever fetching flips back to idle, so a failing page was re-requested in a
+    // tight loop (15 failing requests in 8s measured), which also trips the per-IP read rate limit. "Try again" restarts it.
+    if (publicationsQuery.hasNextPage && !publicationsQuery.isFetchingNextPage && !publicationsQuery.isError) {
       void publicationsQuery.fetchNextPage();
     }
   }, [
+    publicationsQuery.isError,
     publicationsQuery.fetchNextPage,
     publicationsQuery.hasNextPage,
     publicationsQuery.isFetchingNextPage,
   ]);
 
   const publications = publicationsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  // No number until a response has arrived (see DashboardView): "0 publications tracked" while loading reads as "nothing exists".
   const publicationTotal = publicationsQuery.data?.pages[0]?.total ?? publications.length;
-  const unfilteredPublicationTotal =
-    unfilteredPublicationsQuery.data?.total ?? publicationTotal;
+  const publicationCountKnown = publicationsQuery.data !== undefined;
+  const publicationsFailed = publicationsQuery.isError && publicationsQuery.data === undefined;
+  const unfilteredPublicationTotal = unfilteredPublicationsQuery.data?.total;
   const hasFilters = Boolean(normalizedSearch || linkedOnly);
-  const showPublicationSkeletons = publicationsQuery.isPending || publicationsQuery.hasNextPage;
+  // A page that failed leaves the rows already loaded on screen (and stops the skeleton) instead of waiting forever.
+  const showPublicationSkeletons =
+    publicationsQuery.isPending || (publicationsQuery.hasNextPage && !publicationsQuery.isError);
   const prefersReducedMotion = useReducedMotion();
   const swapMotion = listContentSwapMotion(prefersReducedMotion);
   const cardMotion = cardScrollRevealMotion(prefersReducedMotion);
@@ -215,9 +223,13 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
       <header className="space-y-2">
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
-          {hasFilters
-            ? `Showing ${publicationTotal} of ${unfilteredPublicationTotal} publications`
-            : `${publicationTotal} publications tracked`}
+          {!publicationCountKnown
+            ? "Literature"
+            : hasFilters
+              ? unfilteredPublicationTotal === undefined
+                ? `Showing ${publicationTotal} publications`
+                : `Showing ${publicationTotal} of ${unfilteredPublicationTotal} publications`
+              : `${publicationTotal} publications tracked`}
         </h1>
       </header>
 
@@ -228,18 +240,13 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
 
         <div className="space-y-8 md:space-y-12">
           {publicationsQuery.isError ? (
-            <div className="rounded-panel border border-line bg-panel p-6 text-[15px] text-muted">
-              <p>Publications could not be loaded.</p>
-              <button
-                type="button"
-                className="mt-4 min-h-11 rounded-panel border border-line-strong px-4 py-2 text-[14px] text-text hover:bg-text/5"
-                onClick={() => void publicationsQuery.refetch()}
-              >
-                Retry
-              </button>
-            </div>
+            <ErrorPanel
+              message="Publications could not be loaded. Check your connection and try again."
+              onRetry={() => void publicationsQuery.refetch()}
+            />
           ) : null}
 
+          {publicationsFailed ? null : (
           <div ref={listRef} className="scroll-mt-[var(--nav-offset)] rounded-panel border border-line bg-panel px-4 md:px-8">
             <AnimatePresence mode="wait" initial={false}>
               {showPublicationSkeletons ? (
@@ -310,6 +317,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
               )}
             </AnimatePresence>
           </div>
+          )}
 
           {!showPublicationSkeletons && sortedPublications.length > PAGE_SIZE ? (
             <div className="flex items-center justify-center gap-4 pt-2">

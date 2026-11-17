@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { Link } from "react-router-dom";
 
+import { ErrorPanel } from "../components/ErrorPanel";
 import { FilterBar } from "../components/FilterBar";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
 import { statusTier, type StatusTier } from "../components/StatusBadge";
@@ -190,8 +191,12 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   });
 
   const allTrials = trialsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  // The count is only real once a response has arrived: before that (loading) or after a failure there is NO number, and the
+  // heading must not claim "0 trials". `trialsFailed` = the request failed and there is nothing to show.
   const trialTotal = trialsQuery.data?.pages[0]?.total ?? allTrials.length;
-  const unfilteredTrialTotal = unfilteredTrialsQuery.data?.total ?? trialTotal;
+  const trialCountKnown = trialsQuery.data !== undefined;
+  const trialsFailed = trialsQuery.isError && trialsQuery.data === undefined;
+  const unfilteredTrialTotal = unfilteredTrialsQuery.data?.total;
   const activeFilters = {
     status,
     phases: phase,
@@ -344,9 +349,13 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
       <header className="space-y-2">
         <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
-          {hasActiveFilters
-            ? `Showing ${trialTotal} of ${unfilteredTrialTotal} trials`
-            : `${trialTotal} trials tracked`}
+          {!trialCountKnown
+            ? "Trials"
+            : hasActiveFilters
+              ? unfilteredTrialTotal === undefined
+                ? `Showing ${trialTotal} trials`
+                : `Showing ${trialTotal} of ${unfilteredTrialTotal} trials`
+              : `${trialTotal} trials tracked`}
         </h1>
         <p className="text-[14px] text-muted">
           New to trial terms?{" "}
@@ -370,19 +379,12 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         </div>
 
         <div className="space-y-4">
-          {trialsQuery.isError ? (
-            <div className="rounded-panel border border-line bg-panel p-6 text-[15px] text-muted">
-              <p>Trials could not be loaded. Check your connection and try again.</p>
-              <button
-                type="button"
-                className="mt-4 min-h-11 rounded-panel border border-line-strong px-4 py-2 text-[14px] text-text hover:bg-text/5"
-                onClick={() => void trialsQuery.refetch()}
-              >
-                Retry
-              </button>
-            </div>
-          ) : null}
-
+          {trialsFailed ? (
+            <ErrorPanel
+              message="Trials could not be loaded. Check your connection and try again."
+              onRetry={() => void trialsQuery.refetch()}
+            />
+          ) : (
           <AnimatePresence mode="wait" initial={false}>
             {showTrialSkeletons ? (
               <motion.div
@@ -475,6 +477,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
               </motion.div>
             )}
           </AnimatePresence>
+          )}
         </div>
       </div>
       <ScrollToTopButton />
