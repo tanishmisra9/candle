@@ -39,6 +39,12 @@ describe("Timeline barEndYear", () => {
     expect(barEndYear(trial("NOT_YET_RECRUITING", null), 2031, 2026)).toBe(2031); // never ends before it starts
   });
 
+  it("does not stretch a running trial that has no start date (its start column is a placeholder)", () => {
+    const undated = { status: "RECRUITING", completion_date: null, start_date: null } as TrialSummary;
+    expect(barEndYear(undated, 2012, 2026)).toBe(2012); // the bars' placeholder start (axis origin)
+    expect(barEndYear(undated, 2026, 2026)).toBe(2026); // the axis' placeholder start (current year): same answer, no stretch
+  });
+
   it("leaves finished, stopped and unknown trials as a short bar at their start", () => {
     for (const status of ["COMPLETED", "TERMINATED", "WITHDRAWN", "UNKNOWN", null]) {
       expect(barEndYear(trial(status, null), 2012, 2026), String(status)).toBe(2012);

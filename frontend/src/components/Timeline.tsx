@@ -54,6 +54,9 @@ export function statusKey(status: string | null): StatusKey {
 export function barEndYear(trial: TrialSummary, start: number, currentYear: number) {
   const completion = yearFromDate(trial.completion_date);
   if (completion !== undefined) return completion;
+  // No start date either: `start` is only a placeholder column (the axis and the bars use different ones), so
+  // stretching from it to today would draw a long-running study with an invented start. Keep it a short mark.
+  if (yearFromDate(trial.start_date) === undefined) return start;
   return statusKey(trial.status) === "other" || statusKey(trial.status) === "terminated"
     ? start
     : Math.max(start, currentYear);
