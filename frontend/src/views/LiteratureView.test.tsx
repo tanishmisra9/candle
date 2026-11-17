@@ -196,7 +196,7 @@ describe("LiteratureView", () => {
   it("while loading, the heading has no count (it used to claim '0 publications tracked')", async () => {
     vi.mocked(listPublicationsPage).mockImplementation(() => new Promise(() => {}));
     renderWithQueryClient(<LiteratureView onOpenPublicationSnapshot={vi.fn()} />);
-    expect(await screen.findByRole("heading", { level: 1, name: "Literature" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Literature" })).toHaveAttribute("data-ready", "false");
     expect(screen.queryByText(/\b0 publications/)).not.toBeInTheDocument();
   });
 
@@ -205,7 +205,7 @@ describe("LiteratureView", () => {
     renderWithQueryClient(<LiteratureView onOpenPublicationSnapshot={vi.fn()} />);
 
     expect(await screen.findByText(/Publications could not be loaded/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "Literature" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Literature" })).toHaveAttribute("data-ready", "true");
     expect(screen.queryByText(/No publications/)).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(1);
   });

@@ -5,9 +5,12 @@
  * known text, so the heading does not blink on every change.
  */
 import { motion, useReducedMotion } from "framer-motion";
-import { useRef } from "react";
+import { useEffect, useState } from "react";
 
 import { countHeadingMotion } from "../lib/motion";
+
+/** How long the heading waits for a number before it shows the plain fallback (a stalled request must not leave the page untitled). */
+export const HEADING_WAIT_MS = 3000;
 
 export function CountHeading({
   text,
@@ -21,10 +24,23 @@ export function CountHeading({
   /** The request failed and there is nothing to show: reveal the fallback rather than wait forever. */
   failed: boolean;
 }) {
-  const last = useRef<string | null>(null);
-  if (text !== null) last.current = text;
-  const shown = text ?? last.current;
-  const ready = shown !== null || failed;
+  // State, not a ref written during render. `last` is the most recent number; `revealed` latches so a heading that has shown never hides.
+  const [last, setLast] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  if (text !== null && text !== last) setLast(text);
+  const known = text ?? last;
+  const ready = known !== null || failed || timedOut;
+  if (ready && !revealed) setRevealed(true);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setTimedOut(true), HEADING_WAIT_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const show = ready || revealed;
+  // A failure shows the fallback, never an older number beside an error panel.
+  const content = failed ? fallback : (known ?? fallback);
   const variants = countHeadingMotion(useReducedMotion());
 
   return (
@@ -32,10 +48,10 @@ export function CountHeading({
       className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]"
       variants={variants}
       initial="hidden"
-      animate={ready ? "shown" : "hidden"}
-      data-ready={ready}
+      animate={show ? "shown" : "hidden"}
+      data-ready={show}
     >
-      {shown ?? fallback}
+      {content}
     </motion.h1>
   );
 }

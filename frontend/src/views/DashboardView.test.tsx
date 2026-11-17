@@ -162,8 +162,15 @@ describe("DashboardView", () => {
   it("while loading, the heading has no count (it used to claim '0 trials tracked')", async () => {
     vi.mocked(listTrialsPage).mockImplementation(() => new Promise(() => {}));
     renderWithQueryClient(<DashboardView onOpenTrialSnapshot={vi.fn()} />);
-    expect(await screen.findByRole("heading", { level: 1, name: "Trials" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Trials" })).toHaveAttribute("data-ready", "false"); // invisible, not a placeholder word
     expect(screen.queryByText(/\b0 trials/)).not.toBeInTheDocument();
+  });
+
+  it("reveals the heading with the number once the first page is in", async () => {
+    vi.mocked(listTrialsPage).mockResolvedValue({ items: [], next_cursor: null, total: 29 });
+    renderWithQueryClient(<DashboardView onOpenTrialSnapshot={vi.fn()} />);
+    const heading = await screen.findByRole("heading", { level: 1, name: "29 trials tracked" });
+    expect(heading).toHaveAttribute("data-ready", "true");
   });
 
   it("a failed load shows ONE error panel, not '0 trials', an error AND 'No trials are tracked yet'", async () => {
@@ -172,13 +179,14 @@ describe("DashboardView", () => {
     renderWithQueryClient(<DashboardView onOpenTrialSnapshot={vi.fn()} />);
 
     expect(await screen.findByText(/Trials could not be loaded/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1, name: "Trials" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Trials" })).toHaveAttribute("data-ready", "true"); // a failure reveals it
     expect(screen.queryByText(/No trials/)).not.toBeInTheDocument();
     expect(screen.queryByText(/\b0 of|\b0 trials/)).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(1);
 
     vi.mocked(listTrialsPage).mockResolvedValue({ items: [], next_cursor: null, total: 0 });
     await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveAttribute("data-ready", "true"); // not hidden again mid-retry
     expect(await screen.findByText("0 trials tracked")).toBeInTheDocument(); // a real, loaded zero is still allowed
   });
 
