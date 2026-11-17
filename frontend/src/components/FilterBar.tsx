@@ -201,16 +201,21 @@ export function FilterBar({
               const isOpen = openGroup === group.label;
               const menuId = `${instanceId}-${slugifyLabel(group.label)}-menu`;
               const isMultiSelect = group.selectionMode === "multiple";
+              // A picked value keeps its group name ("Status: Recruiting"): the button used to become just "Recruiting", and "Drug" or
+              // "Biogen" alone say nothing about which filter they belong to. Not doubled when the value already starts with it
+              // ("Phase 2", not "Phase: Phase 2").
+              const named = (label: string) =>
+                label.toLowerCase().startsWith(group.label.toLowerCase()) ? label : `${group.label}: ${label}`;
               const activeLabel = isMultiSelect
                 ? group.selectedValues.length === 0
                   ? group.label
                   : group.selectedValues.length === 1
-                    ? (group.options.find((option) => option.value === group.selectedValues[0])?.label ??
-                      group.label)
+                    ? named(
+                        group.options.find((option) => option.value === group.selectedValues[0])?.label ?? group.label,
+                      )
                     : `${group.label} (${group.selectedValues.length})`
                 : group.value
-                  ? (group.options.find((option) => option.value === group.value)?.label ??
-                    group.label)
+                  ? named(group.options.find((option) => option.value === group.value)?.label ?? group.label)
                   : group.label;
               const isActive = isMultiSelect ? group.selectedValues.length > 0 : Boolean(group.value);
 
@@ -226,13 +231,14 @@ export function FilterBar({
                     onClick={() => setOpenGroup(isOpen ? null : group.label)}
                     onKeyDown={(event) => handleMenuKeyDown(event, group, menuId)}
                     className={clsx(
-                      "justify-center px-4 py-2.5 text-[14px]",
+                      "max-w-[18rem] justify-center px-4 py-2.5 text-[14px]",
                       // `!` because Button's own border/bg tokens come later in the generated CSS and would win.
                       isActive && "!border-accent !bg-accent/[0.08]",
                       isOpen && !isActive && "!border-accent",
                     )}
                   >
-                    {activeLabel}
+                    {/* A long value (a sponsor's full name) truncates instead of widening the whole bar. */}
+                    <span className="truncate">{activeLabel}</span>
                   </Button>
                   <AnimatePresence>
                     {isOpen ? (

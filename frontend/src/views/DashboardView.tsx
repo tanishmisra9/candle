@@ -438,15 +438,6 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
                           ? "No trials match these filters."
                           : "No trials are tracked yet."}
                     </p>
-                    {hasActiveFilters ? (
-                      <button
-                        type="button"
-                        onClick={clearFilters}
-                        className="min-h-11 rounded-panel border border-line-strong px-4 py-2 text-[14px] text-text hover:bg-text/5"
-                      >
-                        Clear search and filters
-                      </button>
-                    ) : null}
                   </div>
                 ) : null}
                 {trialsQuery.hasNextPage ? (

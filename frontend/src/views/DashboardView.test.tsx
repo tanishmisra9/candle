@@ -111,7 +111,7 @@ describe("DashboardView", () => {
     await user.click(await screen.findByRole("button", { name: "Status" }));
     await user.click(await screen.findByRole("menuitem", { name: "Recruiting" }));
     await screen.findByText("Showing 1 of 2 trials");
-    await user.click(screen.getByRole("button", { name: "Recruiting" }));
+    await user.click(screen.getByRole("button", { name: "Status: Recruiting" }));
 
     const menu = screen.getByRole("menu");
     const labels = within(menu).getAllByRole("menuitem").map((item) => item.textContent);
@@ -127,7 +127,9 @@ describe("DashboardView", () => {
     await user.type(await screen.findByLabelText("Search trial titles"), "zzzz");
 
     expect(await screen.findByText("No trials match “zzzz”.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Clear search and filters" }));
+    // One way out, in the filter bar: the empty state used to add a second "Clear search and filters" beside it.
+    expect(screen.getAllByRole("button", { name: /clear/i })).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Clear all filters" }));
     expect(screen.getByLabelText("Search trial titles")).toHaveValue("");
   });
 
