@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { Link } from "react-router-dom";
 
+import { CountHeading } from "../components/CountHeading";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { FilterBar } from "../components/FilterBar";
 import { ScrollToTopButton } from "../components/ScrollToTopButton";
@@ -353,15 +354,19 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   return (
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
       <header className="space-y-2">
-        <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
-          {!trialCountKnown
-            ? "Trials"
-            : hasActiveFilters
-              ? unfilteredTrialTotal === undefined
-                ? `Showing ${trialTotal} trials`
-                : `Showing ${trialTotal} of ${unfilteredTrialTotal} trials`
-              : `${trialTotal} trials tracked`}
-        </h1>
+        <CountHeading
+          fallback="Trials"
+          failed={trialsFailed}
+          text={
+            !trialCountKnown
+              ? null
+              : hasActiveFilters
+                ? unfilteredTrialTotal === undefined
+                  ? `Showing ${trialTotal} trials`
+                  : `Showing ${trialTotal} of ${unfilteredTrialTotal} trials`
+                : `${trialTotal} trials tracked`
+          }
+        />
         <p className="text-[14px] text-muted">
           New to trial terms?{" "}
           <Link

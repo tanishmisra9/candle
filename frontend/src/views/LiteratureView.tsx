@@ -4,6 +4,7 @@ import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-qu
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
+import { CountHeading } from "../components/CountHeading";
 import { ErrorPanel } from "../components/ErrorPanel";
 import { PublicationRow } from "../components/PublicationRow";
 import { PublicationRowSkeleton } from "../components/PublicationRowSkeleton";
@@ -224,15 +225,19 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
   return (
     <div className="space-y-8 pb-20 pt-28 md:space-y-12 md:pt-32">
       <header className="space-y-2">
-        <h1 className="text-[34px] font-medium tracking-[-0.03em] text-text md:text-[42px]">
-          {!publicationCountKnown
-            ? "Literature"
-            : hasFilters
-              ? unfilteredPublicationTotal === undefined
-                ? `Showing ${publicationTotal} publications`
-                : `Showing ${publicationTotal} of ${unfilteredPublicationTotal} publications`
-              : `${publicationTotal} publications tracked`}
-        </h1>
+        <CountHeading
+          fallback="Literature"
+          failed={publicationsFailed}
+          text={
+            !publicationCountKnown
+              ? null
+              : hasFilters
+                ? unfilteredPublicationTotal === undefined
+                  ? `Showing ${publicationTotal} publications`
+                  : `Showing ${publicationTotal} of ${unfilteredPublicationTotal} publications`
+                : `${publicationTotal} publications tracked`
+          }
+        />
       </header>
 
       <div className="space-y-8 md:space-y-12">

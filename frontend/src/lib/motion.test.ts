@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mobileMenuMotion, routeTransitionMotion } from "./motion";
+import { countHeadingMotion, mobileMenuMotion, routeTransitionMotion } from "./motion";
 
 describe("mobileMenuMotion", () => {
   it("is completely still under reduced motion (it just appears)", () => {
@@ -42,5 +42,24 @@ describe("routeTransitionMotion", () => {
     expect(variants.initial).toEqual({ opacity: 0 });
     expect(variants.animate.opacity).toBe(1);
     expect(variants.exit.opacity).toBe(0);
+  });
+});
+
+describe("countHeadingMotion", () => {
+  it("blurs in without moving: no y offset (the heading holds the layout) and no scale", () => {
+    const m = countHeadingMotion(false);
+    expect(m.hidden).toMatchObject({ opacity: 0, filter: "blur(10px)" });
+    expect(m.shown).toMatchObject({ opacity: 1, filter: "blur(0px)" });
+    for (const state of [m.hidden, m.shown]) {
+      expect(state).not.toHaveProperty("y");
+      expect(state).not.toHaveProperty("scale");
+    }
+  });
+
+  it("under reduced motion there is no blur and no duration, but it still waits for the number", () => {
+    const m = countHeadingMotion(true);
+    expect(m.hidden).toEqual({ opacity: 0 });
+    expect(m.shown).toMatchObject({ opacity: 1, transition: { duration: 0 } });
+    expect(m.shown).not.toHaveProperty("filter");
   });
 });

@@ -128,6 +128,24 @@ export function cardScrollRevealMotion(prefersReducedMotion: boolean | null) {
   };
 }
 
+/**
+ * A page heading whose text is a number that arrives from the server: invisible until the number is final, then it blurs in.
+ * No y offset (layout must not move), and under reduced motion there is no blur, only the opacity switch with no duration:
+ * the point is that the text never snaps from a placeholder to the number in view.
+ */
+export function countHeadingMotion(prefersReducedMotion: boolean | null) {
+  if (prefersReducedMotion) {
+    return {
+      hidden: { opacity: 0 },
+      shown: { opacity: 1, transition: { duration: 0 } },
+    };
+  }
+  return {
+    hidden: { opacity: 0, filter: "blur(10px)" },
+    shown: { opacity: 1, filter: "blur(0px)", transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] as const } },
+  };
+}
+
 export function messageEntranceMotion(prefersReducedMotion: boolean | null) {
   if (prefersReducedMotion) {
     return {
