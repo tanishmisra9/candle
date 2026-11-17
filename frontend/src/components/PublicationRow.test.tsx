@@ -35,6 +35,27 @@ describe("PublicationRow", () => {
     expect(screen.queryByText(/To test it/)).not.toBeInTheDocument();
   });
 
+  it("stops the conclusion at the next section label, so registration and funding lines do not trail it", () => {
+    render(
+      <PublicationRow
+        publication={pub({ abstract: "Purpose: Test. CONCLUSIONS: It worked. TRIAL REGISTRATION: NCT01234567. FUNDING: A grant." })}
+        onOpen={() => {}}
+      />,
+    );
+    expect(screen.getByText("It worked.")).toBeInTheDocument();
+    expect(screen.queryByText(/REGISTRATION|NCT01234567|grant/)).not.toBeInTheDocument();
+  });
+
+  it("does not mistake prose for a Conclusion section ('In conclusion:' mid-abstract)", () => {
+    render(
+      <PublicationRow
+        publication={pub({ abstract: "Background: Rare disease. Methods: Cohort. Results: Mixed. In conclusion: nothing firm yet." })}
+        onOpen={() => {}}
+      />,
+    );
+    expect(screen.getByText(/^Background: Rare disease\./)).toBeInTheDocument(); // the opening, not the tail from "In conclusion:"
+  });
+
   it("falls back to the opening of an unstructured abstract", () => {
     render(<PublicationRow publication={pub({ abstract: "Plain abstract text." })} onOpen={() => {}} />);
     expect(screen.getByText("Plain abstract text.")).toBeInTheDocument();

@@ -18,6 +18,8 @@ function formatMeta(publication: PublicationSummary) {
 }
 
 const PREVIEW_LENGTH = 200;
+const CONCLUSION_SECTION =
+  /\b(?:Conclusions?|CONCLUSIONS?)\s*:\s*([\s\S]*?)(?=\s+(?:[A-Z][A-Z ]{2,}|Trial registration|Clinical trial registration|Registration|Funding|Disclosures?|Keywords?)\s*:|$)/;
 
 /** The "Conclusion(s):" part of a structured abstract when there is one (what a skimmer wants), else the opening. */
 function abstractPreview(abstract: string | null) {
@@ -25,7 +27,9 @@ function abstractPreview(abstract: string | null) {
     return null;
   }
   const trimmed = abstract.trim();
-  const conclusion = /\bconclusions?\s*:\s*([\s\S]+)$/i.exec(trimmed)?.[1]?.trim();
+  // The labelled section only ("Conclusion:" / "CONCLUSIONS:", not "we conclude:"), up to the next section label (an
+  // ALL-CAPS one, or the boilerplate ones PubMed appends) so registration and funding lines don't trail the preview.
+  const conclusion = CONCLUSION_SECTION.exec(trimmed)?.[1]?.trim();
   const text = conclusion || trimmed;
   if (text.length <= PREVIEW_LENGTH) {
     return text;
