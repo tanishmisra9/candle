@@ -12,6 +12,7 @@ import { formatMonthYear } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import { lockPageScroll } from "../lib/scrollLock";
 import type { PublicationSummary } from "../types";
+import { AbstractText } from "./AbstractText";
 import { StackBackButton } from "./StackBackButton";
 import { Button } from "./ui/Button";
 
@@ -346,9 +347,7 @@ export function PublicationSnapshot({
                       Abstract
                     </h3>
                     {publication.abstract?.trim() ? (
-                      <p className="mt-3 text-[15px] leading-[1.6] text-text">
-                        {publication.abstract.trim()}
-                      </p>
+                      <AbstractText text={publication.abstract} className="mt-3 text-[15px] leading-[1.6] text-text" />
                     ) : (
                       <p className="mt-3 text-[14px] text-muted">No abstract available.</p>
                     )}

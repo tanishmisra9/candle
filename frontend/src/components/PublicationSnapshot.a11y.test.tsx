@@ -284,3 +284,20 @@ describe("PublicationSnapshot stacked on a trial", () => {
     expect(screen.queryByRole("button", { name: /^Back to/ })).not.toBeInTheDocument();
   });
 });
+
+describe("PublicationSnapshot abstract", () => {
+  it("shows a structured abstract as labelled paragraphs, not one block", async () => {
+    vi.mocked(getPublicationOverview).mockResolvedValue({ overview: "x" });
+    render(
+      <PublicationSnapshot
+        publication={{ ...makePublication(), abstract: "BACKGROUND: Rare.\n\nMETHODS: A cohort.\n\nFINDINGS: It worked." }}
+        onClose={() => {}}
+        onOpenTrialSnapshot={() => {}}
+        layer="below-trial"
+        isTrialSnapshotOpen={false}
+      />,
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect([...dialog.querySelectorAll("strong")].map((s) => s.textContent)).toEqual(["BACKGROUND:", "METHODS:", "FINDINGS:"]);
+  });
+});
