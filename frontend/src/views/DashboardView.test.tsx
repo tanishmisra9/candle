@@ -130,4 +130,30 @@ describe("DashboardView", () => {
     await user.click(screen.getByRole("button", { name: "Clear search and filters" }));
     expect(screen.getByLabelText("Search trial titles")).toHaveValue("");
   });
+
+  it("is not fooled by Home's cached trial count (same data, a limit-1 entry) when it builds the filter menus", async () => {
+    const make = (id: string, status: string) => ({
+      id, title: `Trial ${id}`, status, phase: "PHASE2", start_date: null, completion_date: null, sponsor: "Candle",
+      intervention: "x", intervention_type: "GENETIC", enrollment: 1, primary_endpoint: null, locations: [],
+      contact_email: null, url: "https://example.com",
+    });
+    const all = [make("NCT1", "COMPLETED"), make("NCT2", "RECRUITING")];
+    vi.mocked(listTrialsPage).mockImplementation(async () => ({ items: all, next_cursor: null, total: 2 }));
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // What CandleToday leaves behind after a visit to Home: ONE trial under the "total" key.
+    queryClient.setQueryData(["trials", "total"], { items: [all[0]], next_cursor: null, total: 2 });
+
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <DashboardView onOpenTrialSnapshot={vi.fn()} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Status" }));
+    const labels = within(screen.getByRole("menu")).getAllByRole("menuitem").map((item) => item.textContent);
+    expect(labels).toEqual(["All✓", "Recruiting", "Completed"]);
+  });
 });

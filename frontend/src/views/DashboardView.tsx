@@ -179,7 +179,9 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   });
 
   const unfilteredTrialsQuery = useQuery({
-    queryKey: ["trials", "total"],
+    // NOT ["trials", "total"]: Home's counter (CandleToday) caches a limit-1 result under that key, and visiting Home first
+    // would hand this query a one-trial list, collapsing every filter menu to that trial's values.
+    queryKey: ["trials", "facets"],
     // Also the source of the filter-menu options: they must come from the UNFILTERED set, or picking
     // Status = Recruiting leaves a menu of only "All" and "Recruiting". ponytail: first 100 trials (the
     // API page cap); beyond that the menus would miss values, add a /trials/facets endpoint then.
