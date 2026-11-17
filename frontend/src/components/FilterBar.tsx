@@ -204,8 +204,12 @@ export function FilterBar({
               // A picked value keeps its group name ("Status: Recruiting"): the button used to become just "Recruiting", and "Drug" or
               // "Biogen" alone say nothing about which filter they belong to. Not doubled when the value already starts with it
               // ("Phase 2", not "Phase: Phase 2").
+              // Only "Phase 2"-style values (the group name, then a number) stand alone: a sponsor that merely starts with the group name
+              // ("Sponsor Health Ltd" under Sponsor) still gets its prefix.
               const named = (label: string) =>
-                label.toLowerCase().startsWith(group.label.toLowerCase()) ? label : `${group.label}: ${label}`;
+                label.toLowerCase().startsWith(`${group.label.toLowerCase()} `) && /^\D*\d/.test(label.slice(group.label.length))
+                  ? label
+                  : `${group.label}: ${label}`;
               const activeLabel = isMultiSelect
                 ? group.selectedValues.length === 0
                   ? group.label

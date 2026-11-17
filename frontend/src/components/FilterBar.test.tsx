@@ -111,6 +111,13 @@ describe("FilterBar active labels", () => {
     expect(screen.getByRole("button", { name: "Sponsor" })).toBeInTheDocument(); // nothing picked: just the group name
   });
 
+  it("still names a value that merely STARTS with the group name ('Sponsor: Sponsor Health Ltd')", () => {
+    render1([
+      { label: "Sponsor", selectionMode: "multiple", selectedValues: ["S"], onToggle: () => {}, options: [{ label: "Sponsor Health Ltd", value: "S" }] },
+    ]);
+    expect(screen.getByRole("button", { name: "Sponsor: Sponsor Health Ltd" })).toBeInTheDocument();
+  });
+
   it("does not double the name when the value already starts with it ('Phase 2', not 'Phase: Phase 2')", () => {
     render1([
       { label: "Phase", selectionMode: "multiple", selectedValues: ["PHASE2"], onToggle: () => {}, options: [{ label: "Phase 2", value: "PHASE2" }] },
