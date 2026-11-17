@@ -67,6 +67,15 @@ describe("NotFoundView", () => {
     expect(primary.querySelector('[aria-current="page"]')).toBeNull();
   });
 
+  it.each([["/trials/", "Trials — Candle"], ["/ask/", "Ask — Candle"], ["/guide/", "Guide — Candle"]])(
+    "titles %s as the real page it renders, not as 'Page not found' (React Router ignores a trailing slash)",
+    async (path, title) => {
+      renderApp(path);
+      await screen.findByRole("heading", { level: 1 });
+      expect(document.title).toBe(title);
+    },
+  );
+
   it("still renders the real pages", async () => {
     renderApp("/guide");
     expect(await screen.findByRole("heading", { level: 1, name: /guide|CHM/i })).toBeInTheDocument();

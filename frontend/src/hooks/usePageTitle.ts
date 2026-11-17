@@ -16,6 +16,8 @@ export function usePageTitle() {
 
   useEffect(() => {
     // Every address that is not listed renders the not-found page, so it is titled as one.
-    document.title = PAGE_TITLES[pathname] ?? "Page not found — Candle";
+    // "/trials/" renders the Trials page too (React Router ignores a trailing slash), so look the title up without it.
+    const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+    document.title = PAGE_TITLES[path] ?? "Page not found — Candle";
   }, [pathname]);
 }
