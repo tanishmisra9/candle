@@ -1,5 +1,5 @@
 /** Trials page (`/trials`): filters, grid with IntersectionObserver infinite scroll, and the timeline toggle. */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
@@ -258,11 +258,16 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
   const prefersReducedMotion = useReducedMotion();
   const swapMotion = listContentSwapMotion(prefersReducedMotion);
   const cardMotion = cardScrollRevealMotion(prefersReducedMotion);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  // State, not a ref: the sentinel mounts only after the skeleton's exit animation (AnimatePresence mode="wait"), i.e. AFTER the effect
+  // below first ran. With a plain ref the effect saw null, nothing changed its dependencies afterwards, and the observer was never
+  // attached: past one page (100 trials) the list never loaded more. Hidden today because the corpus is 29 trials.
+  const [loadMoreNode, setLoadMoreNode] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const node = loadMoreRef.current;
-    if (!node || !trialsQuery.hasNextPage) return;
+    const node = loadMoreNode;
+    // Not after a failure: the observer is re-created whenever fetching flips back to idle and fires at once, so a failing page was
+    // re-requested in a loop (the same bug the Literature auto-load had).
+    if (!node || !trialsQuery.hasNextPage || trialsQuery.isError) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -275,7 +280,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [trialsQuery.hasNextPage, trialsQuery.isFetchingNextPage, trialsQuery.fetchNextPage]);
+  }, [loadMoreNode, trialsQuery.hasNextPage, trialsQuery.isFetchingNextPage, trialsQuery.isError, trialsQuery.fetchNextPage]);
 
   const clearFilters = () => {
     setStatus("");
@@ -379,6 +384,13 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
         </div>
 
         <div className="space-y-4">
+          {/* A later page (or a refetch) failed while rows are on screen: keep the rows, say so, and offer a retry. */}
+          {trialsQuery.isError && !trialsFailed ? (
+            <ErrorPanel
+              message="More trials could not be loaded. Check your connection and try again."
+              onRetry={() => void trialsQuery.refetch()}
+            />
+          ) : null}
           {trialsFailed ? (
             <ErrorPanel
               message="Trials could not be loaded. Check your connection and try again."
@@ -441,7 +453,7 @@ export function DashboardView({ onOpenTrialSnapshot }: DashboardViewProps) {
                   </div>
                 ) : null}
                 {trialsQuery.hasNextPage ? (
-                  <div ref={loadMoreRef}>
+                  <div ref={setLoadMoreNode}>
                     {trialsQuery.isFetchingNextPage ? (
                       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                         <TrialCardSkeleton />

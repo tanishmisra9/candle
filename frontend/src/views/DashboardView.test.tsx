@@ -181,4 +181,39 @@ describe("DashboardView", () => {
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("0 trials tracked")).toBeInTheDocument(); // a real, loaded zero is still allowed
   });
+
+  it("a later page that fails keeps the rows, says so, and stops asking (the infinite-scroll observer re-fired in a loop)", async () => {
+    const trial = (id: string) => ({
+      id, title: `Trial ${id}`, status: "COMPLETED", phase: "PHASE2", start_date: null, completion_date: null, sponsor: "Candle",
+      intervention: "x", intervention_type: "GENETIC", enrollment: 1, primary_endpoint: null, locations: [], contact_email: null, url: "u",
+    });
+    // An observer that reports "visible" the moment it is created, as the sentinel is when the list is short.
+    const original = window.IntersectionObserver;
+    window.IntersectionObserver = class {
+      constructor(private callback: IntersectionObserverCallback) {}
+      observe() { this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as unknown as IntersectionObserver); }
+      unobserve() {}
+      disconnect() {}
+      takeRecords() { return []; }
+    } as unknown as typeof IntersectionObserver;
+    try {
+      vi.mocked(listTrialsPage).mockImplementation(async (params) => {
+        if (params.cursor === "c2") {
+          await new Promise((resolve) => setTimeout(resolve, 20)); // not instant: real latency is what shows the loop
+          throw new Error("boom");
+        }
+        return { items: [trial("A"), trial("B")], next_cursor: "c2", total: 4 };
+      });
+      renderWithQueryClient(<DashboardView onOpenTrialSnapshot={vi.fn()} />);
+
+      expect(await screen.findByText(/More trials could not be loaded/)).toBeInTheDocument();
+      expect(screen.getByText("Trial A")).toBeInTheDocument(); // the rows already loaded stay
+      expect(screen.getAllByRole("button", { name: "Try again" })).toHaveLength(1);
+      const calls = vi.mocked(listTrialsPage).mock.calls.length;
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(vi.mocked(listTrialsPage).mock.calls.length).toBe(calls);
+    } finally {
+      window.IntersectionObserver = original;
+    }
+  });
 });
