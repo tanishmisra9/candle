@@ -23,13 +23,17 @@ const WINDOW_AROUND_HIT = 100;
 const CONCLUSION_SECTION =
   /\b(?:Conclusions?|CONCLUSIONS?|Interpretation|INTERPRETATION)\s*:\s*([\s\S]*?)(?=\s+(?:[A-Z][A-Z ]{2,}|Trial registration|Clinical trial registration|Registration|Funding|Disclosures?|Keywords?)\s*:|$)/;
 const LEADING_LABEL = /^[A-Z][A-Z &/,-]{2,40}:\s*/;
-// Some abstracts run a funding sentence on with no label ("...treatment.Funding for the study provided by NIH..."): drop it.
-const UNLABELLED_FUNDING = /\s+(?:Funding|Funded by|Supported by)\b[\s\S]*$/;
+// Some abstracts run a funding sentence on with no label ("...treatment.Funding for the study provided by NIH..."): drop it. Only the
+// forms that really occur ("Funding for/was/is/provided/support"): "Supported by these data, ..." is a normal sentence and was cut.
+const UNLABELLED_FUNDING = /\s+Funding (?:for|was|is|provided|support)\b[\s\S]*$/;
+// Two glued sentences: a word of 3+ lowercase letters (or a closing bracket), a full stop, a capitalised word. NOT a single letter before
+// the stop, or the protein notation in genetics abstracts is mangled ("(p.Val529Hisfs*6)" became "p. Val529Hisfs*6"; 7 real abstracts).
+const GLUED_SENTENCES = /([a-z]{3,}|\))\.([A-Z][a-z]{2,})/g;
 const TRAILING_PUNCTUATION = /[\s.,;:]+$/;
 
 /** One line of plain text: breaks collapsed, and a space put back where two sentences were glued ("treatment.Funding"). */
 function tidy(text: string) {
-  return text.replace(/\s+/g, " ").replace(/([a-z0-9)])\.([A-Z])/g, "$1. $2").trim();
+  return text.replace(/\s+/g, " ").replace(GLUED_SENTENCES, "$1. $2").trim();
 }
 
 /**

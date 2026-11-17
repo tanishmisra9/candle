@@ -86,6 +86,21 @@ describe("PublicationRow snippet", () => {
     );
   });
 
+  it("leaves genetics notation alone: '(p.Cys182Valfs*14)' is not two glued sentences (it became 'p. Cys182Valfs*14')", () => {
+    const { container } = show("CONCLUSIONS: The proband carries c.544delT (p.Cys182Valfs*14) as a hemizygous variant.");
+    expect(snippet(container)).toBe("The proband carries c.544delT (p.Cys182Valfs*14) as a hemizygous variant.");
+  });
+
+  it("repairs a real glue next to it ('eye.The' after a three-letter word) without touching the notation", () => {
+    const { container } = show("CONCLUSIONS: He presented with blurred vision in his left eye.The variant was c.544delT (p.Cys182Valfs*14).");
+    expect(snippet(container)).toBe("He presented with blurred vision in his left eye. The variant was c.544delT (p.Cys182Valfs*14).");
+  });
+
+  it("keeps a sentence that merely starts with 'Supported by' (only real funding lines are dropped)", () => {
+    const { container } = show("CONCLUSIONS: Safe overall. Supported by these data, gene therapy is a promising option.");
+    expect(snippet(container)).toBe("Safe overall. Supported by these data, gene therapy is a promising option.");
+  });
+
   it("uses INTERPRETATION when that is what the journal calls it (it opened on a raw 'BACKGROUND:')", () => {
     const { container } = show("BACKGROUND: Rare.\n\nMETHODS: A cohort.\n\nFINDINGS: Gains.\n\nINTERPRETATION: Initial results are consistent with a benefit.");
     expect(snippet(container)).toBe("Initial results are consistent with a benefit.");
