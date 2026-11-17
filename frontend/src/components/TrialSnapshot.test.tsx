@@ -183,7 +183,7 @@ describe("TrialSnapshot scrolling on a phone", () => {
       expect({ header: header.className, title: title.className, style: header.getAttribute("style") }, `at scrollTop ${top}`).toEqual(before);
     }
 
-    expect(title.className).toContain("text-[26px]"); // the expanded size, always
+    expect(title.className).toContain("text-[24px]"); // one size, always (on a phone the title is in the body)
     expect(title.className).not.toContain("text-[21px]");
     expect(header.getAttribute("style")).toBeNull(); // no animated padding
   });
@@ -306,45 +306,30 @@ describe("TrialSnapshot facts", () => {
     );
   });
 
-  // jsdom has no layout: say whether the header's <h2> is cutting its text (scrollHeight > clientHeight).
-  function headerTitleIs(clamped: boolean) {
-    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
-      configurable: true,
-      get(this: HTMLElement) { return this.tagName === "H2" ? (clamped ? 120 : 60) : 0; },
-    });
-    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
-      configurable: true,
-      get(this: HTMLElement) { return this.tagName === "H2" ? 60 : 0; },
-    });
-  }
-  const resetLayout = () => {
-    delete (HTMLElement.prototype as unknown as Record<string, unknown>).scrollHeight;
-    delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight;
-  };
-
-  it("repeats the full title in the body on a phone when the header cuts it, hidden from assistive tech", () => {
+  it("on a phone the title is shown ONCE, whole, at the top of the body, and labels the dialog (it was cut in the header and repeated below)", () => {
     viewport.mobile = true;
-    headerTitleIs(true);
     try {
       const { container } = open();
-      const copy = container.ownerDocument.querySelector('p[aria-hidden="true"]');
-      expect(copy?.textContent).toBe("Example CHM Trial");
+      const doc = container.ownerDocument;
+      const title = screen.getByRole("heading", { level: 2, name: "Example CHM Trial" });
+      expect(doc.querySelectorAll("h2")).toHaveLength(1);
+      expect(doc.querySelector('p[aria-hidden="true"]')).toBeNull(); // no hidden copy either
+      expect(screen.getByTestId("snapshot-scroll")).toContainElement(title);
+      expect(screen.getByTestId("snapshot-header")).not.toContainElement(title);
+      expect(title.className).not.toContain("line-clamp"); // whole, never cut
+      expect(screen.getByRole("dialog")).toHaveAttribute("aria-labelledby", title.id);
+      expect(screen.getByTestId("snapshot-header")).toHaveTextContent("NCT12345678"); // the id stays pinned in the small header
     } finally {
       viewport.mobile = false;
-      resetLayout();
     }
   });
 
-  it("does NOT repeat a title the header shows in full (a short title appeared twice, 66px apart)", () => {
-    viewport.mobile = true;
-    headerTitleIs(false);
-    try {
-      const { container } = open();
-      expect(container.ownerDocument.querySelector('p[aria-hidden="true"]')).toBeNull();
-    } finally {
-      viewport.mobile = false;
-      resetLayout();
-    }
+  it("on a desktop the title stays in the header, once", () => {
+    const { container } = open();
+    const title = screen.getByRole("heading", { level: 2, name: "Example CHM Trial" });
+    expect(container.ownerDocument.querySelectorAll("h2")).toHaveLength(1);
+    expect(screen.getByTestId("snapshot-header")).toContainElement(title);
+    expect(screen.getByRole("dialog")).toHaveAttribute("aria-labelledby", title.id);
   });
 });
 

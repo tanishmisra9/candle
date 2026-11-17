@@ -88,7 +88,7 @@ Accessibility is the top requirement for this app. Closure notes and what still 
 - **Data states**: a count is shown only once a response exists: the page heading stays invisible until the number is final, then blurs in once (`CountHeading`; it falls back to plain "Trials" / "Literature" only on a failure), and a failed load renders ONE `ErrorPanel` instead of the list and an empty state. Unknown addresses render `NotFoundView` (catch-all route; nav tabs match exactly).
 - **One source for words and numbers**: statuses come from `statusTier` / `STATUS_TIER_TITLES` (card, filters, Guide, Timeline legend); dates from `formatMonthYear` (UTC: date-only API strings otherwise print the previous month west of UTC; the test suite pins `TZ=America/Los_Angeles` to catch that); participants, citations and publication titles from `lib/formatters.ts`.
 - **Touch**: `future.hoverOnlyWhenSupported` is on (restart the dev server after changing `tailwind.config.ts`), and cards, rows and buttons have `active:` feedback.
-- **Phones**: the dialog repeats a title in its body only when the header's line-clamped title is really cut (`useIsClamped`); the footer keeps `max-sm:pb-20` so the floating scroll-to-top button never covers its text; the nav always shows the name.
+- **Phones**: on a phone the dialog's title is shown once, at the top of the scrolling body (the header is only the id and the close button); the footer keeps `max-sm:pb-20` so the floating scroll-to-top button never covers its text; the nav always shows the name.
 
 ## Verifying changes
 

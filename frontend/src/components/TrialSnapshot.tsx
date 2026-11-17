@@ -12,7 +12,6 @@ import { createPortal } from "react-dom";
 import { getTrial } from "../lib/api";
 import { useFocusTrap } from "../lib/a11y";
 import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
-import clsx from "clsx";
 import type { PublicationSummary } from "../types";
 import {
   displayTitle,
@@ -23,7 +22,6 @@ import {
   formatStatusLabel,
 } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
-import { useIsClamped } from "../lib/useIsClamped";
 import { lockPageScroll } from "../lib/scrollLock";
 import { PhasePill } from "./PhasePill";
 import { StackBackButton } from "./StackBackButton";
@@ -102,7 +100,6 @@ export function TrialSnapshot({
   const isMobile = useIsMobile();
   const [showAllLocations, setShowAllLocations] = useState(false);
   const [showAllOutcomes, setShowAllOutcomes] = useState(false);
-  const [titleNode, setTitleNode] = useState<HTMLHeadingElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -121,9 +118,6 @@ export function TrialSnapshot({
     gcTime: 60 * 60_000,
     refetchOnWindowFocus: false,
   });
-
-  // Whether the fixed header's title is cut (3 lines on a phone): only then is it repeated whole in the body.
-  const titleClamped = useIsClamped(titleNode, detailQuery.data?.title ?? "");
 
   useFocusTrap(dialogRef, isTopmost);
 
@@ -232,8 +226,8 @@ export function TrialSnapshot({
                 onClick={(event) => event.stopPropagation()}
                 className="relative flex h-[min(87svh,920px)] w-full flex-col overflow-hidden rounded-panel border border-line bg-panel md:h-[min(calc(100vh-7rem),920px)] md:max-w-[1040px] md:rounded-panel"
               >
-                <div data-testid="snapshot-header" className="border-b border-line bg-panel px-5 pt-6 pb-5 md:px-8">
-                  <div className="flex items-start justify-between gap-4">
+                <div data-testid="snapshot-header" className="border-b border-line bg-panel px-5 pt-3 pb-2 md:px-8 md:pt-6 md:pb-5">
+                  <div className="flex items-center justify-between gap-4 md:items-start">
                     <div className="min-w-0 max-w-[820px] flex-1">
                       <div className="flex flex-wrap items-center justify-between gap-x-3">
                         <p className="whitespace-nowrap text-[11px] kicker text-muted md:text-[12px]">
@@ -241,16 +235,13 @@ export function TrialSnapshot({
                         </p>
                         {underneath ? <StackBackButton label={underneath} onBack={onClose} /> : null}
                       </div>
-                      <h2
-                        ref={setTitleNode}
-                        id={titleId}
-                        className={clsx(
-                          "mt-2 font-medium tracking-[-0.03em] text-text md:text-[32px]",
-                          isMobile ? "line-clamp-3 text-[26px] leading-[1.12]" : "text-[32px]",
-                        )}
-                      >
-                        {titleText}
-                      </h2>
+                      {/* On a phone the title is NOT here: it leads the scrolling body (below), so it is shown once, whole, and the
+                          header stays a small fixed bar (id + close). It used to be clamped here and repeated in the body. */}
+                      {isMobile ? null : (
+                        <h2 id={titleId} className="mt-2 text-[32px] font-medium tracking-[-0.03em] text-text">
+                          {titleText}
+                        </h2>
+                      )}
                     </div>
                     <Button
                       variant="ghost"
@@ -268,18 +259,16 @@ export function TrialSnapshot({
                   data-testid="snapshot-scroll"
                   className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 pt-5 md:px-8 md:pb-8 md:pt-6"
                 >
+                  {isMobile ? (
+                    <h2 id={titleId} className="mb-4 text-[24px] font-medium leading-[1.15] tracking-[-0.03em] text-text">
+                      {titleText}
+                    </h2>
+                  ) : null}
                   {detailQuery.isLoading || detailQuery.data ? (
                     <div className="grid gap-6 md:grid-cols-[1.25fr_0.75fr] md:gap-8">
                       <div className="space-y-6 md:space-y-8">
                         {detailQuery.data ? (
                           <div className="space-y-4">
-                            {/* The header clamps the title to 3 lines on a phone; the whole title is repeated here (hidden from
-                                assistive tech, the header's h2 already has it). */}
-                            {isMobile && titleClamped ? (
-                              <p aria-hidden="true" className="text-[18px] font-medium leading-[1.35] text-text">
-                                {detailQuery.data.title}
-                              </p>
-                            ) : null}
                             <div className="flex flex-wrap items-center gap-2">
                               <StatusBadge status={detailQuery.data.status} />
                               <PhasePill phase={detailQuery.data.phase} />

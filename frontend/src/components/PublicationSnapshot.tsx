@@ -7,10 +7,8 @@ import { createPortal } from "react-dom";
 import { getPublicationOverview } from "../lib/api";
 import { useFocusTrap } from "../lib/a11y";
 import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
-import clsx from "clsx";
 import { displayTitle, formatCitation, formatMonthYear } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
-import { useIsClamped } from "../lib/useIsClamped";
 import { lockPageScroll } from "../lib/scrollLock";
 import type { PublicationSummary } from "../types";
 import { AbstractText } from "./AbstractText";
@@ -63,9 +61,6 @@ export function PublicationSnapshot({
 }: PublicationSnapshotProps) {
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
-  const [titleNode, setTitleNode] = useState<HTMLHeadingElement | null>(null);
-  // Whether the fixed header's title is cut (3 lines on a phone): only then is it repeated whole in the body.
-  const titleClamped = useIsClamped(titleNode, publication?.title ?? "");
   const [overviewCache, setOverviewCache] = useState<Map<string, PublicationOverviewState>>(
     () => new Map(),
   );
@@ -271,8 +266,8 @@ export function PublicationSnapshot({
             onClick={(event) => event.stopPropagation()}
             className="relative flex h-[min(87svh,920px)] w-full flex-col overflow-hidden rounded-panel border border-line bg-panel md:h-[min(calc(100vh-7rem),920px)] md:max-w-[1040px] md:rounded-panel"
           >
-            <div data-testid="snapshot-header" className="border-b border-line bg-panel px-5 pt-6 pb-5 md:px-8">
-              <div className="flex items-start justify-between gap-4">
+            <div data-testid="snapshot-header" className="border-b border-line bg-panel px-5 pt-3 pb-2 md:px-8 md:pt-6 md:pb-5">
+              <div className="flex items-center justify-between gap-4 md:items-start">
                 <div className="min-w-0 max-w-[820px] flex-1">
                   <div className="flex flex-wrap items-center justify-between gap-x-3">
                     <p className="whitespace-nowrap text-[11px] kicker text-muted md:text-[12px]">
@@ -280,16 +275,12 @@ export function PublicationSnapshot({
                     </p>
                     {underneath ? <StackBackButton label={underneath} onBack={onClose} /> : null}
                   </div>
-                  <h2
-                    ref={setTitleNode}
-                    id={titleId}
-                    className={clsx(
-                      "mt-2 font-medium tracking-[-0.03em] text-text md:text-[32px]",
-                      isMobile ? "line-clamp-3 text-[26px] leading-[1.12]" : "text-[32px]",
-                    )}
-                  >
-                    {displayTitle(publication.title)}
-                  </h2>
+                  {/* On a phone the title leads the scrolling body instead (shown once, whole; the header is a small fixed bar). */}
+                  {isMobile ? null : (
+                    <h2 id={titleId} className="mt-2 text-[32px] font-medium tracking-[-0.03em] text-text">
+                      {displayTitle(publication.title)}
+                    </h2>
+                  )}
                 </div>
                 <Button
                   variant="ghost"
@@ -311,13 +302,10 @@ export function PublicationSnapshot({
                 <div className="space-y-5">
                   {isMobile ? (
                     <div className="space-y-3">
-                      {/* The header clamps the title to 3 lines on a phone: repeat it whole (hidden from assistive tech,
-                          the h2 has it), then the source link, which used to sit below the whole abstract. */}
-                      {titleClamped ? (
-                        <p aria-hidden="true" className="text-[18px] font-medium leading-[1.35] text-text">
-                          {displayTitle(publication.title)}
-                        </p>
-                      ) : null}
+                      {/* The title (the dialog's label), then the source link, which used to sit below the whole abstract. */}
+                      <h2 id={titleId} className="text-[24px] font-medium leading-[1.15] tracking-[-0.03em] text-text">
+                        {displayTitle(publication.title)}
+                      </h2>
                       <p className="text-[14px] text-muted">
                         {[publication.journal || "Journal not listed", formatMonthYear(publication.pub_date)].join(" · ")}
                       </p>

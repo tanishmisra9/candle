@@ -158,7 +158,7 @@ describe("PublicationSnapshot scrolling on a phone", () => {
       expect({ header: header.className, title: title.className, style: header.getAttribute("style") }, `at scrollTop ${top}`).toEqual(before);
     }
 
-    expect(title.className).toContain("text-[26px]");
+    expect(title.className).toContain("text-[24px]"); // one size, always
     expect(header.getAttribute("style")).toBeNull();
     expect(scroller.className).toContain("overscroll-contain");
     expect(dialog.parentElement!.className).toContain("overscroll-contain");
@@ -325,16 +325,7 @@ describe("PublicationSnapshot hierarchy", () => {
   });
 });
 
-describe("PublicationSnapshot title repeat on a phone", () => {
-  const titleIs = (clamped: boolean) => {
-    Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get(this: HTMLElement) { return this.tagName === "H2" ? (clamped ? 120 : 60) : 0; } });
-    Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get(this: HTMLElement) { return this.tagName === "H2" ? 60 : 0; } });
-  };
-  const reset = () => {
-    delete (HTMLElement.prototype as unknown as Record<string, unknown>).scrollHeight;
-    delete (HTMLElement.prototype as unknown as Record<string, unknown>).clientHeight;
-    viewport.mobile = false;
-  };
+describe("PublicationSnapshot title on a phone", () => {
   const renderPhone = async () => {
     vi.mocked(getPublicationOverview).mockResolvedValue({ overview: "x" });
     viewport.mobile = true;
@@ -345,20 +336,27 @@ describe("PublicationSnapshot title repeat on a phone", () => {
     return view;
   };
 
-  it("repeats the title in the body only when the header cuts it", async () => {
-    titleIs(true);
+  it("shows the title ONCE, whole, at the top of the body, and it labels the dialog (it was cut in the header and repeated below)", async () => {
     try {
       await renderPhone();
-      expect([...document.querySelectorAll('p[aria-hidden="true"]')].map((p) => p.textContent)).toEqual(["Example CHM Publication"]);
-    } finally { reset(); }
+      const title = screen.getByRole("heading", { level: 2, name: "Example CHM Publication" });
+      expect(document.querySelectorAll("h2")).toHaveLength(1);
+      expect(document.querySelector('p[aria-hidden="true"]')).toBeNull();
+      expect(screen.getByTestId("snapshot-scroll")).toContainElement(title);
+      expect(screen.getByTestId("snapshot-header")).not.toContainElement(title);
+      expect(title.className).not.toContain("line-clamp");
+      expect(screen.getByRole("dialog")).toHaveAttribute("aria-labelledby", title.id);
+      expect(screen.getByTestId("snapshot-header")).toHaveTextContent("PMID");
+    } finally { viewport.mobile = false; }
   });
 
-  it("does not repeat a title the header shows in full", async () => {
-    titleIs(false);
-    try {
-      await renderPhone();
-      expect(document.querySelector('p[aria-hidden="true"]')).toBeNull();
-    } finally { reset(); }
+  it("keeps the title in the header on a desktop, once", async () => {
+    vi.mocked(getPublicationOverview).mockResolvedValue({ overview: "x" });
+    render(<PublicationSnapshot publication={makePublication()} onClose={() => {}} onOpenTrialSnapshot={() => {}} layer="below-trial" isTrialSnapshotOpen={false} />);
+    await screen.findByRole("dialog");
+    const title = screen.getByRole("heading", { level: 2, name: "Example CHM Publication" });
+    expect(document.querySelectorAll("h2")).toHaveLength(1);
+    expect(screen.getByTestId("snapshot-header")).toContainElement(title);
   });
 });
 
