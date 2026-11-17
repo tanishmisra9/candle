@@ -301,3 +301,26 @@ describe("PublicationSnapshot abstract", () => {
     expect([...dialog.querySelectorAll("strong")].map((s) => s.textContent)).toEqual(["BACKGROUND:", "METHODS:", "FINDINGS:"]);
   });
 });
+
+describe("PublicationSnapshot hierarchy", () => {
+  it("names the source as the original abstract, and does not let the AI text outrank it", async () => {
+    vi.mocked(getPublicationOverview).mockResolvedValue({ overview: "A plain summary." });
+    render(
+      <PublicationSnapshot
+        publication={makePublication()}
+        onClose={() => {}}
+        onOpenTrialSnapshot={() => {}}
+        layer="below-trial"
+        isTrialSnapshotOpen={false}
+      />,
+    );
+    const summary = await screen.findByText("A plain summary.");
+    expect(screen.getByRole("heading", { level: 3, name: "Original abstract (PubMed)" })).toBeInTheDocument();
+    // Same size as the abstract it summarises (it was 16px against 15px).
+    expect(summary.className).toContain("text-[15px]");
+    expect(screen.getByText("Abstract text.").closest("div")?.className).toContain("text-[15px]");
+    // The note says what it was written from, in the trial dialog's wording.
+    expect(screen.getByText(/Written by AI from the abstract below, so it can contain mistakes/)).toBeInTheDocument();
+    expect(screen.getByText(/Always verify medical information with a qualified professional/)).toBeInTheDocument();
+  });
+});

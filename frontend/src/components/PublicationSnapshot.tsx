@@ -16,6 +16,10 @@ import { AbstractText } from "./AbstractText";
 import { StackBackButton } from "./StackBackButton";
 import { Button } from "./ui/Button";
 
+// The same wording pattern as the trial dialog's AI note (it names what the text was written from).
+const AI_NOTE =
+  "Written by AI from the abstract below, so it can contain mistakes. Always verify medical information with a qualified professional.";
+
 type PublicationOverviewState = {
   status: "idle" | "loading" | "success" | "error";
   overview: string | null;
@@ -315,10 +319,7 @@ export function PublicationSnapshot({
                     <p className="text-[11px] kicker text-muted">
                       AI summary
                     </p>
-                    <p className="mt-2 text-[12px] text-muted">
-                      Plain-language summary of the abstract below, written by AI. It can contain
-                      mistakes. Always verify medical information with a qualified professional.
-                    </p>
+                    <p className="mt-2 text-[12px] text-muted">{AI_NOTE}</p>
                     <div className="mt-3 min-h-[88px]">
                       {selectedOverview?.status === "loading" ? (
                         <p className="text-[14px] text-muted">Generating summary…</p>
@@ -332,7 +333,9 @@ export function PublicationSnapshot({
                         </div>
                       ) : null}
                       {selectedOverview?.status === "success" && selectedOverview.overview ? (
-                        <p className="text-[16px] leading-[1.6] text-text">
+                        // 15px, the same as the abstract it summarises: at 16px the machine's text looked more
+                        // authoritative than the paper's own.
+                        <p className="text-[15px] leading-[1.6] text-text">
                           {selectedOverview.overview}
                         </p>
                       ) : null}
@@ -344,7 +347,7 @@ export function PublicationSnapshot({
 
                   <section className="rounded-panel border border-line bg-panel px-5 py-4">
                     <h3 className="text-[11px] kicker text-muted">
-                      Abstract
+                      Original abstract (PubMed)
                     </h3>
                     {publication.abstract?.trim() ? (
                       <AbstractText text={publication.abstract} className="mt-3 text-[15px] leading-[1.6] text-text" />
