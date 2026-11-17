@@ -147,4 +147,49 @@ describe("LiteratureView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear search and filters" }));
     expect(screen.getByLabelText("Search title or abstract")).toHaveValue("");
   });
+
+  it("names the search that actually ran, not a half-typed one, while the list still shows the previous result", async () => {
+    vi.mocked(listPublicationsPage).mockResolvedValue({ items: [], next_cursor: null, total: 0 });
+    renderWithQueryClient(<LiteratureView onOpenPublicationSnapshot={vi.fn()} />);
+    const box = await screen.findByLabelText("Search title or abstract");
+
+    fireEvent.change(box, { target: { value: "zzzz" } });
+    expect(await screen.findByText("No publications match “zzzz”.")).toBeInTheDocument();
+
+    fireEvent.change(box, { target: { value: "gen" } }); // typing again: the debounced request has not run yet
+    expect(screen.getByText("No publications match “zzzz”.")).toBeInTheDocument();
+    expect(screen.queryByText(/“gen”/)).not.toBeInTheDocument();
+    expect(await screen.findByText("No publications match “gen”.")).toBeInTheDocument(); // once it has run
+  });
+
+  it("'Previous' still moves when the list shrank under a stale page (it used to look dead)", async () => {
+    const make = (count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        pmid: `PMID${index}`, trial_id: null, title: `Publication ${index}`, authors: ["Author A"], journal: "Journal",
+        pub_date: `2025-01-${String((index % 28) + 1).padStart(2, "0")}`, abstract: "Abstract", doi: null, url: `https://example.com/${index}`,
+      }));
+    vi.mocked(listPublicationsPage).mockResolvedValue({ items: make(120), next_cursor: null, total: 120 });
+    Object.defineProperty(Element.prototype, "scrollIntoView", { writable: true, configurable: true, value: vi.fn() });
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 0 } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <LiteratureView onOpenPublicationSnapshot={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("Page 1 of 3");
+    await waitFor(() => expect(document.querySelector("h2")).not.toBeNull());
+    fireEvent.click(screen.getByLabelText("Next page"));
+    await screen.findByText("Page 2 of 3");
+    fireEvent.click(screen.getByLabelText("Next page"));
+    await screen.findByText("Page 3 of 3");
+
+    // The data shrinks to 2 pages while `page` state is 2: page 3 is no longer shown, the clamped page is 2.
+    for (const query of queryClient.getQueryCache().findAll({ queryKey: ["publications", "cursor"] })) {
+      queryClient.setQueryData(query.queryKey, { pages: [{ items: make(60), next_cursor: null, total: 60 }], pageParams: [null] });
+    }
+    await screen.findByText("Page 2 of 2");
+    fireEvent.click(screen.getByLabelText("Previous page"));
+    expect(await screen.findByText("Page 1 of 2")).toBeInTheDocument();
+  });
 });

@@ -128,9 +128,13 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
     currentPage * PAGE_SIZE + PAGE_SIZE,
   );
 
-  const goToPage = (updater: (current: number) => number) => {
-    scrollToListRef.current = true;
-    setPage(updater);
+  // Moves from the page actually SHOWN (clamped), not from the raw `page` state: if the list shrank under a stale page,
+  // "Previous" from state 4 while 2 is shown used to land on 3, clamp to 2 again and look dead. The scroll/focus flag is
+  // only armed when the shown page really changes, or it would stay armed and fire on some later, unrelated change.
+  const goToPage = (delta: number) => {
+    const target = Math.min(totalPages - 1, Math.max(0, currentPage + delta));
+    if (target !== currentPage) scrollToListRef.current = true;
+    setPage(target);
   };
 
   // A page change leaves you at the top of the new page (the buttons sit at the bottom, so keeping the scroll
@@ -280,13 +284,15 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                   {!sortedPublications.length ? (
                     <div className="space-y-4 px-2 py-12 text-[15px] text-muted">
                       <p>
-                        {normalizedSearch
-                          ? `No publications match “${normalizedSearch}”${linkedOnly ? " among papers linked to a trial" : ""}.`
+                        {/* requestedSearch, not the live box: with keepPreviousData the rows on screen answer the debounced
+                            query, so naming a half-typed term here would describe a search that has not run yet. */}
+                        {requestedSearch
+                          ? `No publications match “${requestedSearch}”${linkedOnly ? " among papers linked to a trial" : ""}.`
                           : linkedOnly
                             ? "No publications are linked to a trial yet."
                             : "No publications are tracked yet."}
                       </p>
-                      {hasFilters ? (
+                      {requestedSearch || linkedOnly ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -312,7 +318,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                   type="button"
                   aria-label="Previous page"
                   disabled={currentPage === 0}
-                  onClick={() => goToPage((current) => Math.max(0, current - 1))}
+                  onClick={() => goToPage(-1)}
                   className="inline-flex h-11 w-11 items-center justify-center rounded-panel border border-line-strong text-text hover:bg-text/5 disabled:opacity-40"
                 >
                   <ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" />
@@ -326,7 +332,7 @@ export function LiteratureView({ onOpenPublicationSnapshot }: LiteratureViewProp
                   type="button"
                   aria-label="Next page"
                   disabled={currentPage >= totalPages - 1}
-                  onClick={() => goToPage((current) => Math.min(totalPages - 1, current + 1))}
+                  onClick={() => goToPage(1)}
                   className="inline-flex h-11 w-11 items-center justify-center rounded-panel border border-line-strong text-text hover:bg-text/5 disabled:opacity-40"
                 >
                   <ChevronRight size={18} strokeWidth={1.75} aria-hidden="true" />
