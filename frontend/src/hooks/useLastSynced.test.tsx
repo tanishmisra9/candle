@@ -16,7 +16,9 @@ describe("formatSyncAge", () => {
     [62, "8 weeks ago"],
     [63, "2 months ago"],
     [102, "3 months ago"], // the real corpus today (synced Aug 6)
-    [364, "12 months ago"],
+    [344, "11 months ago"],
+    [345, "1 year ago"], // never "12 months ago"
+    [364, "1 year ago"],
     [365, "1 year ago"],
     [800, "2 years ago"],
   ])("%s days -> %s", (days, expected) => {

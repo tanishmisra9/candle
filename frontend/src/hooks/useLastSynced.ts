@@ -24,8 +24,9 @@ export function formatSyncAge(value: string, now = Date.now()): string | null {
   if (days < STALE_AFTER_DAYS) return null;
   const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"} ago`;
   if (days < 63) return plural(Math.floor(days / 7), "week");
-  if (days < 365) return plural(Math.floor(days / 30), "month");
-  return plural(Math.floor(days / 365), "year");
+  // Months stop at 11 (day 344): "12 months ago" would show for five days and then turn into "1 year ago".
+  if (days < 345) return plural(Math.floor(days / 30), "month");
+  return plural(Math.max(1, Math.floor(days / 365)), "year");
 }
 
 export function useLastSynced() {
