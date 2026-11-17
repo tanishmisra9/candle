@@ -37,7 +37,9 @@ export function Footer() {
 
   return (
     // footer-reveal: fades in AFTER the page above it (see index.css), never before it.
-    <footer className="footer-reveal mx-auto w-full max-w-[1360px] px-4 pb-6 pt-2 text-center sm:px-5 md:px-10">
+    // max-sm:pb-20: the scroll-to-top button floats 24-68px above the bottom edge on the list pages, so on a phone the last footer
+    // lines sat under it ("Candle does not give medical advice." at 320px, the sync age at 360px). 80px puts them above that band.
+    <footer className="footer-reveal mx-auto w-full max-w-[1360px] px-4 pb-6 pt-2 text-center max-sm:pb-20 sm:px-5 md:px-10">
       {links.length === 0 && !showCureChm ? null : (
         <nav aria-label="Footer" className="flex flex-wrap items-center justify-center gap-x-4">
           {links.map(({ to, label }) => (

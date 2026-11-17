@@ -112,4 +112,9 @@ describe("Footer", () => {
     const { container } = renderFooter("/ask");
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("leaves room under its last line on a phone for the floating scroll-to-top button (it covered the medical-advice line at 320px)", () => {
+    const { container } = renderFooter("/trials");
+    expect((container.querySelector("footer") as HTMLElement).className).toContain("max-sm:pb-20");
+  });
 });
