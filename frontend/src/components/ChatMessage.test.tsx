@@ -63,3 +63,18 @@ describe("ChatMessage failure", () => {
     expect(container.querySelector(".rotate-45")).toBeNull(); // the terminated-tier marker
   });
 });
+
+describe("ChatMessage reading width", () => {
+  it("caps an answer at 46rem (it ran ~140 characters a line at 1280px) and gives it the full width on a phone", () => {
+    const { container } = render(<ChatMessage message={assistant()} />);
+    const outer = container.querySelector(".group") as HTMLElement;
+    expect(outer.className).toContain("sm:max-w-[min(92%,46rem)]");
+    expect(outer.className).toContain("w-full");
+    expect(outer.querySelector("div")?.className).toContain("px-4"); // tighter padding on a phone
+  });
+
+  it("leaves the reader's own short bubble at 92%", () => {
+    const { container } = render(<ChatMessage message={{ id: "u1", role: "user", content: "Hi" }} />);
+    expect((container.querySelector(".group") as HTMLElement).className).toContain("max-w-[92%]");
+  });
+});

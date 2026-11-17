@@ -419,9 +419,11 @@ export function AskPanel({
         }}
         // The bar itself is the canvas-coloured mask, full width and down to the bottom edge (it used to be a padded box
         // floating 24px up, so answer text showed in the gap below it and beside it), padded by the phone's safe area.
-        className="fixed inset-x-0 bottom-0 z-40 bg-canvas px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-5 md:px-10"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-canvas px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-5 md:px-10"
       >
-        <div className="mx-auto w-full max-w-[1360px]">
+        {/* 1280px = the page shell's content width (its 1360px minus the 40px gutters), and no extra side padding below, so the input starts
+            where the heading starts: it sat 16px in at 1280 and 24px out at 1920. */}
+        <div className="mx-auto w-full max-w-[1280px]">
           {showJumpToLatest && hasConversation ? (
             <div className="flex justify-end pb-2">
               <button
@@ -436,7 +438,7 @@ export function AskPanel({
           ) : null}
           {/* No outer outline: the input carries its own 3:1 border (WCAG 1.4.11). The canvas background
               only hides messages scrolling underneath the fixed composer. */}
-          <div className="p-3 md:p-4">
+          <div className="py-3 md:py-4">
             <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
               {announcement}
             </span>
@@ -457,27 +459,27 @@ export function AskPanel({
                   "submit" while the Stop click is still being handled, so the browser then submits the form and re-asks the
                   question that was just stopped (jsdom does not show this; the test pins that they are different elements). */}
               {isPending ? (
-                <Tooltip key="stop" label="Stop answer" describe={false}>
+                <Tooltip key="stop" label="Stop answer" describe={false} className="flex self-stretch">
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={stopAnswer}
                     aria-label="Stop answer"
                     // `!p-0`: the variant's own px-5 outranks a plain p-0 in the generated CSS and squeezed the icon to ~2px.
-                    className="w-11 shrink-0 !p-0"
+                    className="h-full w-11 shrink-0 !p-0"
                   >
                     <Square size={15} strokeWidth={1.75} aria-hidden="true" />
                   </Button>
                 </Tooltip>
               ) : (
-                <Tooltip key="send" label="Send question" describe={false}>
+                <Tooltip key="send" label="Send question" describe={false} className="flex self-stretch">
                   <Button
                     type="submit"
                     variant="primary"
                     disabled={!draft.trim()}
                     aria-label="Send question"
                     // `!p-0`: the variant's own px-5 outranks a plain p-0 in the generated CSS and squeezed the icon to ~2px.
-                    className="w-11 shrink-0 !p-0"
+                    className="h-full w-11 shrink-0 !p-0"
                   >
                     <SendHorizonal size={17} strokeWidth={1.5} aria-hidden="true" />
                   </Button>

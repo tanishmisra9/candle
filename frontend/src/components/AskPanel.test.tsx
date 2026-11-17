@@ -242,6 +242,26 @@ describe("the empty state", () => {
   });
 });
 
+describe("the composer bar", () => {
+  it("lines up with the page: shell content width, no extra side padding, a top hairline", () => {
+    render(<AskPanel />);
+    const bar = screen.getByLabelText(/ask a question about chm trials/i).closest("form") as HTMLElement;
+    expect(bar.className).toContain("border-t"); // answer text used to be cut off by an invisible edge
+    expect(bar.firstElementChild?.className).toContain("max-w-[1280px]"); // the shell's 1360px minus its 40px gutters
+    const box = bar.firstElementChild?.lastElementChild as HTMLElement; // the box around the input row (the Input itself also has py-3)
+    expect(box.contains(bar.querySelector("input"))).toBe(true);
+    expect(box.className).toContain("py-3");
+    expect(box.className).not.toMatch(/(^|\s)p-3|md:p-4/); // vertical padding only: the input starts where the heading starts
+  });
+
+  it("makes Send and Stop as tall as the input (50px against 44px)", async () => {
+    render(<AskPanel />);
+    const send = screen.getByRole("button", { name: "Send question" });
+    expect(send.className).toContain("h-full");
+    expect(send.parentElement?.className).toContain("self-stretch");
+  });
+});
+
 describe("describeAskFailure", () => {
   it.each([
     ["Rate limit exceeded for this endpoint.", /too many requests/i],

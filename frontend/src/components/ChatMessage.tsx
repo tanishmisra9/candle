@@ -153,12 +153,14 @@ export const ChatMessage = memo(function ChatMessage({
       transition={entranceMotion.transition}
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
     >
-      <div className="group max-w-[92%]">
+      {/* An answer is capped at 46rem (~85 characters a line; it ran to ~140 at 1280px), and is full width on a phone, where 92% minus
+          padding left a ~250px column. The user's own short bubble keeps the 92%. */}
+      <div className={isUser ? "group max-w-[92%]" : "group w-full sm:max-w-[min(92%,46rem)]"}>
         <div
           className={`rounded-panel ${
             isUser
               ? "border border-line bg-text/[0.05] px-5 py-3.5 text-[15px] leading-[1.6] text-text"
-              : "border border-line bg-panel px-6 py-5 text-[16px] leading-[1.6] text-text"
+              : "border border-line bg-panel px-4 py-5 text-[16px] leading-[1.6] text-text sm:px-6"
           }`}
         >
           {isUser ? (
