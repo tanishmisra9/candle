@@ -38,6 +38,14 @@ const tierMarker = {
 
 export type StatusTier = ReturnType<typeof statusTier>;
 
+/** What each tier means, in words: the Guide's group titles and the Timeline legend both come from here, so they cannot disagree. */
+export const STATUS_TIER_TITLES: Record<StatusTier, string> = {
+  active: "Planned or under way",
+  completed: "Finished",
+  terminated: "Ended early or paused",
+  unknown: "Status not stated",
+};
+
 /** The marker square/diamond shown before a status. Shared so the Guide legend uses the exact shapes of the trial cards. */
 export function StatusMarker({ tier, className }: { tier: StatusTier; className?: string }) {
   return <span aria-hidden="true" className={clsx("h-2 w-2 shrink-0", tierMarker[tier], className)} />;

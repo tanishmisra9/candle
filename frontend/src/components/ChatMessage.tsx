@@ -1,14 +1,13 @@
 /** One Ask message: user text or assistant markdown, a copy button (always visible on touch, on hover/focus otherwise) and source chips. Announcements are handled by the status region in `AskPanel`, not here. */
 import { memo, useEffect, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Check, Copy } from "lucide-react";
+import { Check, CircleAlert, Copy } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { messageEntranceMotion } from "../lib/motion";
 import type { AskMessage } from "../types";
 import { SourceChip } from "./SourceChip";
-import { StatusMarker } from "./StatusBadge";
 import { Button } from "./ui/Button";
 import { Tooltip } from "./ui/Tooltip";
 
@@ -130,7 +129,8 @@ export const ChatMessage = memo(function ChatMessage({
         <div className="max-w-[92%] space-y-3">
           <div className="rounded-panel border border-line-strong bg-panel px-6 py-5 text-[16px] leading-[1.6] text-text">
             <p className="kicker mb-2 inline-flex items-center gap-2 text-[11px] text-muted">
-              <StatusMarker tier="terminated" />
+              {/* Its own glyph: the red rotated square is the Guide's "ended early or paused" marker. */}
+              <CircleAlert size={14} strokeWidth={1.75} aria-hidden="true" />
               Answer failed
             </p>
             <p>{message.content}</p>

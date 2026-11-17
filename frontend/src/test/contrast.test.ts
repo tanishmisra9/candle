@@ -61,7 +61,7 @@ const pairs: Array<[string, string, number]> = [
   ["focus", "canvas", 3],
   ["focus", "panel", 3],
   ["accent-fill", "canvas", 3],
-  ...["recruiting", "active", "terminated", "other"].flatMap((k): Array<[string, string, number]> => [
+  ...["active", "completed", "terminated", "unknown"].flatMap((k): Array<[string, string, number]> => [
     [`tl-${k}`, "panel", 3],
     ["tl-text", `tl-${k}`, 4.5],
   ]),

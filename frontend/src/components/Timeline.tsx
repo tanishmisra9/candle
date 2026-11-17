@@ -2,30 +2,31 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef } from "react";
 
-import { formatStatusLabel, normalizeStatus } from "../lib/formatters";
+import { formatStatusLabel } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import type { TrialSummary } from "../types";
+import { STATUS_TIER_TITLES, statusTier, type StatusTier } from "./StatusBadge";
 import { Tooltip } from "./ui/Tooltip";
 
-// Colour is never the only cue (WCAG 1.4.1): each status also has its own marker shape, shown in
-// the legend and next to every trial label.
-const TIMELINE_STATUS_LEGEND = [
-  { key: "recruiting", label: "Recruiting", marker: "" },
-  { key: "active", label: "Active", marker: "!border-2 !bg-transparent" },
-  { key: "terminated", label: "Terminated, withdrawn or suspended", marker: "rotate-45" },
-  { key: "other", label: "Other / unknown", marker: "!border-2 !border-dashed !bg-transparent" },
-] as const;
-
-type StatusKey = (typeof TIMELINE_STATUS_LEGEND)[number]["key"];
+// Colour is never the only cue (WCAG 1.4.1): each tier also has its own marker shape (the same four shapes as the trial card's
+// badge), shown in the legend and next to every trial label. Tiers, titles and the open/stopped split come from StatusBadge
+// (`statusTier`, `STATUS_TIER_TITLES`), the same source as the card, the filter menu and the Guide.
+const TIMELINE_TIERS: Array<{ tier: StatusTier; marker: string }> = [
+  { tier: "active", marker: "" },
+  { tier: "completed", marker: "!border-2 !bg-transparent" },
+  { tier: "terminated", marker: "rotate-45" },
+  { tier: "unknown", marker: "!border-2 !border-dashed !bg-transparent" },
+];
 
 // `onFill`: the marker sits on a bar already painted in the status colour, so draw it in the
 // label colour instead.
-function StatusMarker({ status, onFill = false }: { status: StatusKey; onFill?: boolean }) {
-  const entry = TIMELINE_STATUS_LEGEND.find((item) => item.key === status)!;
-  const color = onFill ? "rgb(var(--tl-text))" : `rgb(var(--tl-${status}))`;
+function TimelineMarker({ tier, onFill = false }: { tier: StatusTier; onFill?: boolean }) {
+  const entry = TIMELINE_TIERS.find((item) => item.tier === tier)!;
+  const color = onFill ? "rgb(var(--tl-text))" : `rgb(var(--tl-${tier}))`;
   return (
     <span
       aria-hidden="true"
+      data-tier={tier}
       className={`inline-block h-2.5 w-2.5 shrink-0 ${entry.marker}`}
       style={{ backgroundColor: color, borderColor: color }}
     />
@@ -40,16 +41,6 @@ function yearFromDate(value: string | null) {
   return value ? Number.parseInt(value.slice(0, 4), 10) : undefined;
 }
 
-export function statusKey(status: string | null): StatusKey {
-  // Normalise CT.gov enums. Order matters: ACTIVE_NOT_RECRUITING and NOT_YET_RECRUITING both
-  // contain "recruit" but are not recruiting. Mirrors StatusBadge's tiers (+ SUSPENDED).
-  const normalized = normalizeStatus(status);
-  if (["TERMINATED", "WITHDRAWN", "SUSPENDED"].includes(normalized)) return "terminated";
-  if (["ACTIVE_NOT_RECRUITING", "NOT_YET_RECRUITING"].includes(normalized)) return "active";
-  if (["RECRUITING", "ENROLLING_BY_INVITATION"].includes(normalized)) return "recruiting";
-  return "other";
-}
-
 /** A trial still running (recruiting or active) with no completion date is drawn to the current year, not as a one-year square that reads as "finished in its first year". */
 export function barEndYear(trial: TrialSummary, start: number, currentYear: number) {
   const completion = yearFromDate(trial.completion_date);
@@ -57,9 +48,7 @@ export function barEndYear(trial: TrialSummary, start: number, currentYear: numb
   // No start date either: `start` is only a placeholder column (the axis and the bars use different ones), so
   // stretching from it to today would draw a long-running study with an invented start. Keep it a short mark.
   if (yearFromDate(trial.start_date) === undefined) return start;
-  return statusKey(trial.status) === "other" || statusKey(trial.status) === "terminated"
-    ? start
-    : Math.max(start, currentYear);
+  return statusTier(trial.status) === "active" ? Math.max(start, currentYear) : start;
 }
 
 /**
@@ -103,7 +92,7 @@ export function pickScrollLeft(
 }
 
 function colorForStatus(status: string | null) {
-  return `rgb(var(--tl-${statusKey(status)}))`;
+  return `rgb(var(--tl-${statusTier(status)}))`;
 }
 
 type TimelineProps = {
@@ -176,10 +165,10 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
       className="flex flex-wrap gap-x-4 gap-y-2 px-4 pt-4 text-[12px] text-muted md:px-7"
       aria-label="Trial status legend"
     >
-      {TIMELINE_STATUS_LEGEND.map((entry) => (
-        <li key={entry.key} className="inline-flex items-center gap-2">
-          <StatusMarker status={entry.key} />
-          <span>{entry.label}</span>
+      {TIMELINE_TIERS.map((entry) => (
+        <li key={entry.tier} className="inline-flex items-center gap-2">
+          <TimelineMarker tier={entry.tier} />
+          <span>{STATUS_TIER_TITLES[entry.tier]}</span>
         </li>
       ))}
     </ul>
@@ -299,7 +288,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                   }}
                   aria-label={trialAriaLabel(trial)}
                 >
-                  <StatusMarker status={statusKey(trial.status)} onFill />
+                  <TimelineMarker tier={statusTier(trial.status)} onFill />
                   <span className="block w-full truncate text-[12px] font-medium">
                     {label}
                     <span className="sr-only">, {formatStatusLabel(trial.status)}</span>
@@ -340,7 +329,7 @@ export function Timeline({ trials, axisTrials, onOpen }: TimelineProps) {
                     aria-label={trialAriaLabel(trial)}
                     className="flex min-h-11 w-full items-center gap-2.5 rounded-panel px-3 text-left text-[13px] text-text transition-colors hover:bg-text/[0.06] hover:text-accent"
                   >
-                    <StatusMarker status={statusKey(trial.status)} />
+                    <TimelineMarker tier={statusTier(trial.status)} />
                     <span className="block truncate">{label}</span>
                   </button>
                 </Tooltip>

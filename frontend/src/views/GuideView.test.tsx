@@ -62,6 +62,13 @@ describe("GuideView", () => {
     }
   });
 
+  it("explains 'Unknown' (two trials show it) in the same footnote style as 'N/A'", () => {
+    renderGuide();
+    const section = screen.getByRole("region", { name: /status means/i });
+    expect(within(section).getByText(formatStatusLabel("UNKNOWN"))).toBeInTheDocument();
+    expect(within(section).getByText(/has not updated the trial.s status in over two years/)).toBeInTheDocument();
+  });
+
   it("links the sources and marks them as opening in a new tab", () => {
     renderGuide();
     for (const name of [/MedlinePlus Genetics/, /National Eye Institute/]) {

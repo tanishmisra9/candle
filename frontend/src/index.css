@@ -29,10 +29,10 @@
   --danger: 168 32 32;
   --focus: 138 75 0;
   /* Timeline status fills; --tl-text is the label colour that sits on them. */
-  --tl-recruiting: 21 101 52;
-  --tl-active: 29 78 137;
+  --tl-active: 21 101 52;
+  --tl-completed: 29 78 137;
   --tl-terminated: 168 32 32;
-  --tl-other: 110 104 94;
+  --tl-unknown: 110 104 94;
   --tl-text: 255 254 248;
   /* Landing hero, light theme: the stage starts in a warm dusk (the veil), the flame lights, and the
      veil fades to paper, so the light visibly comes up. Dark theme: dusk = canvas (veil invisible). */
@@ -75,10 +75,10 @@
   --success: 52 199 89;
   --danger: 255 123 114;
   --focus: 232 163 61;
-  --tl-recruiting: 138 182 168;
-  --tl-active: 134 168 200;
+  --tl-active: 138 182 168;
+  --tl-completed: 134 168 200;
   --tl-terminated: 193 138 138;
-  --tl-other: 182 178 172;
+  --tl-unknown: 182 178 172;
   --tl-text: 11 11 15;
   --flame-glow: 232 163 61;
   --dusk: 11 11 15;

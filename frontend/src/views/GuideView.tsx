@@ -10,7 +10,7 @@ import { ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { BackHomeButton } from "../components/BackHomeButton";
-import { StatusMarker, statusTier } from "../components/StatusBadge";
+import { STATUS_TIER_TITLES, StatusMarker, statusTier } from "../components/StatusBadge";
 import { formatPhaseLabel, formatStatusLabel } from "../lib/formatters";
 import { linkButtonClass } from "../lib/ui";
 
@@ -33,11 +33,10 @@ const STATUSES = [
 ];
 
 // Group titles describe what is true of every status in the group (not the badge tier's internal name).
-const STATUS_GROUPS = [
-  { tier: "active", title: "Planned or under way" },
-  { tier: "completed", title: "Finished" },
-  { tier: "terminated", title: "Ended early or paused" },
-] as const;
+const STATUS_GROUPS = (["active", "completed", "terminated"] as const).map((tier) => ({
+  tier,
+  title: STATUS_TIER_TITLES[tier],
+}));
 
 // Vertical hairline between columns from `sm`/`md` up; stacked (no rule) on phones. Padding on BOTH sides of
 // every rule (pr on all but the last column, pl on all but the first): with only pl, a line that exactly
@@ -138,7 +137,11 @@ export function GuideView() {
             </div>
           ))}
         </div>
-        <p className="mt-10 max-w-[46rem] text-[0.9375rem] leading-[1.6] text-muted">
+        <p className="mt-8 max-w-[46rem] text-[0.9375rem] leading-[1.6] text-muted">
+          <span className="font-medium text-text">{formatStatusLabel("UNKNOWN")}</span> means the study team has not
+          updated the trial&rsquo;s status in over two years.
+        </p>
+        <p className="mt-4 max-w-[46rem] text-[0.9375rem] leading-[1.6] text-muted">
           A trial&rsquo;s status can change, so always confirm it on the trial&rsquo;s
           ClinicalTrials.gov record, which every trial here links to.
         </p>

@@ -14,7 +14,7 @@ import { useFocusTrap } from "../lib/a11y";
 import { overlayBackdropMotion, overlayPanelMotion } from "../lib/motion";
 import clsx from "clsx";
 import type { PublicationSummary } from "../types";
-import { formatMonthYear, formatParticipants, formatSitesLabel } from "../lib/formatters";
+import { formatMonthYear, formatParticipants, formatSitesLabel, formatStatusLabel } from "../lib/formatters";
 import { useIsMobile } from "../lib/mobile";
 import { lockPageScroll } from "../lib/scrollLock";
 import { PhasePill } from "./PhasePill";
@@ -346,7 +346,7 @@ export function TrialSnapshot({
                                             ) : null}
                                             {location.status ? (
                                               <p className="mt-1 text-[13px] text-muted">
-                                                {location.status}
+                                                {formatStatusLabel(location.status)}
                                               </p>
                                             ) : null}
                                           </div>
@@ -395,7 +395,7 @@ export function TrialSnapshot({
                                                 ) : null}
                                                 {location.status ? (
                                                   <p className="mt-1 text-[13px] text-muted">
-                                                    {location.status}
+                                                    {formatStatusLabel(location.status)}
                                                   </p>
                                                 ) : null}
                                               </div>

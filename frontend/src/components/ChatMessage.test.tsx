@@ -52,3 +52,14 @@ describe("ChatMessage", () => {
     expect(screen.queryByRole("button", { name: "Copy response" })).not.toBeInTheDocument();
   });
 });
+
+describe("ChatMessage failure", () => {
+  it("marks 'Answer failed' with its own glyph, not the trial card's red 'ended early' square", () => {
+    const { container } = render(
+      <ChatMessage message={{ id: "e1", role: "assistant", content: "I couldn't complete that answer just now.", isError: true }} />,
+    );
+    expect(screen.getByText("Answer failed")).toBeInTheDocument();
+    expect(container.querySelector("svg")).not.toBeNull();
+    expect(container.querySelector(".rotate-45")).toBeNull(); // the terminated-tier marker
+  });
+});

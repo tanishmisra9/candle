@@ -262,6 +262,12 @@ describe("TrialSnapshot facts", () => {
     expect(screen.getByText("3 sites in Canada, Germany")).toBeInTheDocument();
   });
 
+  it("prints a site's status in the same words as everywhere else, not the raw API value ('RECRUITING')", () => {
+    open({ locations: [{ facility: "Moorfields", city: "London", country: "United Kingdom", status: "ACTIVE_NOT_RECRUITING" }] });
+    expect(screen.getByText("Active Not Recruiting")).toBeInTheDocument();
+    expect(screen.queryByText("ACTIVE_NOT_RECRUITING")).not.toBeInTheDocument();
+  });
+
   it("makes the contact email a mailto link", () => {
     open({ contact_email: "study@example.org" });
     expect(screen.getByRole("link", { name: "study@example.org" })).toHaveAttribute(
