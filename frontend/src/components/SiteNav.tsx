@@ -109,10 +109,10 @@ export function SiteNav() {
         <div className="mx-auto flex h-full max-w-[1360px] items-stretch justify-between gap-2 px-4 sm:px-5 md:px-10">
           <Link to="/" className="flex min-h-11 min-w-11 items-center justify-center gap-2.5 self-center rounded-panel">
             <Flame size={20} strokeWidth={1.5} className="text-accent" aria-hidden="true" />
-            {/* Wordmark collapses to the icon below 420px so the bar never overflows at 320px. */}
-            <span className="sr-only text-[16px] font-semibold tracking-[-0.01em] text-text min-[420px]:not-sr-only">
-              Candle
-            </span>
+            {/* Always shown. It used to collapse to the icon below 420px "so the bar never overflows at 320px", from before the phone
+                menu button: measured now, the bar has 117px to spare at 320px WITH the name, so a phone showed a flame, a moon
+                and a hamburger and never said what the product was called. */}
+            <span className="text-[16px] font-semibold tracking-[-0.01em] text-text">Candle</span>
           </Link>
 
           <div className="flex items-stretch gap-0.5 sm:gap-2">

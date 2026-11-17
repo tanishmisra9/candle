@@ -186,3 +186,12 @@ describe("SiteNav mobile menu", () => {
     expect((await axe(document.body)).violations).toHaveLength(0);
   });
 });
+
+describe("SiteNav wordmark", () => {
+  it("always shows the product name, on a phone too (it collapsed to an icon below 420px)", () => {
+    renderNav();
+    const name = screen.getByText("Candle");
+    expect(name.className).not.toContain("sr-only");
+    expect(name.className).not.toContain("min-[420px]");
+  });
+});
