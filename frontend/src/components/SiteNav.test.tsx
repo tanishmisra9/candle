@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 import { configureAxe } from "vitest-axe";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { primaryDestinations } from "../lib/navigation";
 import { SiteNav } from "./SiteNav";
 
 const axe = configureAxe({ rules: { "color-contrast": { enabled: false } } });
@@ -193,5 +194,31 @@ describe("SiteNav wordmark", () => {
     const name = screen.getByText("Candle");
     expect(name.className).not.toContain("sr-only");
     expect(name.className).not.toContain("min-[420px]");
+  });
+});
+
+describe("SiteNav desktop tab tooltips", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it.each(primaryDestinations)("the $label tab says what is on its page after a hover, and stays a link", ({ label, hint }) => {
+    renderNav("/ask");
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    const tab = within(nav).getByRole("link", { name: label });
+
+    fireEvent.pointerEnter(tab.parentElement as HTMLElement, { pointerType: "mouse" });
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument(); // not instantly: 400ms like every Candle tooltip
+    act(() => void vi.advanceTimersByTime(450));
+
+    const tip = screen.getByRole("tooltip");
+    expect(tip).toHaveTextContent(hint);
+    expect(tab).toHaveAttribute("aria-describedby", tip.id); // the link's own name stays "Trials", the hint is the description
+    expect(tab.getAttribute("href")).toBe(`/${label.toLowerCase()}`);
+  });
+
+  it("the wrapper keeps the tab full height, so the active underline still sits on the bar's edge", () => {
+    renderNav("/trials");
+    const tab = within(screen.getByRole("navigation", { name: "Primary" })).getByRole("link", { name: "Trials" });
+    expect(tab.parentElement).toHaveClass("flex", "items-stretch");
   });
 });

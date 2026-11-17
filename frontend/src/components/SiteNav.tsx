@@ -9,6 +9,7 @@ import { primaryDestinations } from "../lib/navigation";
 import { prefetchRoute } from "../lib/routes";
 import { tabClass } from "../lib/ui";
 import { ThemeToggle } from "./ui/ThemeToggle";
+import { Tooltip } from "./ui/Tooltip";
 
 // Displacement map for the Chromium-only refraction (index.css `html[data-refract]`): neutral grey
 // (no shift) except the bottom ~20% of the bar, where the green channel ramps so content behind the
@@ -118,19 +119,21 @@ export function SiteNav() {
           <div className="flex items-stretch gap-0.5 sm:gap-2">
             <nav aria-label="Primary" className="hidden items-stretch sm:flex sm:gap-1">
               {primaryDestinations.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end
-                  onPointerEnter={() => prefetchRoute(item.to)}
-                  onFocus={() => prefetchRoute(item.to)}
-                  onTouchStart={() => prefetchRoute(item.to)}
-                  className={({ isActive }) =>
-                    tabClass(isActive, "px-2.5 sm:px-3 md:px-4 md:text-[15px]")
-                  }
-                >
-                  {item.label}
-                </NavLink>
+                // `flex items-stretch` on the wrapper: the tab's underline sits on the bar's bottom edge, so the link must still fill its height.
+                <Tooltip key={item.to} label={item.hint} className="flex items-stretch">
+                  <NavLink
+                    to={item.to}
+                    end
+                    onPointerEnter={() => prefetchRoute(item.to)}
+                    onFocus={() => prefetchRoute(item.to)}
+                    onTouchStart={() => prefetchRoute(item.to)}
+                    className={({ isActive }) =>
+                      tabClass(isActive, "px-2.5 sm:px-3 md:px-4 md:text-[15px]")
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                </Tooltip>
               ))}
             </nav>
             <div className="flex items-center">
