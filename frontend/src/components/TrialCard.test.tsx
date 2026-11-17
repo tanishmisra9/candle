@@ -55,6 +55,11 @@ describe("TrialCard", () => {
     expect(screen.getByText(/· 1 participant ·/)).toBeInTheDocument();
   });
 
+  it("gives press feedback at touch-down (a card used to show nothing until the dialog opened)", () => {
+    render(<TrialCard trial={trial()} onOpen={() => {}} />);
+    expect(screen.getByRole("button").className).toMatch(/active:border-accent/);
+  });
+
   it("falls back to the site count when no site names a country", () => {
     render(<TrialCard trial={trial({ locations: [{ city: "Boston" }] })} onOpen={() => {}} />);
     expect(screen.getByText(/· 1 site$/)).toBeInTheDocument();

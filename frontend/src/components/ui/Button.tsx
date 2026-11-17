@@ -20,8 +20,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           variant === "primary" &&
             "bg-accent-fill px-5 py-3 text-accent-on hover:bg-accent-fill-hover active:bg-accent-fill-pressed disabled:bg-line disabled:text-muted",
           variant === "secondary" &&
-            "border border-line-strong bg-panel px-5 py-3 text-text hover:bg-text/5",
-          variant === "ghost" && "px-3.5 py-2.5 text-muted hover:bg-text/5 hover:text-text",
+            "border border-line-strong bg-panel px-5 py-3 text-text hover:bg-text/5 active:bg-text/10",
+          variant === "ghost" && "px-3.5 py-2.5 text-muted hover:bg-text/5 hover:text-text active:bg-text/10",
           className,
         )}
         {...props}

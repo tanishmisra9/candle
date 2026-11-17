@@ -6,6 +6,9 @@ const token = (name: string) => `rgb(var(--${name}) / <alpha-value>)`;
 
 const config: Config = {
   darkMode: ["class"],
+  // `hover:` only where a pointer can really hover. Without this a touch tap leaves the element "hovered" until the next tap
+  // elsewhere, so a card you opened and closed kept its accent border and a scrolled list looked like several selected cards.
+  future: { hoverOnlyWhenSupported: true },
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {

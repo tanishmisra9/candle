@@ -48,7 +48,7 @@ export const PublicationRow = memo(function PublicationRow({
     <button
       type="button"
       onClick={() => onOpen(publication)}
-      className="flex w-full flex-col gap-4 border-b border-line px-2 py-6 text-left transition-colors hover:bg-text/[0.06] md:flex-row md:items-start md:justify-between"
+      className="flex w-full flex-col gap-4 border-b border-line px-2 py-6 text-left transition-colors hover:bg-text/[0.06] active:bg-text/[0.08] md:flex-row md:items-start md:justify-between"
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-3">

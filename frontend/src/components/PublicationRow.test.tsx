@@ -61,6 +61,11 @@ describe("PublicationRow", () => {
     expect(screen.getByText("Plain abstract text.")).toBeInTheDocument();
   });
 
+  it("gives press feedback at touch-down", () => {
+    render(<PublicationRow publication={pub()} onOpen={() => {}} />);
+    expect(screen.getByRole("button").className).toMatch(/active:bg-text/);
+  });
+
   it("labels the linked trial in words", () => {
     render(<PublicationRow publication={pub({ trial_id: "NCT123" })} onOpen={() => {}} />);
     expect(screen.getByText("Trial NCT123")).toBeInTheDocument();

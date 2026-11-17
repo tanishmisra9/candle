@@ -26,7 +26,7 @@ export const TrialCard = memo(function TrialCard({ trial, query = "", onOpen }: 
     <button
       type="button"
       onClick={() => onOpen(trial.id)}
-      className="group flex h-full flex-col rounded-panel border border-line bg-panel p-7 text-left transition-colors hover:border-accent"
+      className="group flex h-full flex-col rounded-panel border border-line bg-panel p-7 text-left transition-colors hover:border-accent active:border-accent active:bg-text/[0.04]"
     >
       {/* Status first: "is this open?" is the one fact a visitor scans for, so it leads the card. */}
       <div className="flex flex-wrap items-center gap-3">
