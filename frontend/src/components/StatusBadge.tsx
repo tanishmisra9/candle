@@ -54,7 +54,7 @@ export function StatusMarker({ tier, className }: { tier: StatusTier; className?
 export function StatusBadge({ status, className }: { status: string | null; className?: string }) {
   return (
     <span className={clsx(
-        "kicker inline-flex items-center gap-2 rounded-panel border border-line px-2.5 py-1.5 text-[11px] font-medium text-text",
+        "kicker inline-flex items-center whitespace-nowrap gap-2 rounded-panel border border-line px-2.5 py-1.5 text-[11px] font-medium text-text",
         className,
       )}>
       <StatusMarker tier={statusTier(status)} />

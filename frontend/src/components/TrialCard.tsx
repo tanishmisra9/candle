@@ -13,14 +13,12 @@ type TrialCardProps = {
   onOpen: (trialId: string) => void;
 };
 
-const MAX_COUNTRIES = 2;
+// One country on the card (the dialog lists them all): "169 participants · 18 sites in United States +7" fits one line in a
+// 384px card, where two countries wrapped it mid-phrase on 24 of 29 cards.
+const MAX_COUNTRIES = 1;
 
 export const TrialCard = memo(function TrialCard({ trial, query = "", onOpen }: TrialCardProps) {
-  const meta = [
-    trial.sponsor || "Unknown sponsor",
-    formatParticipants(trial.enrollment),
-    formatSitesLabel(trial.locations, MAX_COUNTRIES),
-  ].join(" · ");
+  const facts = [formatParticipants(trial.enrollment), formatSitesLabel(trial.locations, MAX_COUNTRIES)].join(" · ");
 
   return (
     <button
@@ -29,7 +27,7 @@ export const TrialCard = memo(function TrialCard({ trial, query = "", onOpen }: 
       className="group flex h-full flex-col rounded-panel border border-line bg-panel p-7 text-left transition-colors hover:border-accent active:border-accent active:bg-text/[0.04]"
     >
       {/* Status first: "is this open?" is the one fact a visitor scans for, so it leads the card. */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <StatusBadge status={trial.status} />
         <PhasePill phase={trial.phase} />
       </div>
@@ -40,7 +38,11 @@ export const TrialCard = memo(function TrialCard({ trial, query = "", onOpen }: 
         {trial.intervention || "Intervention details not reported."}
       </p>
 
-      <p className="mt-auto pt-7 text-[13px] leading-[1.5] text-muted tabular-nums">{meta}</p>
+      {/* Two lines, not one run-on string: who runs it, then how big and where. */}
+      <div className="mt-auto pt-7 text-[13px] leading-[1.5] text-muted tabular-nums">
+        <p>{trial.sponsor || "Unknown sponsor"}</p>
+        <p>{facts}</p>
+      </div>
     </button>
   );
 });

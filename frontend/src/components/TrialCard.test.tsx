@@ -36,23 +36,24 @@ describe("TrialCard", () => {
     expect(status.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("states sponsor, participants and sites in words, listing the first two distinct countries", () => {
+  it("puts the sponsor on its own line, then participants and sites in words with one country (+N for the rest)", () => {
     render(<TrialCard trial={trial()} onOpen={() => {}} />);
-    expect(
-      screen.getByText("Biogen · 17 participants · 4 sites in United States, United Kingdom +1"),
-    ).toBeInTheDocument();
+    const sponsor = screen.getByText("Biogen");
+    const facts = screen.getByText("17 participants · 4 sites in United States +2");
+    expect(sponsor.tagName).toBe("P");
+    expect(facts.tagName).toBe("P");
+    expect(sponsor).not.toBe(facts); // two lines, not one run-on string that wrapped mid-phrase
   });
 
   it("says 'not listed' instead of showing a bare 0 or dash", () => {
     render(<TrialCard trial={trial({ enrollment: null, locations: [], sponsor: null })} onOpen={() => {}} />);
-    expect(
-      screen.getByText("Unknown sponsor · Participants not listed · Sites not listed"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Unknown sponsor")).toBeInTheDocument();
+    expect(screen.getByText("Participants not listed · Sites not listed")).toBeInTheDocument();
   });
 
   it("says '1 participant', not '1 participants'", () => {
     render(<TrialCard trial={trial({ enrollment: 1 })} onOpen={() => {}} />);
-    expect(screen.getByText(/· 1 participant ·/)).toBeInTheDocument();
+    expect(screen.getByText(/^1 participant · /)).toBeInTheDocument();
   });
 
   it("gives press feedback at touch-down (a card used to show nothing until the dialog opened)", () => {
@@ -69,6 +70,14 @@ describe("TrialCard", () => {
 
   it("falls back to the site count when no site names a country", () => {
     render(<TrialCard trial={trial({ locations: [{ city: "Boston" }] })} onOpen={() => {}} />);
-    expect(screen.getByText(/· 1 site$/)).toBeInTheDocument();
+    expect(screen.getByText("17 participants · 1 site")).toBeInTheDocument();
+  });
+});
+
+describe("TrialCard badges", () => {
+  it("never wrap their own text (a chip like ENROLLING BY INVITATION used to break onto two lines)", () => {
+    render(<TrialCard trial={trial({ status: "ENROLLING_BY_INVITATION", phase: null })} onOpen={() => {}} />);
+    expect(screen.getByText("Enrolling By Invitation").closest("span")?.className).toContain("whitespace-nowrap");
+    expect(screen.getByText("Unspecified").className).toContain("whitespace-nowrap");
   });
 });
