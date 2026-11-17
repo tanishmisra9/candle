@@ -85,7 +85,8 @@ export function AskPanel({
   const inputRef = useRef<HTMLInputElement | null>(null);
   // Leaving the page abandons any answer in flight (and, through `isCurrent` below, its callbacks).
   useEffect(() => () => abortRef.current?.abort(), []);
-  const sendQuestion = (question: string) => {
+  // `keepDraft`: a retry must not wipe what the reader has started typing for their NEXT question.
+  const sendQuestion = (question: string, keepDraft = false) => {
     const trimmed = question.trim();
     if (!trimmed || isPending) {
       return;
@@ -104,7 +105,7 @@ export function AskPanel({
       { id: `user-${Date.now()}`, role: "user", content: trimmed },
       { id: assistantId, role: "assistant", content: "", isStreaming: true },
     ]);
-    setDraft("");
+    if (!keepDraft) setDraft("");
     setAnnouncement("Generating answer.");
     setIsPending(true);
     stickRef.current = true;
@@ -173,7 +174,9 @@ export function AskPanel({
             failAssistant(assistantId, new Error(message));
             return;
           }
-          void askQuestion(trimmed)
+          // The signal lets Stop cancel this too: otherwise the abandoned request still runs to completion on the server,
+          // holding a rate-limit and a concurrency slot that an immediate re-ask then trips over.
+          void askQuestion(trimmed, controller.signal)
             .then((data) => {
               if (!isCurrent()) return;
               settled = true;
@@ -224,7 +227,7 @@ export function AskPanel({
   };
   const retryFailed = (errorId: string) => {
     const question = takeFailedQuestion(errorId);
-    if (question) sendQuestion(question);
+    if (question) sendQuestion(question, true);
   };
   const editFailed = (errorId: string) => {
     const question = takeFailedQuestion(errorId);
@@ -266,6 +269,12 @@ export function AskPanel({
     if (!inflight) return;
     const question = messages[inflightIndex - 1];
     if (inflight.content.length === 0 && question?.role === "user") {
+      if (draft.trim()) {
+        // The reader has already started the next question: never overwrite it. Drop only the empty answer and
+        // leave their question visible in the log.
+        setMessages((current) => current.filter((message) => message.id !== inflight.id));
+        return;
+      }
       setMessages((current) => current.filter((message) => message.id !== inflight.id && message.id !== question.id));
       setDraft(question.content);
       inputRef.current?.focus();
@@ -371,7 +380,12 @@ export function AskPanel({
                   message={message}
                   onOpenTrialSnapshot={onOpenTrialSnapshot}
                   onRetry={message.isError && message.id === lastMessageId ? () => retryFailed(message.id) : undefined}
-                  onEdit={message.isError && message.id === lastMessageId ? () => editFailed(message.id) : undefined}
+                  // Not offered while the box holds a draft: it would replace what the reader is typing.
+                  onEdit={
+                    message.isError && message.id === lastMessageId && !draft.trim()
+                      ? () => editFailed(message.id)
+                      : undefined
+                  }
                 />
               );
             })}

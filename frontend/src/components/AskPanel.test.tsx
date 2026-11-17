@@ -299,6 +299,17 @@ describe("a failed answer keeps the question and offers a way forward", () => {
     expect(screen.getByLabelText(/ask a question about chm trials/i)).toHaveValue("What trials are recruiting?");
     expect(within(conversation).queryByText("Answer failed")).not.toBeInTheDocument();
   });
+
+  it("never overwrites a draft the reader has started: 'Edit question' is not offered, and 'Try again' keeps the draft", async () => {
+    const { conversation } = await failThen(async (h) => h.onDone({ answer: "Second try worked.", sources: [] }));
+    const box = screen.getByLabelText(/ask a question about chm trials/i);
+    fireEvent.change(box, { target: { value: "my next question" } });
+
+    expect(within(conversation).queryByRole("button", { name: "Edit question" })).not.toBeInTheDocument();
+    fireEvent.click(within(conversation).getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(within(conversation).getByText("Second try worked.")).toBeInTheDocument());
+    expect(box).toHaveValue("my next question");
+  });
 });
 
 describe("waiting and Stop", () => {
@@ -355,6 +366,41 @@ describe("waiting and Stop", () => {
     expect(within(conversation).queryByText("What trials are recruiting?")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send question" })).toBeInTheDocument();
     expect(api.askQuestion).not.toHaveBeenCalled(); // no second, paid request for an answer the reader walked away from
+  });
+
+  it("Stop before any text never overwrites a draft the reader has started, and leaves their question visible", async () => {
+    const { conversation } = await pendingStream();
+    await within(conversation).findByTestId("loading-dots");
+    fireEvent.change(screen.getByLabelText(/ask a question about chm trials/i), { target: { value: "my next question" } });
+    fireEvent.click(screen.getByRole("button", { name: "Stop answer" }));
+
+    await waitFor(() => expect(within(conversation).queryByTestId("loading-dots")).not.toBeInTheDocument());
+    expect(screen.getByLabelText(/ask a question about chm trials/i)).toHaveValue("my next question");
+    expect(within(conversation).getByText("What trials are recruiting?")).toBeInTheDocument(); // not lost
+  });
+
+  it("Stop also cancels the fallback request a broken stream started (it would run to completion on the server)", async () => {
+    const api = await import("../lib/api");
+    let fallbackSignal: AbortSignal | undefined;
+    vi.mocked(api.askQuestion).mockReset();
+    vi.mocked(api.askQuestion).mockImplementationOnce((_q, signal) => {
+      fallbackSignal = signal;
+      return new Promise((_, reject) =>
+        signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError"))),
+      );
+    });
+    vi.mocked(api.askQuestionStream).mockImplementationOnce(async (_q, handlers) =>
+      (handlers as Handlers).onError("network error", "transport"),
+    );
+    render(<AskPanel />);
+    fireEvent.change(screen.getByLabelText(/ask a question about chm trials/i), {
+      target: { value: "What trials are recruiting?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send question" }));
+    await waitFor(() => expect(api.askQuestion).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "Stop answer" }));
+    expect(fallbackSignal?.aborted).toBe(true);
   });
 
   it("Stop after some text keeps what was streamed and marks it stopped", async () => {

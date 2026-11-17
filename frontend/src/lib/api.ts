@@ -101,10 +101,11 @@ export async function getPublicationOverview(pmid: string) {
   }
 }
 
-export async function askQuestion(question: string) {
+export async function askQuestion(question: string, signal?: AbortSignal) {
   return request<AskResponse>("/ask", {
     method: "POST",
     body: JSON.stringify({ question }),
+    signal,
   });
 }
 
